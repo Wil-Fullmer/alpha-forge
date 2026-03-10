@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sharpe Ratio Visualizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* =============================================
+       RESET & BASE
+    ============================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* Color tokens */
+      --bg-base:        #0d1117;
+      --bg-surface:     #161b22;
+      --bg-card:        #1c2330;
+      --bg-card-hover:  #212940;
+      --border:         #30363d;
+      --border-subtle:  #21262d;
+
+      --text-primary:   #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted:     #484f58;
+
+      --accent:         #3b82f6;
+      --accent-bright:  #60a5fa;
+      --accent-glow:    rgba(59, 130, 246, 0.15);
+
+      --green:          #22c55e;
+      --yellow:         #eab308;
+      --orange:         #f97316;
+      --red:            #ef4444;
+
+      /* Rating colors */
+      --poor:           #ef4444;
+      --acceptable:     #f97316;
+      --good:           #eab308;
+      --excellent:      #22c55e;
+
+      /* Spacing scale */
+      --sp-1: 4px;
+      --sp-2: 8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 24px;
+      --sp-8: 32px;
+      --sp-10: 40px;
+      --sp-12: 48px;
+
+      /* Radius */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4);
+
+      /* Transitions */
+      --transition: 180ms ease;
+    }
+
+    html, body {
+      height: 100%;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* =============================================
+       LAYOUT
+    ============================================= */
+    .app-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: var(--sp-4) var(--sp-8);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-3);
+    }
+
+    .app-header .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .app-header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .app-header .subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    .app-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* =============================================
+       SIDEBAR / CONTROLS PANEL
+    ============================================= */
+    .controls-panel {
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      padding: var(--sp-6);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-5);
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: var(--sp-3);
+      padding-bottom: var(--sp-2);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    /* =============================================
+       SLIDER CONTROL COMPONENT
+    ============================================= */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-2);
+    }
+
+    .control-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .control-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .control-value-input {
+      width: 72px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      padding: 3px 6px;
+      text-align: right;
+      transition: border-color var(--transition);
+      outline: none;
+    }
+
+    .control-value-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    /* Range slider */
+    .control-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .control-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg-surface);
+      box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm);
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+
+    .control-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 0 1px var(--accent), 0 0 8px var(--accent-glow);
+    }
+
+    .control-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg-surface);
+      box-shadow: 0 0 0 1px var(--accent);
+      cursor: pointer;
+    }
+
+    .control-slider-range {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* =============================================
+       MAIN CONTENT AREA
+    ============================================= */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-5);
+      padding: var(--sp-6);
+      overflow-y: auto;
+      background: var(--bg-base);
+    }
+
+    /* =============================================
+       METRICS CARDS ROW
+    ============================================= */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: var(--sp-4);
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      box-shadow: var(--shadow-sm);
+      transition: border-color var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0.6;
+    }
+
+    .metric-card.sharpe-card {
+      grid-column: span 1;
+      border-color: var(--border);
+    }
+
+    .metric-card.sharpe-card::before {
+      background: var(--rating-color, var(--accent));
+      opacity: 1;
+      transition: background var(--transition);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: var(--sp-2);
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text-primary);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .metric-value.sharpe-value {
+      font-size: 36px;
+      color: var(--rating-color, var(--accent));
+      transition: color var(--transition);
+    }
+
+    .metric-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: var(--sp-1);
+    }
+
+    /* Rating badge */
+    .rating-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-1);
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: var(--sp-3);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid currentColor;
+      transition: color var(--transition), border-color var(--transition);
+    }
+
+    .rating-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* =============================================
+       CHART CARD
+    ============================================= */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--sp-5);
+      box-shadow: var(--shadow-md);
+      flex: 1;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--sp-4);
+    }
+
+    .chart-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-4);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-1);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-line {
+      width: 16px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .chart-container {
+      flex: 1;
+      position: relative;
+      min-height: 320px;
+    }
+
+    /* =============================================
+       FORMULA CARD
+    ============================================= */
+    .formula-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--sp-4) var(--sp-5);
+    }
+
+    .formula-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: var(--sp-2);
+    }
+
+    .formula-text {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .formula-text .var {
+      color: var(--accent-bright);
+    }
+
+    /* =============================================
+       SCROLLBAR
+    ============================================= */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* =============================================
+       RESPONSIVE
+    ============================================= */
+    @media (max-width: 900px) {
+      .app-body {
+        grid-template-columns: 1fr;
+      }
+
+      .controls-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: none;
+        overflow-y: visible;
+      }
+
+      .controls-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--sp-4);
+      }
+
+      .metrics-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .app-header .subtitle {
+        display: none;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .controls-grid { grid-template-columns: 1fr; }
+      .metrics-row { grid-template-columns: 1fr; }
+      .app-header { padding: var(--sp-3) var(--sp-4); }
+      .controls-panel, .main-content { padding: var(--sp-4); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 14 L6 8 L10 10 L16 3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="10" cy="10" r="2" fill="white" opacity="0.9"/>
+      </svg>
+    </div>
+    <h1>Sharpe Ratio Visualizer</h1>
+    <span class="subtitle">Risk-Adjusted Return Analysis &mdash; Efficient Frontier</span>
+  </header>
+
+  <div class="app-body">
+
+    <!-- CONTROLS PANEL -->
+    <aside class="controls-panel" role="complementary" aria-label="Portfolio parameters">
+
+      <div>
+        <p class="panel-section-title">Portfolio Parameters</p>
+        <div class="controls-grid" style="display: flex; flex-direction: column; gap: 20px;">
+
+          <!-- Expected Return -->
+          <div class="control-group">
+            <div class="control-header">
+              <label class="control-label" for="slider-return">Expected Return</label>
+              <input
+                class="control-value-input"
+                type="number"
+                id="input-return"
+                min="0" max="30" step="0.1"
+                value="12.0"
+                aria-label="Expected return percentage"
+              />
+            </div>
+            <input
+              class="control-slider"
+              type="range"
+              id="slider-return"
+              min="0" max="30" step="0.1"
+              value="12.0"
+              aria-label="Expected return slider"
+            />
+            <div class="control-slider-range"><span>0%</span><span>30%</span></div>
+          </div>
+
+          <!-- Portfolio Volatility -->
+          <div class="control-group">
+            <div class="control-header">
+              <label class="control-label" for="slider-volatility">Portfolio Volatility</label>
+              <input
+                class="control-value-input"
+                type="number"
+                id="input-volatility"
+                min="0.1" max="40" step="0.1"
+                value="15.0"
+                aria-label="Portfolio volatility percentage"
+              />
+            </div>
+            <input
+              class="control-slider"
+              type="range"
+              id="slider-volatility"
+              min="0.1" max="40" step="0.1"
+              value="15.0"
+              aria-label="Portfolio volatility slider"
+            />
+            <div class="control-slider-range"><span>0%</span><span>40%</span></div>
+          </div>
+
+          <!-- Risk-Free Rate -->
+          <div class="control-group">
+            <div class="control-header">
+              <label class="control-label" for="slider-rfr">Risk-Free Rate</label>
+              <input
+                class="control-value-input"
+                type="number"
+                id="input-rfr"
+                min="0" max="10" step="0.1"
+                value="4.5"
+                aria-label="Risk-free rate percentage"
+              />
+            </div>
+            <input
+              class="control-slider"
+              type="range"
+              id="slider-rfr"
+              min="0" max="10" step="0.1"
+              value="4.5"
+              aria-label="Risk-free rate slider"
+            />
+            <div class="control-slider-range"><span>0%</span><span>10%</span></div>
+          </div>
+
+          <!-- Number of Assets -->
+          <div class="control-group">
+            <div class="control-header">
+              <label class="control-label" for="slider-assets">Number of Assets</label>
+              <input
+                class="control-value-input"
+                type="number"
+                id="input-assets"
+                min="2" max="20" step="1"
+                value="8"
+                aria-label="Number of assets"
+              />
+            </div>
+            <input
+              class="control-slider"
+              type="range"
+              id="slider-assets"
+              min="2" max="20" step="1"
+              value="8"
+              aria-label="Number of assets slider"
+            />
+            <div class="control-slider-range"><span>2</span><span>20</span></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Formula reference -->
+      <div class="formula-card">
+        <p class="formula-title">Sharpe Ratio Formula</p>
+        <p class="formula-text">
+          <span class="var">S</span> = (<span class="var">R<sub>p</sub></span> &minus; <span class="var">R<sub>f</sub></span>) / <span class="var">&sigma;<sub>p</sub></span>
+        </p>
+        <p style="margin-top:8px; font-size:11px; color: var(--text-muted); line-height: 1.6;">
+          R<sub>p</sub> = Portfolio Return<br/>
+          R<sub>f</sub> = Risk-Free Rate<br/>
+          &sigma;<sub>p</sub> = Portfolio Std Dev
+        </p>
+      </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content" role="main">
+
+      <!-- METRICS ROW -->
+      <div class="metrics-row" role="region" aria-label="Computed metrics">
+
+        <!-- Sharpe Ratio -->
+        <div class="metric-card sharpe-card" id="card-sharpe">
+          <p class="metric-label">Sharpe Ratio</p>
+          <p class="metric-value sharpe-value" id="display-sharpe">0.00</p>
+          <div class="rating-badge" id="rating-badge">
+            <span class="dot"></span>
+            <span id="rating-text">Calculating...</span>
+          </div>
+        </div>
+
+        <!-- Excess Return -->
+        <div class="metric-card">
+          <p class="metric-label">Excess Return</p>
+          <p class="metric-value" id="display-excess">0.00%</p>
+          <p class="metric-sub">Return above risk-free rate</p>
+        </div>
+
+        <!-- Volatility -->
+        <div class="metric-card">
+          <p class="metric-label">Annualized Risk</p>
+          <p class="metric-value" id="display-vol">0.00%</p>
+          <p class="metric-sub">Portfolio std deviation</p>
+        </div>
+
+      </div>
+
+      <!-- CHART CARD -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <span class="chart-card-title">Efficient Frontier &mdash; Risk / Return Tradeoff</span>
+          <div class="chart-legend" aria-hidden="true">
+            <div class="legend-item">
+              <div class="legend-line" style="background: rgba(99,179,237,0.7);"></div>
+              <span>Efficient Frontier</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-line" style="background: rgba(245,166,35,0.7); border-top: 1px dashed rgba(245,166,35,0.7);"></div>
+              <span>Capital Mkt Line</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: #3b82f6;"></div>
+              <span>Your Portfolio</span>
+            </div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="frontier-chart" aria-label="Efficient frontier chart" role="img"></canvas>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CONSTANTS & STATE
+// =============================================
+const RATING_CONFIG = [
+  { max: 0.5,  label: 'Poor',       color: '#ef4444' },
+  { max: 1.0,  label: 'Acceptable', color: '#f97316' },
+  { max: 2.0,  label: 'Good',       color: '#eab308' },
+  { max: Infinity, label: 'Excellent', color: '#22c55e' },
+];
+
+const state = {
+  expectedReturn:  12.0,
+  volatility:      15.0,
+  riskFreeRate:    4.5,
+  numAssets:       8,
+};
+
+// =============================================
+// DOM REFERENCES
+// =============================================
+const elements = {
+  sliderReturn:    document.getElementById('slider-return'),
+  sliderVol:       document.getElementById('slider-volatility'),
+  sliderRfr:       document.getElementById('slider-rfr'),
+  sliderAssets:    document.getElementById('slider-assets'),
+
+  inputReturn:     document.getElementById('input-return'),
+  inputVol:        document.getElementById('input-volatility'),
+  inputRfr:        document.getElementById('input-rfr'),
+  inputAssets:     document.getElementById('input-assets'),
+
+  displaySharpe:   document.getElementById('display-sharpe'),
+  displayExcess:   document.getElementById('display-excess'),
+  displayVol:      document.getElementById('display-vol'),
+  ratingBadge:     document.getElementById('rating-badge'),
+  ratingText:      document.getElementById('rating-text'),
+  cardSharpe:      document.getElementById('card-sharpe'),
+};
+
+// =============================================
+// CHART SETUP
+// =============================================
+const ctx = document.getElementById('frontier-chart').getContext('2d');
+
+// Plugin to draw axes reference lines and glow on portfolio point
+const glowPlugin = {
+  id: 'portfolioGlow',
+  afterDraw(chart) {
+    const meta = chart.getDatasetMeta(2); // portfolio point dataset
+    if (!meta || !meta.data.length) return;
+    const point = meta.data[0];
+    if (!point) return;
+    const { x, y } = point.getProps(['x', 'y'], true);
+    const ctx2 = chart.ctx;
+    ctx2.save();
+    const gradient = ctx2.createRadialGradient(x, y, 0, x, y, 28);
+    gradient.addColorStop(0, 'rgba(59,130,246,0.45)');
+    gradient.addColorStop(1, 'rgba(59,130,246,0)');
+    ctx2.beginPath();
+    ctx2.arc(x, y, 28, 0, Math.PI * 2);
+    ctx2.fillStyle = gradient;
+    ctx2.fill();
+    ctx2.restore();
+  }
+};
+
+Chart.register(glowPlugin);
+
+const chart = new Chart(ctx, {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        // 0: Efficient Frontier
+        label: 'Efficient Frontier',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(99,179,237,0.75)',
+        backgroundColor: 'rgba(99,179,237,0.06)',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        tension: 0.4,
+        fill: false,
+        order: 3,
+      },
+      {
+        // 1: Capital Market Line
+        label: 'Capital Market Line',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(245,166,35,0.65)',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        tension: 0,
+        fill: false,
+        order: 4,
+      },
+      {
+        // 2: Current Portfolio Point
+        label: 'Your Portfolio',
+        data: [],
+        type: 'scatter',
+        backgroundColor: '#3b82f6',
+        borderColor: '#93c5fd',
+        borderWidth: 2,
+        pointRadius: 8,
+        pointHoverRadius: 10,
+        order: 1,
+      },
+    ],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      duration: 280,
+      easing: 'easeInOutQuart',
+    },
+    interaction: {
+      mode: 'nearest',
+      intersect: false,
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(22,27,34,0.95)',
+        titleColor: '#8b949e',
+        bodyColor: '#e6edf3',
+        borderColor: '#30363d',
+        borderWidth: 1,
+        padding: 12,
+        titleFont: { size: 11, weight: '600' },
+        bodyFont: { size: 13, weight: '700', family: "'SF Mono', monospace" },
+        callbacks: {
+          title(items) {
+            const labels = ['Efficient Frontier', 'Capital Market Line', 'Your Portfolio'];
+            return labels[items[0].datasetIndex] || '';
+          },
+          label(item) {
+            const x = item.parsed.x.toFixed(2);
+            const y = item.parsed.y.toFixed(2);
+            return `Volatility: ${x}%  |  Return: ${y}%`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        title: {
+          display: true,
+          text: 'Portfolio Volatility (Std Dev %)',
+          color: '#8b949e',
+          font: { size: 12, weight: '500' },
+          padding: { top: 8 },
+        },
+        min: 0,
+        max: 45,
+        grid: {
+          color: 'rgba(48,54,61,0.6)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: '#484f58',
+          font: { size: 11 },
+          callback: v => v + '%',
+          maxTicksLimit: 10,
+        },
+        border: { color: '#30363d' },
+      },
+      y: {
+        type: 'linear',
+        title: {
+          display: true,
+          text: 'Expected Return (%)',
+          color: '#8b949e',
+          font: { size: 12, weight: '500' },
+          padding: { bottom: 8 },
+        },
+        min: -5,
+        max: 35,
+        grid: {
+          color: 'rgba(48,54,61,0.6)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: '#484f58',
+          font: { size: 11 },
+          callback: v => v + '%',
+          maxTicksLimit: 9,
+        },
+        border: { color: '#30363d' },
+      },
+    },
+  },
+});
+
+// =============================================
+// MATH: GENERATE EFFICIENT FRONTIER
+// =============================================
+
+/**
+ * Generate an efficient frontier parabola.
+ *
+ * The frontier is parameterized as:
+ *   E[r] = a * sigma^2 + b * sigma + c
+ *
+ * We anchor it so it passes through the current portfolio (sigma_p, r_p)
+ * and has its minimum variance point influenced by numAssets (more assets
+ * means lower minimum variance — diversification benefit).
+ */
+function generateFrontier(rp, sigp, rf, numAssets) {
+  // Minimum variance point: diversification reduces min vol
+  // With 2 assets minimum is ~0.6x sigp, with 20 it's ~0.25x sigp
+  const divFactor = 0.6 - (numAssets - 2) / 18 * 0.35;
+  const sigMin = Math.max(sigp * divFactor, 2);
+
+  // Return at minimum variance point (slightly above risk-free)
+  const rMin = rf + (rp - rf) * 0.35;
+
+  // We fit a parabola: r = A * (sig - sigMin)^2 + rMin
+  // passing through (sigp, rp):
+  //   rp = A * (sigp - sigMin)^2 + rMin
+  //   => A = (rp - rMin) / (sigp - sigMin)^2
+  const dSig = sigp - sigMin;
+  const A = dSig !== 0 ? (rp - rMin) / (dSig * dSig) : 0.05;
+
+  const points = [];
+  const steps = 80;
+  const maxSig = Math.max(sigp * 2.2, 38);
+
+  for (let i = 0; i <= steps; i++) {
+    const sig = sigMin + (i / steps) * (maxSig - sigMin);
+    const ret = A * (sig - sigMin) * (sig - sigMin) + rMin;
+    if (sig >= 0.5 && ret <= 34) {
+      points.push({ x: parseFloat(sig.toFixed(3)), y: parseFloat(ret.toFixed(3)) });
+    }
+  }
+
+  return points;
+}
+
+/**
+ * Capital Market Line: a ray from (0, rf) through (sigp, rp).
+ * Extended to the chart edges.
+ */
+function generateCML(rp, sigp, rf) {
+  if (sigp === 0) return [];
+  const slope = (rp - rf) / sigp; // = Sharpe Ratio
+
+  // Line: r(sig) = rf + slope * sig
+  const sigEnd = 44;
+  return [
+    { x: 0,      y: parseFloat(rf.toFixed(3)) },
+    { x: sigEnd, y: parseFloat((rf + slope * sigEnd).toFixed(3)) },
+  ];
+}
+
+// =============================================
+// RATING LOGIC
+// =============================================
+function getRating(sharpe) {
+  for (const r of RATING_CONFIG) {
+    if (sharpe < r.max) return r;
+  }
+  return RATING_CONFIG[RATING_CONFIG.length - 1];
+}
+
+// =============================================
+// UPDATE CYCLE
+// =============================================
+function updateMetrics() {
+  const { expectedReturn: rp, volatility: sigp, riskFreeRate: rf } = state;
+
+  const sharpe = sigp > 0 ? (rp - rf) / sigp : 0;
+  const excess = rp - rf;
+  const rating = getRating(sharpe);
+
+  // Display values
+  elements.displaySharpe.textContent = sharpe.toFixed(3);
+  elements.displayExcess.textContent = (excess >= 0 ? '+' : '') + excess.toFixed(2) + '%';
+  elements.displayVol.textContent = sigp.toFixed(2) + '%';
+
+  // Color coding
+  elements.displaySharpe.style.color = rating.color;
+  elements.ratingText.textContent = rating.label;
+  elements.ratingBadge.style.color = rating.color;
+  elements.cardSharpe.style.setProperty('--rating-color', rating.color);
+
+  return { sharpe, excess, rating };
+}
+
+function updateChart() {
+  const { expectedReturn: rp, volatility: sigp, riskFreeRate: rf, numAssets } = state;
+
+  const frontierData = generateFrontier(rp, sigp, rf, numAssets);
+  const cmlData = generateCML(rp, sigp, rf);
+  const portfolioPoint = [{ x: sigp, y: rp }];
+
+  chart.data.datasets[0].data = frontierData;
+  chart.data.datasets[1].data = cmlData;
+  chart.data.datasets[2].data = portfolioPoint;
+
+  // Update portfolio dot color to match sharpe rating
+  const sharpe = sigp > 0 ? (rp - rf) / sigp : 0;
+  const rating = getRating(sharpe);
+  chart.data.datasets[2].backgroundColor = rating.color;
+  chart.data.datasets[2].borderColor = rating.color + 'aa';
+
+  chart.update('active');
+}
+
+function update() {
+  updateMetrics();
+  updateChart();
+  updateSliderFill();
+}
+
+// =============================================
+// SLIDER FILL (progress track)
+// =============================================
+function updateSliderFill() {
+  const sliders = [
+    { el: elements.sliderReturn,  val: state.expectedReturn,  min: 0,   max: 30  },
+    { el: elements.sliderVol,     val: state.volatility,      min: 0.1, max: 40  },
+    { el: elements.sliderRfr,     val: state.riskFreeRate,    min: 0,   max: 10  },
+    { el: elements.sliderAssets,  val: state.numAssets,       min: 2,   max: 20  },
+  ];
+
+  sliders.forEach(({ el, val, min, max }) => {
+    const pct = ((val - min) / (max - min)) * 100;
+    el.style.background = `linear-gradient(to right, #3b82f6 ${pct}%, #30363d ${pct}%)`;
+  });
+}
+
+// =============================================
+// BINDING: sync slider <-> number input
+// =============================================
+function bindControl(sliderId, inputId, stateKey, isInteger = false) {
+  const slider = document.getElementById(sliderId);
+  const input  = document.getElementById(inputId);
+
+  const applyValue = (raw) => {
+    let val = isInteger ? parseInt(raw, 10) : parseFloat(raw);
+    if (isNaN(val)) return;
+    val = Math.min(Math.max(val, parseFloat(slider.min)), parseFloat(slider.max));
+    if (isInteger) val = Math.round(val);
+    state[stateKey] = val;
+    slider.value = val;
+    input.value = isInteger ? val : val.toFixed(1);
+    update();
+  };
+
+  slider.addEventListener('input', () => applyValue(slider.value));
+  input.addEventListener('input', () => applyValue(input.value));
+  input.addEventListener('change', () => applyValue(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') applyValue(input.value);
+  });
+}
+
+bindControl('slider-return',     'input-return',     'expectedReturn', false);
+bindControl('slider-volatility', 'input-volatility', 'volatility',     false);
+bindControl('slider-rfr',        'input-rfr',        'riskFreeRate',   false);
+bindControl('slider-assets',     'input-assets',     'numAssets',      true);
+
+// =============================================
+// INITIAL RENDER
+// =============================================
+update();
+</script>
+</body>
+</html>
