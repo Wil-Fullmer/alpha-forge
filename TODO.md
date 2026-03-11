@@ -7,16 +7,15 @@ It should be kept up to date and committed with every meaningful change.
 
 ## In Progress
 
-- [ ] Design and build supporting agents for the financial analysis pipeline
+- [ ] Data Pipeline Orchestrator agent — coordinates multi-agent workflows end-to-end
+- [ ] Visualization Agent — generates charts and HTML dashboards from structured data
 
 ---
 
 ## Planned
 
 ### Agents
-- [ ] Financial Analysis Agent — runs Sharpe, ROE, D/E and other metrics on collected data
-- [ ] Data Pipeline Orchestrator — coordinates multi-agent workflows end-to-end
-- [ ] Visualization Agent — generates charts and HTML dashboards from structured data
+- [ ] Report Generator Agent — written investment summaries from analysis JSON
 
 ### Features
 - [ ] Wire CLI to use real FMP historical price data for Sharpe ratio
@@ -40,3 +39,7 @@ It should be kept up to date and committed with every meaningful change.
 - [x] financial-data-collector agent
 - [x] ui-implementation-expert agent
 - [x] ui-clarity-enhancer agent
+- [x] financial-analysis-agent — full core metrics, DCF, technicals, file-based output
+- [x] analysis.js — DCF, RSI, moving averages, momentum signal, P/E, growth rate derivation
+- [x] financialData.js — historical prices, quote, key metrics endpoints
+- [x] analysisRunner.js — orchestrator: fetches data, runs all analyses, outputs JSON + console
