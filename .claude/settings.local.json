@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm start -- AAPL)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm run web:dev)",
+      "Read(//c/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/**)",
+      "Bash(python /tmp/build_aapl_json.py)",
+      "Bash(python3 /c/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/build_tmp.py)",
+      "Bash(python3 \"C:/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/data/build_aapl_json.py\")"
+    ]
+  }
+}
