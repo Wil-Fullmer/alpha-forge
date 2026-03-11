@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Web Server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web"],
+      "port": 3000
+    },
+    {
+      "name": "Web Server (Dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web:dev"],
+      "port": 3000
+    },
+    {
+      "name": "CLI",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start", "--", "AAPL"],
+      "port": null
+    },
+    {
+      "name": "Tests",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["test"],
+      "port": null
+    }
+  ]
+}
