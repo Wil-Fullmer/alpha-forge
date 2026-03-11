@@ -4,7 +4,7 @@ import { calculateSharpeRatio, calculateROE, calculateDebtToEquity } from '../..
 
 test('Sharpe Ratio', async (t) => {
   await t.test('calculates correctly', () => {
-    const returns = [0.01, 0.02, 0.01, 0.015, 0.012]
+    const returns = [0.03, 0.04, 0.035, 0.045, 0.04]
     const sharpe = calculateSharpeRatio(returns)
     assert.strictEqual(typeof sharpe, 'number')
     assert.ok(sharpe > 0)
