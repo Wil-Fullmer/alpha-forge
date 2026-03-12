@@ -129,14 +129,16 @@ function printSummary(ticker, date, result) {
 /**
  * Run full financial analysis for a ticker
  * @param {string} ticker
+ * @param {object} [options]
+ * @param {boolean} [options.force=false] - Bypass cache for all fetches
  * @returns {Promise<object>} Analysis result JSON
  */
-export async function runFullAnalysis(ticker) {
+export async function runFullAnalysis(ticker, { force = false } = {}) {
   ticker = ticker.toUpperCase()
   const date = new Date().toISOString().split('T')[0]
   const flags = []
 
-  logger.info(`Starting full analysis for ${ticker}`)
+  logger.info(`Starting full analysis for ${ticker}${force ? ' (force refresh)' : ''}`)
 
   // ── 1. Load or fetch data ──────────────────────────────────────────────────
   const collected = tryReadCollected(ticker)
@@ -153,12 +155,12 @@ export async function runFullAnalysis(ticker) {
 
   // Fetch anything not in collected data
   const fetches = await Promise.allSettled([
-    collected ? Promise.resolve(null) : getCompanyProfile(ticker),
-    collected ? Promise.resolve(null) : getIncomeStatement(ticker),
-    collected ? Promise.resolve(null) : getBalanceSheet(ticker),
-    collected ? Promise.resolve(null) : getCashFlowStatement(ticker),
-    getHistoricalPrices(ticker, 252),
-    getQuote(ticker)
+    collected ? Promise.resolve(null) : getCompanyProfile(ticker, force),
+    collected ? Promise.resolve(null) : getIncomeStatement(ticker, force),
+    collected ? Promise.resolve(null) : getBalanceSheet(ticker, force),
+    collected ? Promise.resolve(null) : getCashFlowStatement(ticker, force),
+    getHistoricalPrices(ticker, 252, force),
+    getQuote(ticker, force)
   ])
 
   if (!collected) {
@@ -176,7 +178,8 @@ export async function runFullAnalysis(ticker) {
   if (fetches[4].status === 'rejected') flags.push(`Historical prices fetch failed: ${fetches[4].reason?.message}`)
   if (fetches[5].status === 'rejected') flags.push(`Quote fetch failed: ${fetches[5].reason?.message}`)
 
-  const currentPrice = quote?.price ?? null
+  const currentPrice = quote?.price ?? profile?.price ?? null
+  if (quote == null && profile?.price != null) flags.push('Current price sourced from profile (quote unavailable)')
 
   // ── 2. Core Metrics ────────────────────────────────────────────────────────
   const latestIncome = incomeStatements[0] ?? {}
@@ -210,13 +213,18 @@ export async function runFullAnalysis(ticker) {
   // ── 3. DCF Valuation ───────────────────────────────────────────────────────
   const latestCF = cashFlows[0] ?? {}
   const freeCashFlow = latestCF.freeCashFlow ?? null
-  const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding ?? null
+  const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
+    ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
   const netDebt = (totalDebt ?? 0) - (latestBalance.cashAndCashEquivalents ?? 0)
+  if (totalDebt == null) flags.push('Net debt: totalDebt missing from balance sheet, assumed 0')
+  if (latestBalance.cashAndCashEquivalents == null) flags.push('Net debt: cash missing from balance sheet, assumed 0')
 
   const { growthRate, source: growthRateSource } = deriveGrowthRate(incomeStatements)
 
   let dcfResult = { intrinsicValuePerShare: null, projectedFCFs: [], terminalValue: null, enterpriseValue: null }
-  if (freeCashFlow && sharesOutstanding) {
+  if (freeCashFlow !== null && freeCashFlow < 0) {
+    flags.push(`DCF skipped: negative free cash flow ($${(freeCashFlow / 1e9).toFixed(2)}B) — model requires positive FCF`)
+  } else if (freeCashFlow && sharesOutstanding) {
     const r = safeRun('DCF', () => calculateDCF({
       freeCashFlow,
       growthRate,
