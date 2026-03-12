@@ -199,7 +199,11 @@ export function deriveGrowthRate(incomeStatements) {
   const cagr = Math.pow(newest / oldest, 1 / years) - 1
 
   // Sanity clamp: between -20% and +50%
-  if (cagr < -0.20 || cagr > 0.50) return DEFAULT
+  if (cagr < -0.20 || cagr > 0.50) {
+    const clamped = Math.max(-0.20, Math.min(0.50, cagr))
+    logger.warn(`Revenue CAGR ${(cagr * 100).toFixed(1)}% out of [-20%, +50%] bounds, clamped to ${(clamped * 100).toFixed(1)}%`)
+    return { growthRate: parseFloat(clamped.toFixed(4)), source: 'fmp_historical_clamped' }
+  }
 
   logger.info(`Derived revenue CAGR from FMP: ${(cagr * 100).toFixed(1)}%`)
   return { growthRate: parseFloat(cagr.toFixed(4)), source: 'fmp_historical' }

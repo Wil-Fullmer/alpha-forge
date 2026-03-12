@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import '../utils/env.js'
 import logger from '../utils/logger.js'
-import { getCompanyProfile } from '../services/financialData.js'
+import { runFullAnalysis } from '../services/analysisRunner.js'
 
 async function main() {
   const args = process.argv.slice(2)
@@ -11,22 +11,23 @@ async function main() {
 Financial Analysis Tool
 
 Usage:
-  npm start -- <ticker>               Get company profile
+  npm start -- <ticker>               Run full financial analysis (core metrics, DCF, technicals)
+  npm start -- <ticker> --force       Bypass cache and re-fetch all data
   npm start -- --help                 Show this help message
 
 Example:
   npm start -- AAPL
+  npm start -- AAPL --force
     `)
     process.exit(0)
   }
 
   const ticker = args[0].toUpperCase()
+  const force = args[1] === '--force'
 
   try {
-    logger.info(`Fetching data for ticker: ${ticker}`)
-    const data = await getCompanyProfile(ticker)
-    console.log(`\n📊 Company Profile: ${ticker}`)
-    console.log(JSON.stringify(data, null, 2))
+    logger.info(`Starting analysis for ticker: ${ticker}`)
+    await runFullAnalysis(ticker, { force })
   } catch (error) {
     logger.error(`CLI error: ${error.message}`)
     console.error(`Error: ${error.message}`)

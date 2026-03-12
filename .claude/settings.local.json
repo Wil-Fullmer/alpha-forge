@@ -8,7 +8,24 @@
       "Read(//c/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/**)",
       "Bash(python /tmp/build_aapl_json.py)",
       "Bash(python3 /c/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/build_tmp.py)",
-      "Bash(python3 \"C:/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/data/build_aapl_json.py\")"
+      "Bash(python3 \"C:/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker/data/build_aapl_json.py\")",
+      "Bash(git push -u origin claude/tender-stonebraker)",
+      "Bash(git remote:*)",
+      "Bash(find /c/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker -name \"TODO*\" -o -name \"TODO.md\" -o -name \"ROADMAP*\" 2>/dev/null | head -10)",
+      "Bash(cd \"C:\\\\Users\\\\kakvl\\\\projects\\\\1\\\\.claude\\\\worktrees\\\\tender-stonebraker\" && npm test 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\kakvl\\\\projects\\\\1\\\\.claude\\\\worktrees\\\\tender-stonebraker\" && node -e \"import\\('./src/utils/env.js'\\).then\\(\\(\\) => console.log\\('API key present:', !!process.env.FMP_API_KEY\\)\\)\")",
+      "Bash(cd C:/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker && npm start -- AAPL --force 2>&1 | head -20)",
+      "Bash(cd C:/Users/kakvl/projects/1/.claude/worktrees/tender-stonebraker && npm test 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\kakvl\\\\projects\\\\1\\\\.claude\\\\worktrees\\\\tender-stonebraker\" && npm start -- CSGP 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\kakvl\\\\projects\\\\1\\\\.claude\\\\worktrees\\\\tender-stonebraker\" && npm test 2>&1 | tail -10)",
+      "Bash(cd \"C:\\\\Users\\\\kakvl\\\\projects\\\\1\\\\.claude\\\\worktrees\\\\tender-stonebraker\" && npm start -- CSGP --force 2>&12)",
+      "Bash(curl -s http://localhost:3000/api/analysis/AAPL 2>&1 | node -e \"process.stdin.resume\\(\\);let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);const {ticker,analysisDate,flags,coreMetrics,dcf,technicals}=j;console.log\\(JSON.stringify\\({ticker,analysisDate,flags,coreMetrics,dcf:{intrinsicValuePerShare:dcf.intrinsicValuePerShare,currentPrice:dcf.currentPrice,upDownside:dcf.upDownside,growthRateSource:dcf.growthRateSource},technicals:{rsi14:technicals.rsi14,momentumSignal:technicals.momentumSignal}},null,2\\)\\)}\\)\")",
+      "Bash(curl -s http://localhost:3000/api/technicals/AAPL && echo \"\" && curl -s http://localhost:3000/api/metrics/AAPL 2>&1)",
+      "Bash(pkill -f \"node src/web/server.js\" 2>/dev/null; echo \"done\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/dashboard/AAPL)",
+      "Bash(curl -s http://localhost:3000/api/analysis/AAPL 2>&1 | node -e \"process.stdin.resume\\(\\);let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\('flags:',j.flags,'dataSource:',j.metadata.dataSource\\)}\\)\")",
+      "Bash(cd \"C:\\\\Users\\\\kakvl\\\\projects\\\\1\\\\.claude\\\\worktrees\\\\tender-stonebraker\" && npm test 2>&1 | tail -12)",
+      "Bash(find . -type f -name \".env*\" -o -name \".gitignore\" 2>/dev/null | head -5)"
     ]
   }
 }

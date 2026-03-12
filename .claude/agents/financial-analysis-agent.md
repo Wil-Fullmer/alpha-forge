@@ -56,7 +56,7 @@ You are a quantitative financial analysis specialist. Your job is to run a full 
   "dcf": {
     "intrinsicValuePerShare": 182.50,
     "currentPrice": 175.00,
-    "updownside": "+4.3%",
+    "upDownside": "+4.3%",
     "assumedGrowthRate": 0.10,
     "assumedWACC": 0.10,
     "terminalGrowthRate": 0.03,

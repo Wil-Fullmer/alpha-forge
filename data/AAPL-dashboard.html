@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAPL — Alpha Forge Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+:root {
+  --bg:        #0f1117;
+  --header-bg: #0d0f18;
+  --card-bg:   #1a1d27;
+  --border:    #2d3148;
+  --text:      #e2e8f0;
+  --text-muted:#64748b;
+  --green:     #10b981;
+  --red:       #ef4444;
+  --yellow:    #f59e0b;
+  --blue:      #3b82f6;
+  --font:      'Inter', sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── State Overlay ───────────────────────────────────────────────────────── */
+#state-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.overlay-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.overlay-msg {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.overlay-error {
+  color: var(--red);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  max-width: 480px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ── App Shell ───────────────────────────────────────────────────────────── */
+#app { display: none; }
+
+/* ── Global Header ───────────────────────────────────────────────────────── */
+#global-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: 64px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 32px;
+  gap: 16px;
+}
+
+.gh-left { display: flex; flex-direction: column; }
+.gh-ticker { font-size: 1.4rem; font-weight: 700; color: #fff; line-height: 1.1; }
+.gh-company { font-size: 0.8rem; color: var(--text-muted); }
+
+.gh-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.gh-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+#gh-implied-price {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.updown-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-variant-numeric: tabular-nums;
+}
+.updown-badge.positive { background: rgba(16,185,129,0.18); color: var(--green); }
+.updown-badge.negative { background: rgba(239,68,68,0.18);  color: var(--red); }
+
+.gh-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.gh-market-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.gh-date { font-size: 0.7rem; color: var(--text-muted); }
+
+/* ── App Body ────────────────────────────────────────────────────────────── */
+.app-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: calc(100vh - 64px);
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+#sidebar {
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 8px 24px 4px;
+  margin-top: 8px;
+}
+
+.nav-link {
+  display: block;
+  padding: 12px 24px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  border-left: 3px solid transparent;
+  transition: color 150ms, border-color 150ms, background 150ms;
+}
+.nav-link:hover { color: var(--text); }
+.nav-link.active {
+  color: var(--blue);
+  border-left-color: var(--blue);
+  font-weight: 600;
+  background: rgba(59,130,246,0.06);
+}
+
+/* ── Content Sections ────────────────────────────────────────────────────── */
+#content { overflow-y: auto; }
+
+section[id] {
+  padding: 48px 32px;
+  max-width: 960px;
+  margin: 0 auto;
+  min-height: 80vh;
+}
+
+.section-heading {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+
+/* ── Section 1: Intro ───────────────────────────────────────────────────── */
+.intro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.intro-ticker-block .ticker-symbol {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.intro-ticker-block .ticker-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.intro-price-block { text-align: right; }
+.intro-price-block .price-val {
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.momentum-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.momentum-badge.bullish  { background: rgba(16,185,129,0.18); color: var(--green); }
+.momentum-badge.bearish  { background: rgba(239,68,68,0.18);  color: var(--red);   }
+.momentum-badge.mixed    { background: rgba(245,158,11,0.18); color: var(--yellow);}
+.momentum-badge.neutral  { background: rgba(100,116,139,0.18);color: var(--text-muted);}
+
+/* Company Profile */
+.company-name   { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+.company-sector { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px; }
+.company-stats  {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.stat-item   { display: flex; flex-direction: column; gap: 2px; }
+.stat-label  { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat-val    { font-size: 0.9rem; font-weight: 600; }
+.company-desc{ font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; }
+
+/* Core Metrics grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.metric-item {
+  background: rgba(0,0,0,0.25);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metric-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.metric-val   { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric-val.positive { color: var(--green); }
+.metric-val.negative { color: var(--red);   }
+.metric-val.neutral  { color: var(--text);  }
+
+/* Technicals card */
+.technicals-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.ma-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+.ma-label   { font-size: 0.78rem; color: var(--text-muted); width: 80px; flex-shrink: 0; }
+.ma-val     { font-size: 0.88rem; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; width: 64px; }
+.ma-pct-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+.ma-pct-badge.positive { background: rgba(16,185,129,0.18); color: var(--green); }
+.ma-pct-badge.negative { background: rgba(239,68,68,0.18);  color: var(--red);   }
+
+.ma-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(45,49,72,0.8);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 30px;
+}
+.ma-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.ma-bar-fill.above { background: var(--green); }
+.ma-bar-fill.below { background: var(--red); }
+
+/* RSI Gauge */
+.rsi-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.rsi-svg { width: 100%; max-width: 220px; overflow: visible; }
+.rsi-readout { text-align: center; }
+.rsi-value { font-size: 2rem; font-weight: 700; }
+.rsi-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Section 2: Assumptions ─────────────────────────────────────────────── */
+.slider-group   { display: flex; flex-direction: column; }
+.slider-row     { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.slider-row label {
+  width: 180px;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.slider-val {
+  width: 52px;
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+input[type=range] {
+  flex: 1;
+  accent-color: var(--blue);
+  cursor: pointer;
+  height: 4px;
+}
+
+.wacc-row {
+  display: flex;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.wacc-card {
+  flex: 1;
+  min-width: 110px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 0;
+}
+.wacc-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.wacc-value { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ── Section 3: Financials ──────────────────────────────────────────────── */
+.dcf-waterfall {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.dcf-waterfall th {
+  text-align: right;
+  padding: 8px 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.dcf-waterfall th:first-child { text-align: left; }
+.dcf-waterfall td {
+  text-align: right;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(45,49,72,0.5);
+}
+.dcf-waterfall td:first-child { text-align: left; color: var(--text-muted); }
+.highlight-row td { color: var(--blue); font-weight: 600; }
+.taxes-row td { color: var(--red); }
+.na-cell { color: var(--text-muted); text-align: center !important; font-style: italic; font-size: 0.8rem; }
+
+/* ── Section 4: Valuation ───────────────────────────────────────────────── */
+.valuation-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+}
+
+.ff-svg { width: 100%; overflow: visible; }
+
+.ff-legend {
+  display: flex;
+  gap: 20px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.ff-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.ff-legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+.matrix-wrapper  { overflow-x: auto; margin-top: 8px; }
+.matrix-subtitle { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 10px; }
+
+#sensitivity-matrix {
+  border-collapse: separate;
+  border-spacing: 3px;
+  width: 100%;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+#sensitivity-matrix th {
+  padding: 5px 8px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.7rem;
+}
+#sensitivity-matrix td {
+  padding: 6px 8px;
+  text-align: center;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: default;
+  transition: filter 0.15s;
+}
+#sensitivity-matrix td:hover { filter: brightness(1.2); }
+
+/* Scenario buttons */
+.scenario-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+.scenario-btn {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms, color 150ms, border-color 150ms;
+  font-family: var(--font);
+}
+.scenario-btn:hover { color: var(--text); border-color: rgba(100,116,139,0.5); }
+.scenario-btn.active {
+  background: rgba(59,130,246,0.15);
+  border-color: var(--blue);
+  color: var(--blue);
+  font-weight: 600;
+}
+.scenario-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; }
+
+/* Story sidebar */
+.story-sidebar   { display: flex; flex-direction: column; }
+.story-content   { display: flex; flex-direction: column; gap: 18px; }
+.story-item      { display: flex; flex-direction: column; gap: 4px; }
+.story-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.story-text { font-size: 0.8rem; color: var(--text-muted); line-height: 1.65; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .app-body { grid-template-columns: 1fr; }
+
+  #sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 64px;
+    z-index: 100;
+    background: var(--bg);
+    height: auto;
+    white-space: nowrap;
+    padding: 0;
+    gap: 0;
+  }
+  .sidebar-label { display: none; }
+  .nav-link {
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    padding: 14px 20px;
+    display: inline-block;
+  }
+  .nav-link.active { border-bottom-color: var(--blue); border-left: none; background: none; }
+
+  .valuation-grid   { grid-template-columns: 1fr; }
+  .technicals-grid  { grid-template-columns: 1fr; }
+  .metrics-grid     { grid-template-columns: repeat(2, 1fr); }
+  section[id]       { padding: 32px 20px; }
+}
+
+@media (max-width: 600px) {
+  #global-header { padding: 0 16px; gap: 8px; }
+  .gh-company    { display: none; }
+  .metrics-grid  { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading / Error Overlay -->
+<div id="state-overlay">
+  <div class="overlay-spinner" id="overlay-spinner"></div>
+  <div class="overlay-msg"     id="overlay-msg">Loading analysis data&hellip;</div>
+  <div class="overlay-error"   id="overlay-error" style="display:none"></div>
+</div>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Global Header -->
+  <header id="global-header">
+    <div class="gh-left">
+      <span class="gh-ticker">AAPL</span>
+      <span class="gh-company" id="gh-company-name">Apple Inc.</span>
+    </div>
+    <div class="gh-center">
+      <div class="gh-label">Implied Value</div>
+      <span id="gh-implied-price">—</span>
+      <span id="gh-updown-badge" class="updown-badge negative">—</span>
+    </div>
+    <div class="gh-right">
+      <div class="gh-label">Market Price</div>
+      <span class="gh-market-price" id="gh-market-price">—</span>
+      <div class="gh-date" id="gh-date">—</div>
+    </div>
+  </header>
+
+  <!-- Two-column layout -->
+  <div class="app-body">
+
+    <!-- Sidebar nav -->
+    <nav id="sidebar">
+      <span class="sidebar-label">Sections</span>
+      <a class="nav-link active" href="#intro">Dashboard</a>
+      <a class="nav-link" href="#assumptions">Assumptions</a>
+      <a class="nav-link" href="#financials">Financials</a>
+      <a class="nav-link" href="#valuation">Valuation</a>
+    </nav>
+
+    <!-- Scrollable content -->
+    <main id="content">
+
+      <!-- ─────────────────────────── Section 1: Intro ──────────────────── -->
+      <section id="intro">
+
+        <!-- Header strip -->
+        <div class="intro-header">
+          <div class="intro-ticker-block">
+            <div class="ticker-symbol" id="intro-ticker">AAPL</div>
+            <div class="ticker-date"   id="intro-date">—</div>
+          </div>
+          <div class="intro-price-block">
+            <div class="price-val" id="intro-price">—</div>
+            <div id="intro-momentum-badge" class="momentum-badge mixed">MIXED</div>
+          </div>
+        </div>
+
+        <!-- Company Profile card -->
+        <div class="card" id="company-profile-card" style="display:none">
+          <div class="card-title">Company Profile</div>
+          <div class="company-name"   id="cp-name">—</div>
+          <div class="company-sector" id="cp-sector">—</div>
+          <div class="company-stats"  id="cp-stats"></div>
+          <div class="company-desc"   id="cp-desc">—</div>
+        </div>
+
+        <!-- Core Metrics card -->
+        <div class="card">
+          <div class="card-title">Core Metrics</div>
+          <div class="metrics-grid" id="metrics-grid"></div>
+        </div>
+
+        <!-- Technicals card -->
+        <div class="card">
+          <div class="card-title">Technicals Snapshot</div>
+          <div class="technicals-grid">
+            <div id="ma-panel"></div>
+            <div class="rsi-container" id="rsi-panel"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ─────────────────────── Section 2: Assumptions ────────────────── -->
+      <section id="assumptions">
+        <div class="section-heading">Driver Controls</div>
+
+        <div class="card assumptions-card">
+          <div class="card-title">Model Sliders</div>
+          <div class="slider-group">
+
+            <div class="slider-row">
+              <label for="sl-growth">Revenue Growth Rate</label>
+              <span class="slider-val" id="sl-growth-val">3.28%</span>
+              <input type="range" id="sl-growth" min="0" max="30" step="0.5" value="3.28">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-wacc">WACC</label>
+              <span class="slider-val" id="sl-wacc-val">10.00%</span>
+              <input type="range" id="sl-wacc" min="5" max="20" step="0.25" value="10.0">
+            </div>
+
+            <div class="slider-row">
+              <label for="sl-terminal">Terminal Growth Rate</label>
+              <span class="slider-val" id="sl-terminal-val">3.00%</span>
+              <input type="range" id="sl-terminal" min="0" max="6" step="0.25" value="3.0">
+            </div>
+
+            <div class="slider-row" style="margin-bottom:0">
+              <label for="sl-taxrate">Tax Rate</label>
+              <span class="slider-val" id="sl-taxrate-val">25.0%</span>
+              <input type="range" id="sl-taxrate" min="10" max="40" step="1" value="25">
+            </div>
+
+          </div>
+
+          <!-- WACC Breakdown -->
+          <div class="wacc-row">
+            <div class="card wacc-card">
+              <div class="wacc-label">Cost of Debt</div>
+              <div class="wacc-value">~4.5%</div>
+            </div>
+            <div class="card wacc-card">
+              <div class="wacc-label">Cost of Equity</div>
+              <div class="wacc-value">~12.0%</div>
+            </div>
+            <div class="card wacc-card">
+              <div class="wacc-label">WACC</div>
+              <div class="wacc-value" id="wacc-display">10.00%</div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ─────────────────────── Section 3: Financials ─────────────────── -->
+      <section id="financials">
+        <div class="section-heading">The Model</div>
+
+        <div class="card">
+          <div class="card-title">Projected Free Cash Flow Waterfall</div>
+          <div style="overflow-x:auto">
+            <table class="dcf-waterfall">
+              <thead>
+                <tr>
+                  <th style="text-align:left">Metric</th>
+                  <th>Year 1</th><th>Year 2</th><th>Year 3</th><th>Year 4</th><th>Year 5</th>
+                </tr>
+              </thead>
+              <tbody id="waterfall-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Assumptions summary -->
+        <div class="card">
+          <div class="card-title">Assumptions Summary</div>
+          <table class="dcf-waterfall" style="font-size:0.82rem">
+            <tbody>
+              <tr><td>Data Source</td>
+                  <td id="sum-source" style="text-align:right;color:var(--text)">—</td></tr>
+              <tr><td>Historical Price Days</td>
+                  <td id="sum-days"   style="text-align:right;color:var(--text)">—</td></tr>
+              <tr><td>Base FCF (Year 0)</td>
+                  <td id="sum-basefcf"style="text-align:right;color:var(--text)">—</td></tr>
+              <tr><td>Shares Outstanding</td>
+                  <td id="sum-shares" style="text-align:right;color:var(--text)">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ─────────────────────── Section 4: Valuation ──────────────────── -->
+      <section id="valuation">
+        <div class="section-heading">Valuation</div>
+
+        <div class="valuation-grid">
+
+          <!-- Main column -->
+          <div>
+
+            <!-- Football Field -->
+            <div class="card">
+              <div class="card-title">Valuation Range — Football Field</div>
+              <svg id="football-field" class="ff-svg" viewBox="0 0 600 130" preserveAspectRatio="xMidYMid meet" style="overflow:visible">
+                <!-- Axis -->
+                <line id="ff-axis" x1="60" y1="90" x2="560" y2="90" stroke="#2d3148" stroke-width="1.5"/>
+                <!-- Range bar (bear to bull) -->
+                <rect id="ff-range-bar" x="60" y="35" width="100" height="40"
+                  fill="rgba(59,130,246,0.22)" stroke="#3b82f6" stroke-width="1.5" rx="3"/>
+                <!-- Market price tick -->
+                <line id="ff-market-tick" x1="300" y1="22" x2="300" y2="94"
+                  stroke="#f59e0b" stroke-width="2" stroke-dasharray="5 3"/>
+                <text id="ff-market-label" x="300" y="18" text-anchor="middle"
+                  font-size="9" fill="#f59e0b" font-family="Inter,sans-serif">Market</text>
+                <!-- Live implied tick -->
+                <line id="ff-implied-tick" x1="150" y1="18" x2="150" y2="98"
+                  stroke="#fff" stroke-width="2"/>
+                <text id="ff-implied-label" x="150" y="14" text-anchor="middle"
+                  font-size="9" fill="#fff" font-family="Inter,sans-serif">Estimate</text>
+                <!-- Axis labels group -->
+                <g id="ff-axis-labels" font-size="9" fill="#64748b" font-family="Inter,sans-serif"></g>
+                <!-- Bear / Bull end labels -->
+                <text id="ff-bear-label" x="60"  y="120" font-size="9" fill="#64748b" font-family="Inter,sans-serif" text-anchor="middle">Bear</text>
+                <text id="ff-bull-label" x="200" y="120" font-size="9" fill="#64748b" font-family="Inter,sans-serif" text-anchor="middle">Bull</text>
+              </svg>
+              <div class="ff-legend">
+                <div class="ff-legend-item">
+                  <div class="ff-legend-dot" style="background:rgba(59,130,246,0.45);border:1px solid #3b82f6"></div>
+                  <span>Bear–Bull DCF Range</span>
+                </div>
+                <div class="ff-legend-item">
+                  <div class="ff-legend-dot" style="background:#f59e0b"></div>
+                  <span>Market Price</span>
+                </div>
+                <div class="ff-legend-item">
+                  <div class="ff-legend-dot" style="background:#fff"></div>
+                  <span>Your Estimate</span>
+                </div>
+              </div>
+            </div><!-- /football field -->
+
+            <!-- Sensitivity Matrix -->
+            <div class="card">
+              <div class="card-title">Sensitivity Analysis — Implied Share Price</div>
+              <div class="matrix-subtitle">WACC (columns) &nbsp;×&nbsp; Terminal Growth Rate (rows)</div>
+              <div class="matrix-wrapper">
+                <table id="sensitivity-matrix"></table>
+              </div>
+            </div>
+
+            <!-- Scenario Toggles -->
+            <div class="card scenario-card">
+              <div class="card-title">Scenarios</div>
+              <div class="scenario-btns">
+                <button class="scenario-btn" data-scenario="bear">Bear</button>
+                <button class="scenario-btn active" data-scenario="base">Base</button>
+                <button class="scenario-btn" data-scenario="bull">Bull</button>
+              </div>
+              <div class="scenario-desc" id="scenario-desc">
+                Central case based on historical CAGR and standard cost of capital assumptions.
+              </div>
+            </div>
+
+          </div><!-- /main column -->
+
+          <!-- Story Sidebar -->
+          <aside class="story-sidebar">
+            <div class="card">
+              <div class="card-title">Model Notes</div>
+              <div class="story-content">
+                <div class="story-item">
+                  <div class="story-label">Growth Assumption</div>
+                  <p class="story-text">Revenue CAGR derived from the last 5 years of FMP financial data. Adjust the slider to model different growth trajectories.</p>
+                </div>
+                <div class="story-item">
+                  <div class="story-label">WACC</div>
+                  <p class="story-text">Weighted Average Cost of Capital blends cost of equity (CAPM) and after-tax cost of debt. A lower WACC raises implied value significantly.</p>
+                </div>
+                <div class="story-item">
+                  <div class="story-label">Terminal Growth</div>
+                  <p class="story-text">The perpetuity growth rate applied after year 5. Must stay below WACC. GDP-level growth (2–3%) is a common anchor.</p>
+                </div>
+                <div class="story-item">
+                  <div class="story-label">Net Debt</div>
+                  <p class="story-text">Net debt is not currently in the analysis schema and defaults to $0. This may overstate equity value for leveraged companies.</p>
+                </div>
+                <div class="story-item">
+                  <div class="story-label">Analysis Flags</div>
+                  <p class="story-text" id="story-flags">No flags raised by the analysis engine.</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+        </div><!-- /valuation-grid -->
+      </section>
+
+    </main>
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<script>
+'use strict'
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════════════════ */
+const STATE = {
+  ticker:            'AAPL',
+  currentPrice:      0,
+  baseFCF:           0,
+  sharesOutstanding: 0,
+  netDebt:           0,
+  baseGrowth:        0,
+  baseWACC:          0,
+  baseTerminal:      0,
+  lastImpliedPrice:  0
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORMATTING HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+function fmtDollar(v) {
+  if (v == null || isNaN(v)) return 'N/A'
+  return '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function fmtBillions(v) {
+  if (v == null || isNaN(v)) return 'N/A'
+  const abs  = Math.abs(v)
+  const sign = v < 0 ? '-' : ''
+  if (abs >= 1e9) return sign + '$' + (abs / 1e9).toFixed(2) + 'b'
+  if (abs >= 1e6) return sign + '$' + (abs / 1e6).toFixed(1) + 'm'
+  return sign + '$' + abs.toFixed(0)
+}
+
+function fmtMarketCap(v) {
+  if (v == null || isNaN(v)) return 'N/A'
+  if (v >= 1e12) return '$' + (v / 1e12).toFixed(2) + 'T'
+  if (v >= 1e9)  return '$' + (v / 1e9).toFixed(1)  + 'B'
+  if (v >= 1e6)  return '$' + (v / 1e6).toFixed(0)  + 'M'
+  return '$' + Number(v).toLocaleString()
+}
+
+function fmtNum(v, dec = 2) {
+  if (v == null || isNaN(v)) return 'N/A'
+  return Number(v).toFixed(dec)
+}
+
+function fmtShares(v) {
+  if (!v || isNaN(v)) return 'N/A'
+  if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B'
+  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
+  return Number(v).toLocaleString()
+}
+
+function el(id) { return document.getElementById(id) }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OVERLAY
+═══════════════════════════════════════════════════════════════════════════ */
+function showLoading() {
+  el('state-overlay').style.display = 'flex'
+  el('overlay-spinner').style.display = 'block'
+  el('overlay-msg').style.display    = 'block'
+  el('overlay-error').style.display  = 'none'
+}
+
+function showError(msg) {
+  el('overlay-spinner').style.display = 'none'
+  el('overlay-msg').style.display    = 'none'
+  const e = el('overlay-error')
+  e.style.display = 'block'
+  e.textContent = 'Error loading data: ' + msg +
+    '\n\nMake sure the server is running and the AAPL analysis exists at /api/analysis/AAPL.'
+}
+
+function hideOverlay() { el('state-overlay').style.display = 'none' }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DCF CORE — exact port of analysis.js:calculateDCF
+═══════════════════════════════════════════════════════════════════════════ */
+function calcImpliedPrice(tgPct, waccPct, growthPct /*, taxPct unused in formula but kept for signature */) {
+  const g  = growthPct / 100
+  const w  = waccPct   / 100
+  const tg = tgPct     / 100
+  if (w <= tg || !STATE.baseFCF || !STATE.sharesOutstanding) return null
+  let fcf = STATE.baseFCF
+  const fcfs = []
+  for (let yr = 1; yr <= 5; yr++) {
+    fcf *= (1 + g)
+    fcfs.push(fcf)
+  }
+  const pvFCFs = fcfs.reduce((s, cf, i) => s + cf / Math.pow(1 + w, i + 1), 0)
+  const tv     = fcfs[4] * (1 + tg) / (w - tg)
+  const pvTV   = tv / Math.pow(1 + w, 5)
+  const equity = pvFCFs + pvTV - STATE.netDebt
+  return equity / STATE.sharesOutstanding
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SLIDER HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+function sliderVal(id) { return parseFloat(el(id).value) }
+
+function setSlider(id, val) {
+  const s = el(id)
+  if (!s) return
+  s.value = val
+  const dec = id === 'sl-taxrate' ? 1 : 2
+  el(id + '-val').textContent = parseFloat(val).toFixed(dec) + '%'
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WATERFALL TABLE
+═══════════════════════════════════════════════════════════════════════════ */
+function buildWaterfallStructure() {
+  const tbody = el('waterfall-body')
+  const years = [1,2,3,4,5]
+
+  const rows = [
+    { key: 'ebitda', label: 'EBITDA (proxy)',  cls: '' },
+    { key: 'taxes',  label: '&ndash; Taxes',   cls: 'taxes-row' },
+    { key: 'capex',  label: '&ndash; CapEx',   cls: '', na: true },
+    { key: 'fcf',    label: 'Unlevered FCF',   cls: 'highlight-row' }
+  ]
+
+  tbody.innerHTML = rows.map(r => {
+    if (r.na) {
+      return `<tr class="${r.cls}"><td>${r.label}</td>
+        <td colspan="5" class="na-cell">N/A &mdash; not in analysis schema</td></tr>`
+    }
+    const cells = years.map(yr => `<td id="wf-${r.key}-${yr}">—</td>`).join('')
+    return `<tr class="${r.cls}"><td>${r.label}</td>${cells}</tr>`
+  }).join('')
+}
+
+function updateWaterfallTable(growthPct, _waccPct, taxPct) {
+  const g  = growthPct / 100
+  const tx = taxPct    / 100
+  let fcf  = STATE.baseFCF
+  for (let yr = 1; yr <= 5; yr++) {
+    fcf *= (1 + g)
+    const ebitda = tx < 1 ? fcf / (1 - tx) : fcf
+    const taxes  = ebitda * tx
+    const eE = el(`wf-ebitda-${yr}`)
+    const tE = el(`wf-taxes-${yr}`)
+    const fE = el(`wf-fcf-${yr}`)
+    if (eE) eE.textContent = fmtBillions(ebitda)
+    if (tE) tE.textContent = '(' + fmtBillions(taxes) + ')'
+    if (fE) fE.textContent = fmtBillions(fcf)
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOOTBALL FIELD
+═══════════════════════════════════════════════════════════════════════════ */
+function buildFootballFieldAxes() {
+  const min   = STATE.currentPrice * 0.4
+  const max   = STATE.currentPrice * 1.8
+  const range = max - min
+  const labG  = el('ff-axis-labels')
+  labG.innerHTML = ''
+  const steps = 5
+  for (let i = 0; i <= steps; i++) {
+    const v    = min + (range / steps) * i
+    const x    = 60 + (i / steps) * 500
+    const txt  = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    txt.setAttribute('x', x)
+    txt.setAttribute('y', 104)
+    txt.setAttribute('text-anchor', 'middle')
+    txt.textContent = '$' + Math.round(v)
+    labG.appendChild(txt)
+  }
+}
+
+function safeX(v) {
+  const min   = STATE.currentPrice * 0.4
+  const max   = STATE.currentPrice * 1.8
+  const range = max - min
+  if (range === 0) return 310
+  return Math.max(62, Math.min(558, 60 + ((v - min) / range) * 500))
+}
+
+function updateFootballField(currentImplied) {
+  const bearImplied = calcImpliedPrice(2.0, 12.0, 2.0)
+  const bullImplied = calcImpliedPrice(3.5,  8.0, 8.0)
+
+  const x1 = bearImplied != null ? safeX(bearImplied) : 62
+  const x2 = bullImplied != null ? safeX(bullImplied) : 558
+  const xi = currentImplied != null ? safeX(currentImplied) : x1
+  const xm = safeX(STATE.currentPrice)
+
+  const bar = el('ff-range-bar')
+  if (bar) {
+    bar.setAttribute('x', Math.min(x1, x2))
+    bar.setAttribute('width', Math.max(4, Math.abs(x2 - x1)))
+  }
+
+  const mT = el('ff-market-tick')
+  const mL = el('ff-market-label')
+  if (mT) { mT.setAttribute('x1', xm); mT.setAttribute('x2', xm) }
+  if (mL) mL.setAttribute('x', xm)
+
+  const iT = el('ff-implied-tick')
+  const iL = el('ff-implied-label')
+  if (iT) { iT.setAttribute('x1', xi); iT.setAttribute('x2', xi) }
+  if (iL) {
+    iL.setAttribute('x', xi)
+    iL.setAttribute('text-anchor', xi < 100 ? 'start' : xi > 520 ? 'end' : 'middle')
+  }
+
+  const bL = el('ff-bear-label')
+  const buL = el('ff-bull-label')
+  if (bL)  bL.setAttribute('x',  Math.min(x1, x2))
+  if (buL) buL.setAttribute('x', Math.max(x1, x2))
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SENSITIVITY MATRIX — 7×7 heatmap
+═══════════════════════════════════════════════════════════════════════════ */
+const WACC_COLS     = [7, 8, 9, 10, 11, 12, 13]
+const TERMINAL_ROWS = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
+
+function buildSensitivityMatrix() {
+  const table  = el('sensitivity-matrix')
+  const market = STATE.currentPrice
+  const g      = sliderVal('sl-growth')
+  const curW   = sliderVal('sl-wacc')
+  const curTG  = sliderVal('sl-terminal')
+
+  let html = '<thead><tr><th style="text-align:left">TG \\ WACC</th>'
+  WACC_COLS.forEach(w  => { html += `<th>${w}%</th>` })
+  html += '</tr></thead><tbody>'
+
+  TERMINAL_ROWS.forEach(tg => {
+    html += `<tr><th style="color:var(--text-muted);font-weight:500;text-align:center">${tg.toFixed(1)}%</th>`
+    WACC_COLS.forEach(w => {
+      const implied   = calcImpliedPrice(tg, w, g)
+      const isActive  = Math.abs(w - curW) < 0.6 && Math.abs(tg - curTG) < 0.3
+
+      let bg = 'rgba(239,68,68,0.28)', txtColor = 'var(--red)', txt = '—'
+
+      if (implied != null && market > 0) {
+        txt = '$' + implied.toFixed(0)
+        const r = implied / market
+        if (r > 1.20)      { bg = 'rgba(16,185,129,0.55)'; txtColor = '#fff' }
+        else if (r > 1.00) { bg = 'rgba(16,185,129,0.22)'; txtColor = 'var(--green)' }
+        else if (r > 0.80) { bg = 'rgba(245,158,11,0.20)'; txtColor = 'var(--yellow)' }
+        else               { bg = 'rgba(239,68,68,0.28)';  txtColor = 'var(--red)' }
+      } else if (implied == null) {
+        bg = 'rgba(45,49,72,0.6)'; txtColor = 'var(--text-muted)'
+      }
+
+      const outline = isActive ? 'outline:2px solid #fff;outline-offset:-1px;' : ''
+      html += `<td style="background:${bg};color:${txtColor};${outline}">${txt}</td>`
+    })
+    html += '</tr>'
+  })
+
+  html += '</tbody>'
+  table.innerHTML = html
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCENARIOS
+═══════════════════════════════════════════════════════════════════════════ */
+const SCENARIO_DESCS = {
+  bear: 'Conservative: slow growth, high discount rate. Reflects macro headwinds or market share loss.',
+  base: 'Central case based on historical CAGR and standard cost of capital assumptions.',
+  bull: 'Optimistic: accelerated growth from new markets, efficiency gains, and lower required return.'
+}
+
+function applyScenario(name) {
+  const presets = {
+    bear: { growth: 2.0,  wacc: 12.0, terminal: 2.0, taxRate: 28.0 },
+    base: { growth: null, wacc: null,  terminal: null, taxRate: 25.0 },
+    bull: { growth: 8.0,  wacc:  8.0, terminal: 3.5, taxRate: 22.0 }
+  }
+  const p = presets[name]
+  if (!p) return
+
+  setSlider('sl-growth',   p.growth   != null ? p.growth   : +(STATE.baseGrowth   * 100).toFixed(2))
+  setSlider('sl-wacc',     p.wacc     != null ? p.wacc     : +(STATE.baseWACC     * 100).toFixed(2))
+  setSlider('sl-terminal', p.terminal != null ? p.terminal : +(STATE.baseTerminal * 100).toFixed(2))
+  setSlider('sl-taxrate',  p.taxRate)
+
+  document.querySelectorAll('.scenario-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.scenario === name))
+  const descEl = el('scenario-desc')
+  if (descEl) descEl.textContent = SCENARIO_DESCS[name]
+
+  recalcDCF()
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MASTER RECALC — called on every slider input and scenario apply
+═══════════════════════════════════════════════════════════════════════════ */
+function recalcDCF() {
+  const g  = sliderVal('sl-growth')
+  const w  = sliderVal('sl-wacc')
+  const tg = sliderVal('sl-terminal')
+  const tx = sliderVal('sl-taxrate')
+
+  // Sync slider display labels
+  el('sl-growth-val').textContent   = g.toFixed(2)  + '%'
+  el('sl-wacc-val').textContent     = w.toFixed(2)  + '%'
+  el('sl-terminal-val').textContent = tg.toFixed(2) + '%'
+  el('sl-taxrate-val').textContent  = tx.toFixed(1) + '%'
+
+  // WACC breakdown card
+  const wD = el('wacc-display')
+  if (wD) wD.textContent = w.toFixed(2) + '%'
+
+  const implied = calcImpliedPrice(tg, w, g)
+
+  if (implied != null && !isNaN(implied)) {
+    STATE.lastImpliedPrice = implied
+    const updown = ((implied - STATE.currentPrice) / STATE.currentPrice) * 100
+
+    el('gh-implied-price').textContent = fmtDollar(implied)
+    const badge = el('gh-updown-badge')
+    badge.textContent = (updown >= 0 ? '+' : '') + updown.toFixed(1) + '%'
+    badge.className   = 'updown-badge ' + (updown >= 0 ? 'positive' : 'negative')
+  } else {
+    el('gh-implied-price').textContent = 'N/A'
+    const badge = el('gh-updown-badge')
+    badge.textContent = 'N/A'
+    badge.className   = 'updown-badge negative'
+  }
+
+  updateWaterfallTable(g, w, tx)
+  buildSensitivityMatrix()
+  updateFootballField(implied)
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RSI GAUGE — SVG semicircle
+═══════════════════════════════════════════════════════════════════════════ */
+function buildRSIGauge(rsi) {
+  const container = el('rsi-panel')
+  if (!container) return
+
+  const safeRSI = (rsi != null && !isNaN(rsi)) ? Math.max(0, Math.min(100, rsi)) : null
+  const label     = safeRSI == null ? '—'
+    : safeRSI < 30 ? 'Oversold' : safeRSI > 70 ? 'Overbought' : 'Neutral'
+  const labelColor = safeRSI == null ? 'var(--text-muted)'
+    : safeRSI < 30 ? 'var(--green)' : safeRSI > 70 ? 'var(--red)' : 'var(--yellow)'
+
+  // Arc helper: degree 0 = leftmost, 180 = rightmost of top half
+  function arcPath(startDeg, endDeg, r) {
+    const cx = 110, cy = 100
+    const toRad = d => (d - 180) * Math.PI / 180
+    const x1 = cx + r * Math.cos(toRad(startDeg))
+    const y1 = cy + r * Math.sin(toRad(startDeg))
+    const x2 = cx + r * Math.cos(toRad(endDeg))
+    const y2 = cy + r * Math.sin(toRad(endDeg))
+    const largeArc = (endDeg - startDeg) > 180 ? 1 : 0
+    return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
+  }
+
+  let needleSVG = ''
+  if (safeRSI != null) {
+    const angleDeg = safeRSI / 100 * 180
+    const rad = (angleDeg - 180) * Math.PI / 180
+    const cx = 110, cy = 100, r = 70
+    const nx = cx + r * Math.cos(rad)
+    const ny = cy + r * Math.sin(rad)
+    needleSVG = `
+      <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}"
+        stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="4" fill="#fff"/>`
+  }
+
+  container.innerHTML = `
+    <svg class="rsi-svg" viewBox="0 0 220 115" style="overflow:visible">
+      <path d="${arcPath(  0,  54, 75)}" stroke="var(--red)"   stroke-width="14" fill="none" opacity="0.75"/>
+      <path d="${arcPath( 54, 126, 75)}" stroke="var(--green)" stroke-width="14" fill="none" opacity="0.75"/>
+      <path d="${arcPath(126, 180, 75)}" stroke="var(--red)"   stroke-width="14" fill="none" opacity="0.75"/>
+      <path d="${arcPath(  0, 180, 75)}" stroke="#2d3148" stroke-width="1" fill="none"/>
+      <text x="25"  y="108" font-size="9" fill="var(--red)"        font-family="Inter,sans-serif" text-anchor="middle">30</text>
+      <text x="195" y="108" font-size="9" fill="var(--red)"        font-family="Inter,sans-serif" text-anchor="middle">70</text>
+      <text x="110" y="10"  font-size="8" fill="var(--text-muted)" font-family="Inter,sans-serif" text-anchor="middle">RSI-14</text>
+      ${needleSVG}
+    </svg>
+    <div class="rsi-readout">
+      <div class="rsi-value" style="color:${labelColor}">${safeRSI != null ? safeRSI.toFixed(1) : 'N/A'}</div>
+      <div class="rsi-label">${label}</div>
+    </div>`
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOVING AVERAGE PANEL
+═══════════════════════════════════════════════════════════════════════════ */
+function buildMAPanel(technicals) {
+  const panel = el('ma-panel')
+  if (!panel) return
+
+  const price  = technicals?.currentPrice
+  const ma50   = technicals?.ma50
+  const ma200  = technicals?.ma200
+  const pct50  = technicals?.priceVsMa50Pct
+  const pct200 = technicals?.priceVsMa200Pct
+  const signal = (technicals?.momentumSignal ?? 'neutral').toLowerCase()
+
+  function maRow(label, ma, pctStr) {
+    if (ma == null) {
+      return `<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:14px">${label}: N/A</div>`
+    }
+    const isAbove  = price != null && price > ma
+    const fillPct  = price != null
+      ? Math.min(98, Math.max(5, (Math.min(price, ma) / Math.max(price, ma)) * 100))
+      : 50
+    const pctClass = pctStr && pctStr.startsWith('+') ? 'positive' : 'negative'
+    return `
+      <div class="ma-row">
+        <span class="ma-label">${label}</span>
+        <span class="ma-val">$${Number(ma).toFixed(2)}</span>
+        <span class="ma-pct-badge ${pctClass}">${pctStr ?? 'N/A'}</span>
+        <div class="ma-bar-track">
+          <div class="ma-bar-fill ${isAbove ? 'above' : 'below'}" style="width:${fillPct.toFixed(1)}%"></div>
+        </div>
+      </div>`
+  }
+
+  panel.innerHTML = `
+    <div style="margin-bottom:18px">
+      ${maRow('50-Day MA',  ma50,  pct50)}
+      ${maRow('200-Day MA', ma200, pct200)}
+    </div>
+    <div>
+      <span class="momentum-badge ${signal}">${signal.toUpperCase()}</span>
+    </div>`
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CORE METRICS GRID
+═══════════════════════════════════════════════════════════════════════════ */
+function buildMetricsGrid(metrics) {
+  const grid = el('metrics-grid')
+  if (!grid || !metrics) return
+
+  const { sharpeRatio: sr, roe, debtToEquity: de, peRatio: pe, eps } = metrics
+
+  function metricItem(label, valStr, cls) {
+    return `<div class="metric-item">
+      <div class="metric-label">${label}</div>
+      <div class="metric-val ${cls}">${valStr}</div>
+    </div>`
+  }
+
+  grid.innerHTML =
+    metricItem('Sharpe Ratio',  fmtNum(sr),
+      sr == null ? 'neutral' : sr >= 0 ? 'positive' : 'negative') +
+    metricItem('ROE',
+      roe != null ? fmtNum(roe * 100, 1) + '%' : 'N/A',
+      roe != null && roe > 0.15 ? 'positive' : 'neutral') +
+    metricItem('Debt / Equity', fmtNum(de),
+      de != null && de > 2.0 ? 'negative' : 'neutral') +
+    metricItem('P/E Ratio',
+      pe != null ? fmtNum(pe, 1) + 'x' : 'N/A', 'neutral') +
+    metricItem('EPS',
+      eps != null ? '$' + fmtNum(eps) : 'N/A',
+      eps != null && eps > 0 ? 'positive' : 'negative')
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPANY PROFILE CARD
+═══════════════════════════════════════════════════════════════════════════ */
+function renderCompanyProfile(company) {
+  const card = el('company-profile-card')
+  if (!company || !card) return
+
+  const name      = company.companyName ?? company.name ?? null
+  const sector    = company.sector      ?? null
+  const industry  = company.industry    ?? null
+  const mktCap    = company.mktCap      ?? null
+  const beta      = company.beta        ?? null
+  const employees = company.fullTimeEmployees ?? null
+  const exchange  = company.exchangeShortName ?? company.exchange ?? null
+  const desc      = company.description ?? null
+
+  if (!name && !sector && !desc) return  // nothing worth showing
+
+  if (el('cp-name'))   el('cp-name').textContent = name ?? 'N/A'
+  if (el('cp-sector')) el('cp-sector').textContent =
+    [sector, industry].filter(Boolean).join(' \u2022 ') || 'N/A'
+
+  function statItem(label, val) {
+    return `<div class="stat-item">
+      <div class="stat-label">${label}</div>
+      <div class="stat-val">${val}</div>
+    </div>`
+  }
+  const statsEl = el('cp-stats')
+  if (statsEl) statsEl.innerHTML =
+    statItem('Market Cap', fmtMarketCap(mktCap)) +
+    statItem('Beta',       beta != null ? fmtNum(beta) : 'N/A') +
+    statItem('Employees',  employees != null ? parseInt(employees).toLocaleString() : 'N/A') +
+    statItem('Exchange',   exchange ?? 'N/A')
+
+  if (desc && el('cp-desc')) {
+    el('cp-desc').textContent = desc.length > 220 ? desc.slice(0, 217) + '\u2026' : desc
+  } else if (el('cp-desc')) {
+    el('cp-desc').style.display = 'none'
+  }
+
+  card.style.display = 'block'
+
+  // Update global header company name if available
+  const ghCo = el('gh-company-name')
+  if (ghCo && name) ghCo.textContent = name
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ASSUMPTIONS SUMMARY
+═══════════════════════════════════════════════════════════════════════════ */
+function renderAssumptionsSummary(analysis) {
+  const setSafe = (id, v) => { const e = el(id); if (e) e.textContent = v }
+  setSafe('sum-source',  analysis.metadata?.dataSource ?? 'N/A')
+  setSafe('sum-days',    analysis.metadata?.historicalPriceDays ?? 'N/A')
+  setSafe('sum-basefcf', fmtBillions(STATE.baseFCF))
+  setSafe('sum-shares',  fmtShares(STATE.sharesOutstanding))
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FLAGS
+═══════════════════════════════════════════════════════════════════════════ */
+function renderFlags(analysis) {
+  const flagsEl = el('story-flags')
+  if (!flagsEl) return
+  const flags = [...(analysis.flags ?? []), ...(analysis.dcf?.flags ?? [])]
+  flagsEl.textContent = flags.length > 0
+    ? flags.join('; ')
+    : 'No flags raised by the analysis engine.'
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR INTERSECTION OBSERVER
+═══════════════════════════════════════════════════════════════════════════ */
+function initSidebarObserver() {
+  const sections = document.querySelectorAll('section[id]')
+  const links    = document.querySelectorAll('.nav-link')
+  const ratios   = {}
+  sections.forEach(s => { ratios[s.id] = 0 })
+
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { ratios[e.target.id] = e.intersectionRatio })
+    let best = null, bestR = -1
+    for (const [id, r] of Object.entries(ratios)) {
+      if (r > bestR) { bestR = r; best = id }
+    }
+    links.forEach(l => {
+      const href = l.getAttribute('href').slice(1)
+      l.classList.toggle('active', href === best && bestR > 0)
+    })
+  }, { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.5] })
+
+  sections.forEach(s => obs.observe(s))
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════════════ */
+async function init() {
+  showLoading()
+  try {
+    const [analysisRes, companyRes] = await Promise.all([
+      fetch('/api/analysis/AAPL'),
+      fetch('/api/company/AAPL').catch(() => null)
+    ])
+
+    if (!analysisRes.ok) throw new Error('HTTP ' + analysisRes.status)
+
+    const analysis = await analysisRes.json()
+    const company  = companyRes?.ok
+      ? await companyRes.json().then(d => Array.isArray(d) ? d[0] : d).catch(() => null)
+      : null
+
+    /* ── Populate STATE ─────────────────────────────────────────────── */
+    STATE.ticker       = analysis.ticker ?? 'AAPL'
+    STATE.currentPrice = analysis.technicals?.currentPrice
+                      ?? analysis.dcf?.currentPrice ?? 0
+    STATE.baseGrowth   = analysis.dcf?.assumedGrowthRate    ?? 0.05
+    STATE.baseWACC     = analysis.dcf?.assumedWACC           ?? 0.10
+    STATE.baseTerminal = analysis.dcf?.terminalGrowthRate   ?? 0.03
+
+    const fcf0     = analysis.dcf?.projectedFreeCashFlows?.[0] ?? 0
+    STATE.baseFCF  = STATE.baseGrowth > 0 ? fcf0 / (1 + STATE.baseGrowth) : fcf0
+
+    if (company?.sharesOutstanding > 0) {
+      STATE.sharesOutstanding = company.sharesOutstanding
+    } else if (company?.mktCap > 0 && STATE.currentPrice > 0) {
+      STATE.sharesOutstanding = company.mktCap / STATE.currentPrice
+    } else {
+      STATE.sharesOutstanding = 0
+    }
+
+    STATE.netDebt = 0
+
+    /* ── Render intro ───────────────────────────────────────────────── */
+    const setTxt = (id, v) => { const e = el(id); if (e) e.textContent = v }
+
+    setTxt('intro-ticker', STATE.ticker)
+    setTxt('intro-date',   analysis.analysisDate ?? 'N/A')
+    setTxt('gh-date',      analysis.analysisDate ?? 'N/A')
+    setTxt('gh-market-price', fmtDollar(STATE.currentPrice))
+
+    const priceEl = el('intro-price')
+    if (priceEl) priceEl.textContent = fmtDollar(STATE.currentPrice)
+
+    const sig     = (analysis.technicals?.momentumSignal ?? 'neutral').toLowerCase()
+    const momBadge = el('intro-momentum-badge')
+    if (momBadge) { momBadge.textContent = sig.toUpperCase(); momBadge.className = 'momentum-badge ' + sig }
+
+    renderCompanyProfile(company)
+    buildMetricsGrid(analysis.coreMetrics)
+    buildMAPanel(analysis.technicals)
+    buildRSIGauge(analysis.technicals?.rsi14)
+    buildWaterfallStructure()
+    renderAssumptionsSummary(analysis)
+    renderFlags(analysis)
+    buildFootballFieldAxes()
+
+    /* ── Wire sliders ───────────────────────────────────────────────── */
+    ;['sl-growth', 'sl-wacc', 'sl-terminal', 'sl-taxrate'].forEach(id => {
+      const s = el(id)
+      if (s) s.addEventListener('input', recalcDCF)
+    })
+
+    /* ── Wire scenario buttons ──────────────────────────────────────── */
+    document.querySelectorAll('.scenario-btn').forEach(btn => {
+      btn.addEventListener('click', () => applyScenario(btn.dataset.scenario))
+    })
+
+    /* ── Apply base scenario (also triggers full recalc) ────────────── */
+    applyScenario('base')
+
+    /* ── Show app ───────────────────────────────────────────────────── */
+    hideOverlay()
+    el('app').style.display = 'block'
+
+    initSidebarObserver()
+
+  } catch (err) {
+    showError(err.message)
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init)
+</script>
+</body>
+</html>

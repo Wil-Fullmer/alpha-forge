@@ -1,106 +1,244 @@
 import axios from 'axios'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
+import { AV_KEY, fetchFromAV, fetchHistoricalPricesFromAV } from './alphaVantage.js'
 
-const BASE_URL = 'https://financialmodelingprep.com/api/v3'
-const API_KEY = process.env.FMP_API_KEY
+const BASE_URL = 'https://financialmodelingprep.com/stable'
 
-if (!API_KEY) {
-  logger.error('FMP_API_KEY not found in environment variables')
+const CACHE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../data/cache')
+
+const TTL = {
+  QUOTE:      15 * 60 * 1000,
+  PRICES:     24 * 60 * 60 * 1000,
+  STATEMENTS: 7  * 24 * 60 * 60 * 1000,
+}
+
+// ── API Key Pool ──────────────────────────────────────────────────────────────
+// Loads all FMP API keys from environment variables.
+// Supported names: FMP_API_KEY (primary), FMP_API_KEY_ALT (legacy), FMP_API_KEY_2, FMP_API_KEY_3, ...
+// Add new keys by adding FMP_API_KEY_N=... to .env — no code changes needed.
+function loadApiKeys() {
+  const seen = new Set()
+  const keys = []
+  const candidates = [
+    'FMP_API_KEY',
+    'FMP_API_KEY_ALT',
+    ...Object.keys(process.env)
+      .filter(k => /^FMP_API_KEY_(?!ALT$)\w+$/.test(k))
+      .sort()
+  ]
+  for (const name of candidates) {
+    const val = process.env[name]
+    if (val && !seen.has(val)) { seen.add(val); keys.push(val) }
+  }
+  return keys
+}
+
+const API_KEYS = loadApiKeys()
+
+if (API_KEYS.length === 0) {
+  logger.error('No FMP API keys found. Set FMP_API_KEY in .env')
 } else {
-  logger.info(`API key loaded (length: ${API_KEY.length})`)
+  logger.info(`FMP API keys loaded: ${API_KEYS.length}`)
+}
+
+// ── Cache ─────────────────────────────────────────────────────────────────────
+function readCache(key) {
+  const file = resolve(CACHE_DIR, `${key}.json`)
+  if (!existsSync(file)) return null
+  const { cachedAt, ttlMs, data } = JSON.parse(readFileSync(file, 'utf8'))
+  const age = Date.now() - new Date(cachedAt).getTime()
+  if (age > ttlMs) return null
+  logger.info(`Cache hit for ${key} (expires in ${Math.round((ttlMs - age) / 60000)}m)`)
+  return data
+}
+
+function writeCache(key, data, ttlMs) {
+  if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
+  writeFileSync(resolve(CACHE_DIR, `${key}.json`), JSON.stringify({ cachedAt: new Date().toISOString(), ttlMs, data }))
+}
+
+// ── Core Fetch Helpers ────────────────────────────────────────────────────────
+async function doFetch(url, params) {
+  const response = await axios.get(url, { params })
+  const errMsg = response.data?.['Error Message'] ?? response.data?.message
+  if (errMsg) throw new Error(`FMP_API_ERROR: ${errMsg}`)
+  return response.data
 }
 
 /**
- * Fetch financial data from FMP API
+ * Executes requestFn(apikey) cycling through all loaded API keys on 429/401/403.
+ * Fails immediately on 402 (plan restriction — retrying won't help).
+ * Propagates non-auth errors immediately.
+ */
+async function fetchWithKeyRotation(requestFn) {
+  let lastErr
+  for (let i = 0; i < API_KEYS.length; i++) {
+    try {
+      return await requestFn(API_KEYS[i])
+    } catch (err) {
+      const s = err.response?.status
+      if (s === 402) throw new Error('FMP_PLAN_RESTRICTED: Endpoint requires a higher FMP subscription tier.')
+      if (s === 429 || s === 401 || s === 403) {
+        lastErr = err
+        if (i < API_KEYS.length - 1) {
+          logger.warn(`Key [${i + 1}/${API_KEYS.length}] failed (${s}), trying next key`)
+          continue
+        }
+        break
+      }
+      throw err // network errors, 5xx, etc. — propagate immediately
+    }
+  }
+  const fs = lastErr?.response?.status
+  if (fs === 429) throw new Error(`FMP_RATE_LIMITED: All ${API_KEYS.length} key(s) rate limited. Use cached data or wait before retrying.`)
+  if (fs === 401 || fs === 403) throw new Error(`FMP_AUTH_FAILED: All ${API_KEYS.length} key(s) invalid or expired. Check .env`)
+  throw lastErr
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch financial data from FMP stable API
  * @param {string} ticker - Stock ticker symbol
  * @param {string} endpoint - API endpoint (e.g., 'income-statement')
+ * @param {object} [params] - Additional query parameters
  * @returns {Promise<Object>} Financial data
  */
-export async function fetchFromFMP(ticker, endpoint) {
+export async function fetchFromFMP(ticker, endpoint, params = {}) {
+  const url = `${BASE_URL}/${endpoint}`
   try {
-    const url = `${BASE_URL}/${endpoint}/${ticker}`
-    const response = await axios.get(url, {
-      params: { apikey: API_KEY }
-    })
-
+    const data = await fetchWithKeyRotation(apikey =>
+      doFetch(url, { symbol: ticker, apikey, ...params })
+    )
     logger.info(`Fetched data for ${ticker} from ${endpoint}`)
-    return response.data
-  } catch (error) {
-    logger.error(`Error fetching ${ticker} data: ${error.message}`)
-    throw error
+    return data
+  } catch (fmpErr) {
+    const code = fmpErr.message?.split(':')[0]
+    if (AV_KEY && (code === 'FMP_PLAN_RESTRICTED' || code === 'FMP_RATE_LIMITED' || code === 'FMP_AUTH_FAILED')) {
+      logger.warn(`FMP exhausted for ${endpoint} (${code}), trying Alpha Vantage`)
+      const avData = await fetchFromAV(ticker, endpoint)
+      if (avData != null) return avData
+    }
+    throw fmpErr
   }
 }
 
 /**
  * Get company profile
  */
-export async function getCompanyProfile(ticker) {
-  return fetchFromFMP(ticker, 'profile')
+export async function getCompanyProfile(ticker, force = false) {
+  const key = `${ticker}-profile`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+  const data = await fetchFromFMP(ticker, 'profile')
+  writeCache(key, data, TTL.STATEMENTS)
+  return data
 }
 
 /**
  * Get income statement
  */
-export async function getIncomeStatement(ticker) {
-  return fetchFromFMP(ticker, 'income-statement')
+export async function getIncomeStatement(ticker, force = false) {
+  const key = `${ticker}-income-statement`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+  const data = await fetchFromFMP(ticker, 'income-statement', { limit: 5 })
+  writeCache(key, data, TTL.STATEMENTS)
+  return data
 }
 
 /**
  * Get balance sheet
  */
-export async function getBalanceSheet(ticker) {
-  return fetchFromFMP(ticker, 'balance-sheet-statement')
+export async function getBalanceSheet(ticker, force = false) {
+  const key = `${ticker}-balance-sheet-statement`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+  const data = await fetchFromFMP(ticker, 'balance-sheet-statement', { limit: 5 })
+  writeCache(key, data, TTL.STATEMENTS)
+  return data
 }
 
 /**
  * Get cash flow statement
  */
-export async function getCashFlowStatement(ticker) {
-  return fetchFromFMP(ticker, 'cash-flow-statement')
+export async function getCashFlowStatement(ticker, force = false) {
+  const key = `${ticker}-cash-flow-statement`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+  const data = await fetchFromFMP(ticker, 'cash-flow-statement', { limit: 5 })
+  writeCache(key, data, TTL.STATEMENTS)
+  return data
 }
 
 /**
  * Get historical daily prices
  * @param {string} ticker
  * @param {number} [days=252] - Number of trading days of history to request
+ * @param {boolean} [force=false] - Bypass cache
  * @returns {Promise<{ date: string, close: number }[]>} Sorted oldest → newest
  */
-export async function getHistoricalPrices(ticker, days = 252) {
-  const to = new Date().toISOString().split('T')[0]
+export async function getHistoricalPrices(ticker, days = 252, force = false) {
+  const key = `${ticker}-historical-prices`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+
+  const to   = new Date().toISOString().split('T')[0]
   const from = new Date(Date.now() - days * 1.5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const url  = `${BASE_URL}/historical-price-eod/full`
 
-  try {
-    const url = `${BASE_URL}/historical-price-full/${ticker}`
-    const response = await axios.get(url, {
-      params: { apikey: API_KEY, from, to }
-    })
-
-    const historical = response.data?.historical ?? []
-    // FMP returns newest first; reverse to chronological order, take last `days`
-    const sorted = historical.reverse().slice(-days)
-    logger.info(`Fetched ${sorted.length} historical prices for ${ticker}`)
-    return sorted.map(d => ({ date: d.date, close: d.close }))
-  } catch (error) {
-    logger.error(`Error fetching historical prices for ${ticker}: ${error.message}`)
-    throw error
+  const parseHistorical = (data) => {
+    const historical = Array.isArray(data) ? data : (data?.historical ?? [])
+    return historical.reverse().slice(-days).map(d => ({ date: d.date, close: d.close }))
   }
+
+  let rawData
+  try {
+    rawData = await fetchWithKeyRotation(async apikey => {
+      const r = await axios.get(url, { params: { symbol: ticker, from, to, apikey } })
+      return r.data
+    })
+  } catch (fmpErr) {
+    const code = fmpErr.message?.split(':')[0]
+    if (AV_KEY && (code === 'FMP_PLAN_RESTRICTED' || code === 'FMP_RATE_LIMITED' || code === 'FMP_AUTH_FAILED')) {
+      logger.warn(`FMP exhausted for historical prices (${code}), trying Alpha Vantage`)
+      const avResult = await fetchHistoricalPricesFromAV(ticker, days)
+      logger.info(`Fetched ${avResult.length} historical prices for ${ticker} (Alpha Vantage)`)
+      writeCache(key, avResult, TTL.PRICES)
+      return avResult
+    }
+    throw fmpErr
+  }
+
+  const result = parseHistorical(rawData)
+  logger.info(`Fetched ${result.length} historical prices for ${ticker}`)
+  writeCache(key, result, TTL.PRICES)
+  return result
 }
 
 /**
  * Get key metrics (EPS, P/E, WACC, shares outstanding, etc.)
  * @param {string} ticker
+ * @param {boolean} [force=false] - Bypass cache
  * @returns {Promise<object[]>} FMP key metrics array, newest first
  */
-export async function getKeyMetrics(ticker) {
-  return fetchFromFMP(ticker, 'key-metrics')
+export async function getKeyMetrics(ticker, force = false) {
+  const key = `${ticker}-key-metrics`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+  const data = await fetchFromFMP(ticker, 'key-metrics', { limit: 5 })
+  writeCache(key, data, TTL.STATEMENTS)
+  return data
 }
 
 /**
  * Get current quote (real-time price, EPS, P/E)
  * @param {string} ticker
+ * @param {boolean} [force=false] - Bypass cache
  * @returns {Promise<object>} Quote object
  */
-export async function getQuote(ticker) {
+export async function getQuote(ticker, force = false) {
+  const key = `${ticker}-quote`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
   const data = await fetchFromFMP(ticker, 'quote')
-  return Array.isArray(data) ? data[0] : data
+  const result = Array.isArray(data) ? data[0] : data
+  writeCache(key, result, TTL.QUOTE)
+  return result
 }

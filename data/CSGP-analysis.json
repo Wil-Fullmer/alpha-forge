@@ -1,0 +1,53 @@
+{
+  "ticker": "CSGP",
+  "analysisDate": "2026-03-12",
+  "coreMetrics": {
+    "sharpeRatio": null,
+    "roe": null,
+    "debtToEquity": null,
+    "peRatio": null,
+    "eps": null
+  },
+  "dcf": {
+    "intrinsicValuePerShare": null,
+    "currentPrice": 45.34,
+    "upDownside": null,
+    "assumedGrowthRate": 0.1,
+    "assumedWACC": 0.1,
+    "terminalGrowthRate": 0.03,
+    "growthRateSource": "default",
+    "projectedFreeCashFlows": [],
+    "flags": []
+  },
+  "technicals": {
+    "currentPrice": 45.34,
+    "ma50": null,
+    "ma200": null,
+    "rsi14": null,
+    "momentumSignal": null,
+    "priceVsMa50Pct": null,
+    "priceVsMa200Pct": null
+  },
+  "flags": [
+    "Income statement fetch failed: FMP_PLAN_RESTRICTED: Endpoint requires a higher FMP subscription tier.",
+    "Balance sheet fetch failed: FMP_PLAN_RESTRICTED: Endpoint requires a higher FMP subscription tier.",
+    "Cash flow fetch failed: FMP_PLAN_RESTRICTED: Endpoint requires a higher FMP subscription tier.",
+    "Historical prices fetch failed: FMP_PLAN_RESTRICTED: Endpoint requires a higher FMP subscription tier.",
+    "Quote fetch failed: FMP_PLAN_RESTRICTED: Endpoint requires a higher FMP subscription tier.",
+    "Current price sourced from profile (quote unavailable)",
+    "Sharpe ratio: No returns data provided",
+    "ROE: Missing data for ROE calculation",
+    "D/E: Missing data for debt-to-equity calculation",
+    "P/E: Missing or zero EPS for P/E calculation",
+    "Net debt: totalDebt missing from balance sheet, assumed 0",
+    "Net debt: cash missing from balance sheet, assumed 0",
+    "DCF skipped: missing freeCashFlow or sharesOutstanding",
+    "MA50: Insufficient price data for 50-day MA (need 50, got 0)",
+    "MA200: Insufficient price data for 200-day MA (need 200, got 0)",
+    "RSI14: Insufficient price data for RSI-14 (need 15, got 0)"
+  ],
+  "metadata": {
+    "dataSource": "fmp_direct",
+    "historicalPriceDays": 0
+  }
+}
