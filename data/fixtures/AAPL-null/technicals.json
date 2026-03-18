@@ -1,0 +1,20 @@
+{
+  "ticker": "AAPL",
+  "technicals": {
+    "currentPrice": 260.81,
+    "ma50": null,
+    "ma200": null,
+    "rsi14": null,
+    "momentumSignal": null,
+    "priceVsMa50Pct": null,
+    "priceVsMa200Pct": null
+  },
+  "flags": [
+    "Sharpe ratio: No returns data provided",
+    "P/E: Missing or zero EPS for P/E calculation",
+    "DCF skipped: negative free cash flow (-$4.23B) — model requires positive FCF",
+    "MA50: Insufficient price data for 50-day MA",
+    "MA200: Insufficient price data for 200-day MA",
+    "RSI14: Insufficient price data for RSI-14"
+  ]
+}

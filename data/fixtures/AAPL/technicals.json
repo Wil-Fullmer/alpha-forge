@@ -1,0 +1,13 @@
+{
+  "ticker": "AAPL",
+  "technicals": {
+    "currentPrice": 260.81,
+    "ma50": 263.53,
+    "ma200": 245.03,
+    "rsi14": 45.4,
+    "momentumSignal": "mixed",
+    "priceVsMa50Pct": "-1.0%",
+    "priceVsMa200Pct": "+6.4%"
+  },
+  "flags": []
+}

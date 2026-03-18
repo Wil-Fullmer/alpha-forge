@@ -31,6 +31,29 @@ npm run web
 
 See [SETUP.md](docs/SETUP.md) for detailed instructions.
 
+## Development Modes
+
+### Fixture mode (no API key required)
+```bash
+npm run web:fixtures        # fixture server on :3001
+cd frontend && npm run dev  # Vite SPA on :5173
+```
+Serves static JSON from `data/fixtures/{TICKER}/`. No FMP calls. Use for all frontend work.
+
+### Live backend mode (requires `FMP_API_KEY` in `.env`)
+```bash
+npm run web:dev             # backend on :3000
+# In frontend: set VITE_API_URL=http://localhost:3000 before npm run dev
+cd frontend && npm run dev
+```
+
+### Full pipeline (CLI)
+```bash
+npm start -- AAPL           # runs analysis, writes data/AAPL-analysis.json
+```
+
+See [docs/BRANCH_HANDOFF.md](docs/BRANCH_HANDOFF.md) for multi-device setup and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for API endpoint shapes.
+
 ## Architecture
 
 Single codebase, multiple interfaces:

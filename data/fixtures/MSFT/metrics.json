@@ -1,0 +1,11 @@
+{
+  "ticker": "MSFT",
+  "coreMetrics": {
+    "sharpeRatio": -1.2001,
+    "roe": 0.2965,
+    "debtToEquity": 0.3266,
+    "peRatio": 29.28,
+    "eps": 13.64
+  },
+  "flags": []
+}

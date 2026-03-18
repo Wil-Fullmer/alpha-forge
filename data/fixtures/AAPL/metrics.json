@@ -1,0 +1,11 @@
+{
+  "ticker": "AAPL",
+  "coreMetrics": {
+    "sharpeRatio": -0.9562,
+    "roe": 1.5191,
+    "debtToEquity": 1.5241,
+    "peRatio": 34.82,
+    "eps": 7.49
+  },
+  "flags": []
+}

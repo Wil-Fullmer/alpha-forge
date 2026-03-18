@@ -1,0 +1,13 @@
+{
+  "ticker": "MSFT",
+  "technicals": {
+    "currentPrice": 399.41,
+    "ma50": 426.22,
+    "ma200": 482.68,
+    "rsi14": 42.36,
+    "momentumSignal": "bearish",
+    "priceVsMa50Pct": "-6.3%",
+    "priceVsMa200Pct": "-17.3%"
+  },
+  "flags": []
+}

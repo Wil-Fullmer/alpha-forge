@@ -1,17 +1,32 @@
+import '../../src/utils/env.js'
 import test from 'node:test'
 import assert from 'node:assert'
+import { existsSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { runFullAnalysis } from '../../src/services/analysisRunner.js'
+
+const DATA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../data')
+const FIXTURE_PATH = resolve(DATA_DIR, 'AAPL-collected.json')
 
 const VALID_SIGNALS = new Set(['bullish', 'bearish', 'mixed'])
 
-test('runFullAnalysis', async (t) => {
-  // Run once; reuse result across sub-tests to avoid duplicate API calls
+// ── Default test — uses local fixture to avoid live API calls ─────────────────
+//
+// Requires data/AAPL-collected.json (statement fixture).
+// Historical prices and quote are served from data/cache/ if available,
+// or make at most 2 provider calls if cache is cold.
+test('runFullAnalysis — result shape', async (t) => {
+  if (!existsSync(FIXTURE_PATH)) {
+    t.skip('data/AAPL-collected.json fixture not found — create it or run analysis manually')
+    return
+  }
+
   let result
   try {
     result = await runFullAnalysis('AAPL')
   } catch (err) {
-    // If FMP is unreachable (e.g. no API key in CI), skip gracefully
-    t.skip(`FMP API unavailable: ${err.message}`)
+    t.skip(`Analysis unavailable: ${err.message}`)
     return
   }
 
@@ -76,5 +91,26 @@ test('runFullAnalysis', async (t) => {
   await t.test('metadata.dataSource is a known value', () => {
     const validSources = new Set(['fmp_direct', 'pre_collected'])
     assert.ok(validSources.has(result.metadata.dataSource), `unknown dataSource: ${result.metadata.dataSource}`)
+  })
+})
+
+// ── Live test — explicit only, set RUN_LIVE_TESTS=1 to enable ─────────────────
+//
+// Burns API quota. Only run when intentionally verifying live provider behavior.
+test('runFullAnalysis — live force-refresh (explicit)', { skip: !process.env.RUN_LIVE_TESTS }, async (t) => {
+  let result
+  try {
+    result = await runFullAnalysis('AAPL', { force: true })
+  } catch (err) {
+    t.skip(`FMP API unavailable: ${err.message}`)
+    return
+  }
+
+  await t.test('returns valid result shape', () => {
+    assert.ok('ticker' in result)
+    assert.ok('coreMetrics' in result)
+    assert.ok('dcf' in result)
+    assert.ok('technicals' in result)
+    assert.strictEqual(result.metadata.dataSource, 'fmp_direct')
   })
 })

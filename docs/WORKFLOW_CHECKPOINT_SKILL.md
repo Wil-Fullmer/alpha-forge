@@ -1,0 +1,164 @@
+# Workflow Checkpoint — Standard Operating Procedure
+
+Run this checklist before any significant `git push` to a shared branch. Designed for
+Alpha Forge development; adapt as needed.
+
+---
+
+## 1. When to Run a Checkpoint
+
+Run this before:
+- Pushing a branch that hasn't been pushed before
+- Pushing after a multi-session or multi-day working period
+- Handing off a branch to another machine or contributor
+- Creating a pull request
+
+Skip for: single-file typo fixes pushed immediately after a clean session.
+
+---
+
+## 2. Pre-Push Review Checklist
+
+### Sensitive files
+- [ ] `.env` is NOT staged (check `git status`)
+- [ ] No API keys are hardcoded in any source file (search: `git diff --staged | grep -i 'api_key\|apikey\|secret'`)
+- [ ] No credential files, private keys, or token files are staged
+- [ ] `.gitignore` covers all machine-local state (agent memory, local cache, personal logs)
+
+### Content review
+- [ ] `git diff --staged` reviewed — no accidental debug lines, `console.log` spam, or temp code
+- [ ] Large binary files not accidentally staged (check sizes in `git status`)
+- [ ] No `node_modules/`, `dist/`, `data/cache/`, `data/exports/`, or `logs/` included
+- [ ] No `.env` variants (`.env.local`, `.env.production`, etc.) included
+
+### Correctness
+- [ ] Tests pass locally (`npm test`)
+- [ ] The fixture server starts clean (`npm run web:fixtures`)
+- [ ] No TODO/FIXME comments left in files you're committing that point to unresolved blockers
+
+---
+
+## 3. What to Update in TODO.md Before Committing
+
+1. Move completed items from Current Sprint / Roadmap to the **Completed** section
+2. Add any newly completed items that weren't previously listed
+3. Update **Current Sprint** to reflect the actual next steps (not what you just finished)
+4. Update **Current Status** narrative if the project state changed significantly
+5. Verify date at top of file is current
+
+Commit `TODO.md` in the same commit as the work it documents — it should be a contemporaneous record.
+
+---
+
+## 4. What to Document in the Handoff File
+
+`docs/BRANCH_HANDOFF.md` should answer:
+- What new capabilities does this branch add?
+- Why were these changes made (the business/safety reason, not just the technical what)?
+- What is NOT done yet (honest list)?
+- What commands does another developer run to get a working local environment?
+- What requires an API key vs. what works without one?
+- What is still NOT merged to main?
+
+Update it before every push. It is the first document a new contributor reads.
+
+---
+
+## 5. Commit Message Format
+
+Use a multi-line commit with a subject line and body:
+
+```
+<imperative summary under 72 chars>
+
+<Section>:
+- Bullet describing what and why
+- Another bullet
+
+<Section>:
+- ...
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+```
+
+Rules:
+- Subject line is imperative ("Add X", "Fix Y", "Stabilize Z") not past tense
+- Group related bullets under section headers (Backend, Frontend, Docs, Tests, etc.)
+- Each bullet explains the *change*, not just the file name
+- No trailing period on subject line
+- Keep bullets to one line where possible
+
+---
+
+## 6. API-Safety Reminders Before Push
+
+Check each of these before pushing any backend changes:
+
+- [ ] All new provider calls go through `doFetch()` (which calls `_bumpBudget()`)
+- [ ] No new direct `axios.get()` calls outside `financialData.js` without budget tracking
+- [ ] `force=false` is the default for any new endpoint or function parameter
+- [ ] No new polling loops, retry loops, or background refresh without budget check
+- [ ] `CACHE_ENABLED=false` is not committed to `.env`
+- [ ] `MAX_PROVIDER_CALLS` is not set to an unusually high value in `.env.example`
+
+---
+
+## 7. Multi-Device Readiness Verification
+
+After push, verify on a clean checkout (or ask the next developer to verify):
+
+```bash
+git clone <repo> && git checkout <branch>
+npm install
+cd frontend && npm install && cd ..
+npm run web:fixtures                        # should start on :3001 with no errors
+curl http://localhost:3001/api/analysis/AAPL  # should return JSON
+cd frontend && npm run dev                  # should start on :5173 with no errors
+npm test                                    # should pass without API key
+```
+
+If any of these fail on a clean checkout, the branch is not ready for handoff.
+
+---
+
+## 8. Branch vs. Main Guidance
+
+**Merge to main when:**
+- Current Sprint in `TODO.md` has no open items
+- Fixture server and all three fixture variants work end-to-end
+- Tests pass without `RUN_LIVE_TESTS=1`
+- `BRANCH_HANDOFF.md` accurately describes the merged state
+- A PR has been opened and reviewed (even self-review)
+
+**Do NOT merge to main when:**
+- Any item in Current Sprint is open
+- Frontend has fixture-only mode hardcoded (must have live-API env toggle before merge)
+- Integration tests require a live API key to pass
+
+**Branch naming:** `claude/<adjective>-<noun>` (auto-generated by Claude Code worktree).
+Keep branches focused on a theme. If scope expands significantly mid-branch, consider
+splitting.
+
+---
+
+## Checkpoint Script (optional shortcut)
+
+Run these in order before every push:
+
+```bash
+# 1. Confirm no secrets staged
+git diff --staged | grep -iE 'api_key|apikey|secret|password|token' && echo "⚠ CHECK ABOVE" || echo "clean"
+
+# 2. Confirm no .env staged
+git status --short | grep '\.env' && echo "⚠ CHECK ABOVE" || echo "clean"
+
+# 3. Run tests
+npm test
+
+# 4. Start fixture server (manual check)
+npm run web:fixtures &
+sleep 2 && curl -s http://localhost:3001/health | grep '"ok"' && kill %1
+
+# 5. Review staged diff
+git diff --staged | head -200
+```

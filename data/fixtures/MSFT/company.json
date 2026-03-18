@@ -1,0 +1,19 @@
+[
+  {
+    "symbol": "MSFT",
+    "companyName": "Microsoft Corporation",
+    "description": "Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. The company operates in three segments: Productivity and Business Processes, Intelligent Cloud, and More Personal Computing. It offers Office, Exchange, SharePoint, Microsoft Teams, Azure cloud services, Dynamics 365, LinkedIn, Xbox, Surface devices, and Windows operating systems.",
+    "exchange": "NASDAQ",
+    "currency": "USD",
+    "country": "US",
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "marketCap": 2965870878300,
+    "beta": 1.108,
+    "eps": 13.64,
+    "pe": 29.28,
+    "sharesOutstanding": 7425630000,
+    "fullTimeEmployees": 228000,
+    "price": 399.41
+  }
+]

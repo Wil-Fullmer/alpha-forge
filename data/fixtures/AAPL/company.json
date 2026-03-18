@@ -1,0 +1,19 @@
+[
+  {
+    "symbol": "AAPL",
+    "companyName": "Apple Inc.",
+    "description": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company offers iPhone, Mac, iPad, and wearables including AirPods, Apple TV, Apple Watch, and HomePod. It also provides AppleCare support, cloud services, and operates the App Store.",
+    "exchange": "NASDAQ",
+    "currency": "USD",
+    "country": "US",
+    "sector": "Technology",
+    "industry": "Consumer Electronics",
+    "marketCap": 3833365695626,
+    "beta": 1.116,
+    "eps": null,
+    "pe": null,
+    "sharesOutstanding": null,
+    "fullTimeEmployees": 164000,
+    "price": 260.81
+  }
+]

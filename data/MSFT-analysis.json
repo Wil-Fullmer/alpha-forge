@@ -1,0 +1,42 @@
+{
+  "ticker": "MSFT",
+  "analysisDate": "2026-03-17",
+  "coreMetrics": {
+    "sharpeRatio": -1.2001,
+    "roe": 0.2965,
+    "debtToEquity": 0.3266,
+    "peRatio": 29.28,
+    "eps": 13.64
+  },
+  "dcf": {
+    "intrinsicValuePerShare": 210.4,
+    "currentPrice": 399.41,
+    "upDownside": "-47.3%",
+    "assumedGrowthRate": 0.1378,
+    "assumedWACC": 0.1,
+    "terminalGrowthRate": 0.03,
+    "growthRateSource": "fmp_historical",
+    "projectedFreeCashFlows": [
+      81478995800,
+      92706801421,
+      105481798657,
+      120017190512,
+      136555559365
+    ],
+    "flags": []
+  },
+  "technicals": {
+    "currentPrice": 399.41,
+    "ma50": 426.22,
+    "ma200": 482.68,
+    "rsi14": 42.36,
+    "momentumSignal": "bearish",
+    "priceVsMa50Pct": "-6.3%",
+    "priceVsMa200Pct": "-17.3%"
+  },
+  "flags": [],
+  "metadata": {
+    "dataSource": "pre_collected",
+    "historicalPriceDays": 252
+  }
+}

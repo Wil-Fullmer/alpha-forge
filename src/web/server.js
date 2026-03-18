@@ -13,6 +13,35 @@ const DATA_DIR = resolve(__dirname, '../../data')
 const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || 'localhost'
 
+// How long data/{TICKER}-analysis.json is reused before triggering a rerun.
+// Uses analysisDate from the JSON payload (YYYY-MM-DD). Default: 24 hours.
+const ANALYSIS_CACHE_TTL_MS = parseInt(process.env.ANALYSIS_CACHE_TTL_MS ?? String(24 * 60 * 60 * 1000), 10)
+
+/**
+ * Return analysis for a ticker from disk if it is still fresh, otherwise run the full pipeline.
+ * Freshness is determined by reading `analysisDate` from the cached JSON and comparing it
+ * against ANALYSIS_CACHE_TTL_MS. Malformed or missing dates are treated as stale.
+ */
+async function getOrRunAnalysis(ticker, force) {
+  if (!force) {
+    const file = resolve(DATA_DIR, `${ticker}-analysis.json`)
+    if (existsSync(file)) {
+      try {
+        const cached = JSON.parse(readFileSync(file, 'utf8'))
+        const age = Date.now() - new Date(cached.analysisDate).getTime()
+        if (Number.isFinite(age) && age <= ANALYSIS_CACHE_TTL_MS) {
+          logger.info(`Serving analysis for ${ticker} from disk (age: ${Math.round(age / 60000)}m)`)
+          return cached
+        }
+        logger.info(`Analysis file for ${ticker} is stale (age: ${Math.round(age / 60000)}m) — rerunning`)
+      } catch {
+        logger.warn(`Could not parse cached analysis for ${ticker} — rerunning`)
+      }
+    }
+  }
+  return runFullAnalysis(ticker, { force })
+}
+
 const server = http.createServer(async (req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -94,7 +123,7 @@ const server = http.createServer(async (req, res) => {
       const ticker = pathname.split('/')[3]
       const force = url.searchParams.get('force') === 'true'
       logger.info(`Web request for technicals: ${ticker}${force ? ' (force)' : ''}`)
-      const data = await runFullAnalysis(ticker, { force })
+      const data = await getOrRunAnalysis(ticker, force)
       res.writeHead(200)
       res.end(JSON.stringify({ ticker: data.ticker, technicals: data.technicals, flags: data.flags }))
     }
@@ -103,7 +132,7 @@ const server = http.createServer(async (req, res) => {
       const ticker = pathname.split('/')[3]
       const force = url.searchParams.get('force') === 'true'
       logger.info(`Web request for core metrics: ${ticker}${force ? ' (force)' : ''}`)
-      const data = await runFullAnalysis(ticker, { force })
+      const data = await getOrRunAnalysis(ticker, force)
       res.writeHead(200)
       res.end(JSON.stringify({ ticker: data.ticker, coreMetrics: data.coreMetrics, flags: data.flags }))
     }

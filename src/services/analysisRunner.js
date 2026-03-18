@@ -14,18 +14,11 @@
  *   node src/services/analysisRunner.js <TICKER>
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
-import {
-  getCompanyProfile,
-  getIncomeStatement,
-  getBalanceSheet,
-  getCashFlowStatement,
-  getHistoricalPrices,
-  getQuote
-} from './financialData.js'
+import { assembleData } from './dataAssembler.js'
 import {
   calculateSharpeRatio,
   calculateROE,
@@ -50,15 +43,6 @@ const DCF_DEFAULTS = {
 
 function ensureDataDir() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
-}
-
-function tryReadCollected(ticker) {
-  const path = resolve(DATA_DIR, `${ticker.toUpperCase()}-collected.json`)
-  if (existsSync(path)) {
-    logger.info(`Reading pre-collected data from ${path}`)
-    return JSON.parse(readFileSync(path, 'utf8'))
-  }
-  return null
 }
 
 function safeRun(label, fn) {
@@ -136,47 +120,14 @@ function printSummary(ticker, date, result) {
 export async function runFullAnalysis(ticker, { force = false } = {}) {
   ticker = ticker.toUpperCase()
   const date = new Date().toISOString().split('T')[0]
-  const flags = []
 
   logger.info(`Starting full analysis for ${ticker}${force ? ' (force refresh)' : ''}`)
 
-  // ── 1. Load or fetch data ──────────────────────────────────────────────────
-  const collected = tryReadCollected(ticker)
-
-  let profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote
-
-  if (collected) {
-    profile = collected.company
-    incomeStatements = collected.financials?.incomeStatements ?? []
-    balanceSheets = collected.financials?.balanceSheets ?? []
-    cashFlows = collected.financials?.cashFlows ?? []
-    // Historical prices and quote still need live fetch
-  }
-
-  // Fetch anything not in collected data
-  const fetches = await Promise.allSettled([
-    collected ? Promise.resolve(null) : getCompanyProfile(ticker, force),
-    collected ? Promise.resolve(null) : getIncomeStatement(ticker, force),
-    collected ? Promise.resolve(null) : getBalanceSheet(ticker, force),
-    collected ? Promise.resolve(null) : getCashFlowStatement(ticker, force),
-    getHistoricalPrices(ticker, 252, force),
-    getQuote(ticker, force)
-  ])
-
-  if (!collected) {
-    profile = fetches[0].status === 'fulfilled' ? (fetches[0].value?.[0] ?? null) : null
-    incomeStatements = fetches[1].status === 'fulfilled' ? (fetches[1].value ?? []) : []
-    balanceSheets = fetches[2].status === 'fulfilled' ? (fetches[2].value ?? []) : []
-    cashFlows = fetches[3].status === 'fulfilled' ? (fetches[3].value ?? []) : []
-    if (fetches[1].status === 'rejected') flags.push(`Income statement fetch failed: ${fetches[1].reason?.message}`)
-    if (fetches[2].status === 'rejected') flags.push(`Balance sheet fetch failed: ${fetches[2].reason?.message}`)
-    if (fetches[3].status === 'rejected') flags.push(`Cash flow fetch failed: ${fetches[3].reason?.message}`)
-  }
-
-  historicalPrices = fetches[4].status === 'fulfilled' ? fetches[4].value : []
-  quote = fetches[5].status === 'fulfilled' ? fetches[5].value : null
-  if (fetches[4].status === 'rejected') flags.push(`Historical prices fetch failed: ${fetches[4].reason?.message}`)
-  if (fetches[5].status === 'rejected') flags.push(`Quote fetch failed: ${fetches[5].reason?.message}`)
+  // ── 1. Assemble normalized data ────────────────────────────────────────────
+  const bundle = await assembleData(ticker, { force })
+  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote } = bundle
+  const flags = [...bundle.flags]  // copy so calculation flags can be appended
+  const metadata = bundle.metadata
 
   const currentPrice = quote?.price ?? profile?.price ?? null
   if (quote == null && profile?.price != null) flags.push('Current price sourced from profile (quote unavailable)')
@@ -294,10 +245,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     dcf,
     technicals,
     flags,
-    metadata: {
-      dataSource: collected ? 'pre_collected' : 'fmp_direct',
-      historicalPriceDays: historicalPrices.length
-    }
+    metadata
   }
 
   // ── 6. Write output ────────────────────────────────────────────────────────

@@ -1,0 +1,42 @@
+{
+  "ticker": "AAPL",
+  "analysisDate": "2026-03-12",
+  "coreMetrics": {
+    "sharpeRatio": -0.9562,
+    "roe": 1.5191,
+    "debtToEquity": 1.5241,
+    "peRatio": 34.82,
+    "eps": 7.49
+  },
+  "dcf": {
+    "intrinsicValuePerShare": 94.87,
+    "currentPrice": 260.81,
+    "upDownside": "-63.6%",
+    "assumedGrowthRate": 0.0328,
+    "assumedWACC": 0.1,
+    "terminalGrowthRate": 0.03,
+    "growthRateSource": "fmp_historical",
+    "projectedFreeCashFlows": [
+      102006557600,
+      105352372689,
+      108807930513,
+      112376830634,
+      116062790679
+    ],
+    "flags": []
+  },
+  "technicals": {
+    "currentPrice": 260.81,
+    "ma50": 263.53,
+    "ma200": 245.03,
+    "rsi14": 45.4,
+    "momentumSignal": "mixed",
+    "priceVsMa50Pct": "-1.0%",
+    "priceVsMa200Pct": "+6.4%"
+  },
+  "flags": [],
+  "metadata": {
+    "dataSource": "fmp_direct",
+    "historicalPriceDays": 252
+  }
+}

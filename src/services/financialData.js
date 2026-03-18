@@ -4,6 +4,13 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
 import { AV_KEY, fetchFromAV, fetchHistoricalPricesFromAV } from './alphaVantage.js'
+import {
+  normalizeProfile,
+  normalizeIncomeStatement,
+  normalizeBalanceSheet,
+  normalizeCashFlow,
+  normalizeQuote,
+} from './normalizers/fmp.js'
 
 const BASE_URL = 'https://financialmodelingprep.com/stable'
 
@@ -44,8 +51,26 @@ if (API_KEYS.length === 0) {
   logger.info(`FMP API keys loaded: ${API_KEYS.length}`)
 }
 
+// ── CACHE_ENABLED guard ───────────────────────────────────────────────────────
+const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false'
+
+// ── Provider call budget ──────────────────────────────────────────────────────
+let _providerCallCount = 0
+const _BUDGET_WARN = parseInt(process.env.MAX_PROVIDER_CALLS ?? '20', 10)
+
+function _bumpBudget() {
+  _providerCallCount++
+  if (_providerCallCount >= _BUDGET_WARN) {
+    logger.warn(
+      `[budget] Provider API call #${_providerCallCount} this session (threshold: ${_BUDGET_WARN})` +
+      ' — reduce force-refresh usage or increase MAX_PROVIDER_CALLS'
+    )
+  }
+}
+
 // ── Cache ─────────────────────────────────────────────────────────────────────
 function readCache(key) {
+  if (!CACHE_ENABLED) return null
   const file = resolve(CACHE_DIR, `${key}.json`)
   if (!existsSync(file)) return null
   const { cachedAt, ttlMs, data } = JSON.parse(readFileSync(file, 'utf8'))
@@ -62,6 +87,7 @@ function writeCache(key, data, ttlMs) {
 
 // ── Core Fetch Helpers ────────────────────────────────────────────────────────
 async function doFetch(url, params) {
+  _bumpBudget()
   const response = await axios.get(url, { params })
   const errMsg = response.data?.['Error Message'] ?? response.data?.message
   if (errMsg) throw new Error(`FMP_API_ERROR: ${errMsg}`)
@@ -133,8 +159,9 @@ export async function getCompanyProfile(ticker, force = false) {
   const key = `${ticker}-profile`
   if (!force) { const cached = readCache(key); if (cached) return cached }
   const data = await fetchFromFMP(ticker, 'profile')
-  writeCache(key, data, TTL.STATEMENTS)
-  return data
+  const normalized = normalizeProfile(data)
+  writeCache(key, normalized, TTL.STATEMENTS)
+  return normalized
 }
 
 /**
@@ -144,8 +171,9 @@ export async function getIncomeStatement(ticker, force = false) {
   const key = `${ticker}-income-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
   const data = await fetchFromFMP(ticker, 'income-statement', { limit: 5 })
-  writeCache(key, data, TTL.STATEMENTS)
-  return data
+  const normalized = normalizeIncomeStatement(data)
+  writeCache(key, normalized, TTL.STATEMENTS)
+  return normalized
 }
 
 /**
@@ -155,8 +183,9 @@ export async function getBalanceSheet(ticker, force = false) {
   const key = `${ticker}-balance-sheet-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
   const data = await fetchFromFMP(ticker, 'balance-sheet-statement', { limit: 5 })
-  writeCache(key, data, TTL.STATEMENTS)
-  return data
+  const normalized = normalizeBalanceSheet(data)
+  writeCache(key, normalized, TTL.STATEMENTS)
+  return normalized
 }
 
 /**
@@ -166,8 +195,9 @@ export async function getCashFlowStatement(ticker, force = false) {
   const key = `${ticker}-cash-flow-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
   const data = await fetchFromFMP(ticker, 'cash-flow-statement', { limit: 5 })
-  writeCache(key, data, TTL.STATEMENTS)
-  return data
+  const normalized = normalizeCashFlow(data)
+  writeCache(key, normalized, TTL.STATEMENTS)
+  return normalized
 }
 
 /**
@@ -193,6 +223,7 @@ export async function getHistoricalPrices(ticker, days = 252, force = false) {
   let rawData
   try {
     rawData = await fetchWithKeyRotation(async apikey => {
+      _bumpBudget()
       const r = await axios.get(url, { params: { symbol: ticker, from, to, apikey } })
       return r.data
     })
@@ -238,7 +269,8 @@ export async function getQuote(ticker, force = false) {
   const key = `${ticker}-quote`
   if (!force) { const cached = readCache(key); if (cached) return cached }
   const data = await fetchFromFMP(ticker, 'quote')
-  const result = Array.isArray(data) ? data[0] : data
-  writeCache(key, result, TTL.QUOTE)
-  return result
+  const extracted = Array.isArray(data) ? data[0] : data
+  const normalized = normalizeQuote(extracted)
+  writeCache(key, normalized, TTL.QUOTE)
+  return normalized
 }

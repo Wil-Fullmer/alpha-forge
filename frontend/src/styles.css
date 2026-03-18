@@ -1,0 +1,1037 @@
+/* ============================================================
+   Alpha Forge — Global Stylesheet
+   Structure:
+   1. Design tokens (custom properties)
+   2. Reset / base
+   3. Layout — app shell
+   4. Layout — company page grid
+   5. Card component
+   6. Stat grid
+   7. Badge
+   8. Components — CompanyOverview
+   9. Components — MarketSnapshot
+   10. Components — CoreMetrics (value colours)
+   11. Components — DcfValuation
+   12. Components — Technicals
+   13. Components — FlagsPanel
+   14. Components — PeersPlaceholder
+   15. Page states — loading & error
+   16. Utilities
+   17. Responsive
+   ============================================================ */
+
+/* ============================================================
+   1. Design Tokens
+   ============================================================ */
+:root {
+  /* Colour palette */
+  --color-bg:           #0f1117;
+  --color-surface:      #181c27;
+  --color-surface-alt:  #1e2335;
+  --color-border:       #2a2f42;
+  --color-border-faint: #1e2335;
+
+  --color-text-primary:  #e8eaf0;
+  --color-text-secondary: #8b90a8;
+  --color-text-muted:    #575d75;
+
+  --color-accent:        #4f7eff;
+  --color-accent-dim:    rgba(79, 126, 255, 0.12);
+
+  --color-positive:      #34d399;
+  --color-negative:      #f87171;
+  --color-neutral:       #fbbf24;
+  --color-warning-bg:    rgba(251, 191, 36, 0.08);
+  --color-warning-border: rgba(251, 191, 36, 0.25);
+
+  /* Freshness indicator colours */
+  --color-fresh:         #34d399;   /* ≤1 day  */
+  --color-recent:        #fbbf24;   /* 2–7 days */
+  --color-stale:         #f87171;   /* 8+ days */
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:   'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+
+  --text-xs:   0.6875rem;  /* 11px */
+  --text-sm:   0.75rem;    /* 12px */
+  --text-base: 0.875rem;   /* 14px */
+  --text-md:   1rem;       /* 16px */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.375rem;   /* 22px */
+  --text-2xl:  1.75rem;    /* 28px */
+  --text-3xl:  2.25rem;    /* 36px */
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  --line-height-tight:  1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* Spacing scale (4px base) */
+  --space-1:  0.25rem;   /*  4px */
+  --space-2:  0.5rem;    /*  8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-5:  1.25rem;   /* 20px */
+  --space-6:  1.5rem;    /* 24px */
+  --space-8:  2rem;      /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+
+  /* Border radius */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+}
+
+/* ============================================================
+   2. Reset / Base
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  line-height: var(--line-height-tight);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+dl, dd {
+  margin: 0;
+}
+
+ul, ol {
+  list-style: none;
+  padding: 0;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  background: var(--color-surface-alt);
+  padding: 0.125em 0.375em;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+}
+
+/* ============================================================
+   3. Layout — App Shell
+   ============================================================ */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15, 17, 23, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-header__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.app-header__brand {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
+.app-header__brand::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-right: var(--space-2);
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+}
+
+.app-header__tagline {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.app-main {
+  flex: 1;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-12);
+}
+
+/* ============================================================
+   4. Layout — Company Page Grid
+   ============================================================ */
+.company-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* Larger row gap than column gap — sections feel like distinct bands */
+  row-gap: var(--space-6);
+  column-gap: var(--space-5);
+}
+
+/* Identity band — full width */
+.company-overview {
+  grid-column: 1 / -1;
+}
+
+/* DCF valuation spans both columns — data-rich */
+.dcf-valuation {
+  grid-column: 1 / -1;
+}
+
+/* Flags panel spans both columns — only rendered when non-empty */
+.flags-panel {
+  grid-column: 1 / -1;
+}
+
+/* ============================================================
+   5. Card Component
+   ============================================================ */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-8);
+  box-shadow: var(--shadow-card);
+}
+
+.card__title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+}
+
+.card__footnote {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border-faint);
+  padding-top: var(--space-3);
+  line-height: var(--line-height-relaxed);
+}
+
+/* ============================================================
+   6. Stat Grid
+   ============================================================ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-5) var(--space-6);
+}
+
+.stat-grid--large {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.stat-grid__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stat-grid__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+.stat-grid__value {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+}
+
+.stat-grid__value--hero {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.stat-grid__value--muted {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-normal);
+  font-size: var(--text-base);
+}
+
+/* Tabular numbers — ensures digits align vertically in columns */
+.stat-grid__value--tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Value sentiment colours — applied on dd elements */
+.value--positive {
+  color: var(--color-positive);
+}
+
+.value--negative {
+  color: var(--color-negative);
+}
+
+.value--neutral {
+  color: var(--color-neutral);
+}
+
+/* Null / missing value — dim the em-dash sentinel so it recedes */
+.value--null {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+  opacity: 0.6;
+}
+
+/* ============================================================
+   7. Badge
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2em 0.55em;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.badge--symbol {
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+  border: 1px solid rgba(79, 126, 255, 0.3);
+}
+
+/* Momentum signal badges */
+.badge--positive {
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--color-positive);
+  border: 1px solid rgba(52, 211, 153, 0.28);
+}
+
+.badge--negative {
+  background: rgba(248, 113, 113, 0.10);
+  color: var(--color-negative);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+}
+
+.badge--neutral {
+  background: rgba(251, 191, 36, 0.09);
+  color: var(--color-neutral);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+
+/* ============================================================
+   8. CompanyOverview
+   ============================================================ */
+.company-overview__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.company-overview__name {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.company-overview__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.company-overview__exchange {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.company-overview__description {
+  margin-top: var(--space-6);
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+  max-width: 80ch;
+  border-top: 1px solid var(--color-border-faint);
+  padding-top: var(--space-5);
+}
+
+/* ============================================================
+   9. MarketSnapshot
+   ============================================================ */
+.market-snapshot__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+
+/* When the header exists, suppress the default card__title margin */
+.market-snapshot__header .card__title {
+  margin-bottom: 0;
+}
+
+.market-snapshot .stat-grid__value--hero {
+  color: var(--color-text-primary);
+}
+
+/* Freshness badge — appears beside the card title */
+.freshness-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.2em 0.6em;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid;
+  line-height: 1;
+}
+
+.freshness-badge__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.freshness-badge__label {
+  white-space: nowrap;
+}
+
+.freshness-badge__date {
+  color: inherit;
+  opacity: 0.7;
+}
+
+/* Tier colours */
+.freshness-badge--fresh {
+  background: rgba(52, 211, 153, 0.08);
+  color: var(--color-fresh);
+  border-color: rgba(52, 211, 153, 0.22);
+}
+.freshness-badge--fresh .freshness-badge__dot {
+  background: var(--color-fresh);
+}
+
+.freshness-badge--recent {
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--color-recent);
+  border-color: rgba(251, 191, 36, 0.22);
+}
+.freshness-badge--recent .freshness-badge__dot {
+  background: var(--color-recent);
+}
+
+.freshness-badge--stale {
+  background: rgba(248, 113, 113, 0.08);
+  color: var(--color-stale);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+.freshness-badge--stale .freshness-badge__dot {
+  background: var(--color-stale);
+}
+
+/* ============================================================
+   10. CoreMetrics value colours (applied inline via className)
+   ============================================================ */
+
+/* Already defined in stat grid section above */
+
+/* ============================================================
+   11. DcfValuation
+   ============================================================ */
+
+/* Verdict row — the primary output: large, prominent */
+.dcf-verdict {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+}
+
+.dcf-verdict__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
+}
+
+.dcf-verdict__divider {
+  width: 1px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.dcf-verdict__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+.dcf-verdict__value {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The upside/downside value gets extra visual weight */
+.dcf-verdict__item--updown {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.dcf-verdict__value--updown {
+  font-size: var(--text-3xl);
+}
+
+/* Assumptions tier — visually subordinated below verdict */
+.dcf-assumptions {
+  border-top: 1px solid var(--color-border-faint);
+  padding-top: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.dcf-assumptions__heading {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.dcf-assumptions__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--space-3) var(--space-5);
+}
+
+.dcf-assumptions__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dcf-assumptions__label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+}
+
+.dcf-assumptions__value {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dcf-assumptions__value--muted {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* Skipped-state notice — shown instead of the verdict row when DCF was not run */
+.dcf-skipped {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dcf-skipped__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-muted);
+}
+
+.dcf-skipped__reason {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+/* Projected FCF section */
+.dcf-valuation__fcf {
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-border-faint);
+  padding-top: var(--space-5);
+}
+
+.dcf-valuation__fcf-title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.fcf-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-3);
+}
+
+.fcf-list__item {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fcf-list__year {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+}
+
+.fcf-list__value {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-positive);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   12. Technicals
+   ============================================================ */
+.technicals__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+
+/* Suppress default margin from .card__title when nested in header */
+.technicals__header .card__title {
+  margin-bottom: 0;
+}
+
+/* RSI section */
+.technicals__rsi {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-faint);
+}
+
+.technicals__rsi-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.technicals__rsi-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+}
+
+.technicals__rsi-value {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* RSI horizontal bar */
+.rsi-bar {
+  position: relative;
+  height: 6px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  overflow: visible;
+  margin-bottom: var(--space-2);
+}
+
+.rsi-bar__fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-accent);
+  transition: width var(--transition-base);
+}
+
+/* Zone-based fill colouring */
+.rsi-bar__fill--overbought {
+  background: var(--color-negative);
+}
+
+.rsi-bar__fill--oversold {
+  background: var(--color-neutral);
+}
+
+/* Threshold markers at 30% and 70% */
+.rsi-bar__marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--color-border);
+  opacity: 0.7;
+}
+
+.rsi-bar__marker--30 {
+  left: 30%;
+}
+
+.rsi-bar__marker--70 {
+  left: 70%;
+}
+
+.rsi-bar__legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+/* Unavailable-state notice — shown instead of the stat grid when all signals are null */
+.technicals-unavailable {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.technicals-unavailable__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--color-text-muted);
+}
+
+.technicals-unavailable__reason {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+/* ============================================================
+   13. FlagsPanel
+   ============================================================ */
+.flags-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.flags-panel__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  color: var(--color-neutral);
+  line-height: var(--line-height-relaxed);
+}
+
+.flags-panel__icon {
+  flex-shrink: 0;
+  font-size: var(--text-md);
+  margin-top: 0.1em;
+}
+
+/* Left-border accent on the card when flags are present — distinguishes this
+   as a signal card rather than a plain data card without adding alarming colour */
+.flags-panel--has-flags {
+  border-left: 3px solid var(--color-neutral);
+}
+
+/* ============================================================
+   14. PeersPlaceholder
+   ============================================================ */
+.peers-placeholder__message {
+  font-size: var(--text-base);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ============================================================
+   15. Page States — Loading & Error
+   ============================================================ */
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  min-height: 40vh;
+}
+
+.page-state--loading {
+  color: var(--color-text-secondary);
+}
+
+.page-state--error {
+  color: var(--color-negative);
+}
+
+.page-state--error h2 {
+  font-size: var(--text-xl);
+  color: var(--color-negative);
+}
+
+.page-state__detail {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  max-width: 52ch;
+  font-family: var(--font-mono);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  word-break: break-word;
+}
+
+.page-state__hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Spinner */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   16. Utilities
+   ============================================================ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================================
+   17. Responsive
+   ============================================================ */
+
+/* Tablet: collapse two-column grid to single column */
+@media (max-width: 768px) {
+  .company-page {
+    grid-template-columns: 1fr;
+  }
+
+  .company-overview,
+  .dcf-valuation,
+  .flags-panel {
+    grid-column: 1;
+  }
+
+  .app-main {
+    padding: var(--space-5) var(--space-4) var(--space-10);
+  }
+
+  .company-overview__name {
+    font-size: var(--text-2xl);
+  }
+
+  .stat-grid--large {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+
+  .dcf-verdict {
+    flex-direction: column;
+  }
+
+  .dcf-verdict__divider {
+    width: auto;
+    height: 1px;
+  }
+
+  .dcf-verdict__value--updown {
+    font-size: var(--text-2xl);
+  }
+}
+
+/* ============================================================
+   3b. FixtureSelector — dev-mode dropdown in app header
+   ============================================================ */
+
+/* Container — pushed to the right edge by margin-left: auto */
+.fixture-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+/* "Fixture" prefix label */
+.fixture-selector__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* The <select> element */
+.fixture-selector__select {
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.25em 0.5em;
+  font-size: var(--text-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  /* Align the select baseline with the surrounding text */
+  vertical-align: baseline;
+}
+
+.fixture-selector__select:hover {
+  border-color: var(--color-accent);
+}
+
+.fixture-selector__select:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-dim);
+}
+
+/* Mobile: tighten further */
+@media (max-width: 480px) {
+  .app-header__inner {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .card {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .fcf-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .company-overview__name {
+    font-size: var(--text-xl);
+  }
+
+  .dcf-verdict__value {
+    font-size: var(--text-xl);
+  }
+
+  .dcf-verdict__value--updown {
+    font-size: var(--text-2xl);
+  }
+}

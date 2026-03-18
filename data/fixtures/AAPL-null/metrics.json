@@ -1,0 +1,18 @@
+{
+  "ticker": "AAPL",
+  "coreMetrics": {
+    "sharpeRatio": null,
+    "roe": 1.5191,
+    "debtToEquity": 1.5241,
+    "peRatio": null,
+    "eps": null
+  },
+  "flags": [
+    "Sharpe ratio: No returns data provided",
+    "P/E: Missing or zero EPS for P/E calculation",
+    "DCF skipped: negative free cash flow (-$4.23B) — model requires positive FCF",
+    "MA50: Insufficient price data for 50-day MA",
+    "MA200: Insufficient price data for 200-day MA",
+    "RSI14: Insufficient price data for RSI-14"
+  ]
+}
