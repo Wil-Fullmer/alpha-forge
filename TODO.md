@@ -16,10 +16,11 @@ FlagsPanel merges pipeline and DCF flags. Backend TTL check on `/api/analysis` i
 
 ## Current Priority
 
-**Complete the frontend experience and harden the backend.**
+**Complete the current sprint, then begin the valuation workbench rework.**
 
-Real API wiring is done. The remaining sprint work is: staleness indicator, ticker validation,
-and end-to-end smoke test across all three fixture variants.
+Real API wiring is done. Remaining sprint: staleness indicator, ticker validation, smoke test.
+After the sprint closes, the next major work is Pass 1 of the valuation workbench — architecture,
+tab scaffolding, and the editable/derived/pulled state model. See Major UI Rework section below.
 
 ---
 
@@ -31,6 +32,77 @@ and end-to-end smoke test across all three fixture variants.
 - [ ] Frontend: add analysis staleness indicator (surface `analysisDate` in UI)
 - [ ] Backend: ticker input validation at route level before hitting services
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
+
+---
+
+## Major UI Rework — Valuation Workbench
+
+**Status: Upcoming — multi-pass, not yet started.**
+
+### Why the current UI is insufficient
+
+The current card dashboard proves the data pipeline works but exposes only summary outputs.
+It does not surface the modeling depth needed for actual valuation comprehension — full assumption
+controls, WACC build, FCFF/FCFE side-by-side, segment revenue structure, sensitivity grids,
+or weighted final valuation. The next major frontend direction replaces the card layout with a
+spreadsheet-pane workbench that mirrors the Excel analysis flow.
+
+### Interaction model
+
+- Pulled/reference values: visible, not editable
+- Calculated/formula outputs: visible, not editable
+- User editable assumptions: editable in frontend state (no persistence required initially)
+- Historical data: non-editable
+- Forward projections and valuation assumptions: editable with real-time frontend recalc
+- Backend remains the structured data gateway — no new provider calls for assumption editing
+- Source-of-truth layering: backend defaults → derived calculations → user overrides on top
+
+### Tab priority order
+
+1. Assumptions — tax rate, risk-free rate, market risk premium, beta, all editable valuation controls
+2. Revenue — workbook-level depth, segment structure where applicable, historical + projected
+3. Projections — row-level editable drivers for forward model
+4. WACC — full build visible (cost of equity, cost of debt, capital structure)
+5. DCF — FCFF and FCFE simultaneously, terminal-growth and terminal-multiple logic, sensitivity grids
+6. Final Valuation — workbook-weight logic, editable weights, implied price range
+7. Relative Valuation — scaffold now (tab shell, placeholder layout); full peer implementation later
+
+### Pass breakdown
+
+- **Pass 1 (architecture):** tab scaffolding, frontend state model, editable-vs-derived-vs-pulled
+  cell design, data flow from backend into tab components, wiring of existing API endpoints
+- **Pass 2 (implementation):** build out tabs 1–6 in priority order; relative valuation tab shell only
+- **Later passes:** UX polish, sensitivity heatmap treatment, relative valuation completion,
+  persistence for user overrides, exportable report/research view
+
+### Modeling requirements
+
+- Assumptions tab must expose all valuation controls currently hardcoded or hidden
+- Revenue tab must reflect segment depth where the data source supports it
+- DCF must show FCFF and FCFE in parallel
+- Sensitivity analysis as numeric grids first; light heatmap overlay in a later pass
+- Final valuation weights must be editable with live recalc
+- Relative valuation tab: scaffold and stub now; full peer-driven implementation deferred
+
+### Supporting agents
+
+| Agent | Role |
+|---|---|
+| `ui-implementation-expert` | Workbench component architecture and tab implementation |
+| `ui-clarity-enhancer` | Spreadsheet readability, editable/read-only/calculated visual distinctions, dense table usability |
+| `pipeline-orchestrator` | Verify frontend/backend separation, tab data flow, and state layering |
+| `visualization-agent` | Sensitivity table presentation, heatmap treatment, chart/table hybrid decisions |
+| `financial-analysis-agent` | Validate modeling logic in DCF/WACC/final valuation tabs against calculation semantics |
+| `report-generator-agent` | Later: translate workbench outputs into exportable research views |
+
+### Risks and dependencies
+
+- Pass 1 must lock the state model before any tab implementation begins — out-of-order work here
+  will cause rewrites
+- Editable assumption state lives in frontend only until persistence is explicitly scoped
+- Relative valuation requires peer data not yet in the pipeline; do not block other tabs on it
+- Sensitivity grids are compute-light in the frontend but the display density needs design attention
+  before implementation
 
 ---
 
