@@ -18,7 +18,7 @@ FlagsPanel merges pipeline and DCF flags. Backend TTL check on `/api/analysis` i
 
 **Complete the current sprint, then begin the valuation workbench rework.**
 
-Real API wiring is done. Remaining sprint: staleness indicator, ticker validation, smoke test.
+Real API wiring is done. Remaining sprint: staleness verification, ticker validation, differentiated error responses, getKeyMetrics wired into analysis output, smoke test.
 After the sprint closes, the next major work is Pass 1 of the valuation workbench — architecture,
 tab scaffolding, and the editable/derived/pulled state model. See Major UI Rework section below.
 
@@ -26,11 +26,10 @@ tab scaffolding, and the editable/derived/pulled state model. See Major UI Rewor
 
 ## Current Sprint
 
-- [x] Frontend: wire real API calls (remove fixture-only mode, add `VITE_API_URL` env toggle)
-- [x] Frontend: surface `flags[]` warnings panel in UI
-- [x] Backend: apply `analysisDate` TTL check to `/api/analysis/:ticker` route
-- [ ] Frontend: add analysis staleness indicator (surface `analysisDate` in UI)
+- [ ] Frontend: verify analysis staleness indicator is fully surfaced and correct across fixture variants
 - [ ] Backend: ticker input validation at route level before hitting services
+- [ ] Backend: differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
+- [ ] Backend: `getKeyMetrics` wired into analysis output — endpoint exists in `financialData.js` but result is not currently used in `analysisRunner`
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 
 ---
@@ -109,19 +108,19 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 ## Near-Term Roadmap
 
 ### Frontend
-- [ ] Company overview page — profile, sector, key metrics summary
-- [ ] Valuation view — DCF intrinsic value, up/downside %, growth/WACC assumptions
-- [ ] Technicals view — MA50/200, RSI, momentum signal
-- [ ] Analysis staleness indicator — surface `analysisDate` and TTL state to the user
-- [ ] Error/flag display — surface `flags[]` array warnings to the user
+- [ ] Valuation workbench Pass 1 — architecture, tab scaffolding, state model for pulled vs editable vs calculated values
+- [ ] Valuation workbench Pass 2 — implement Assumptions, Revenue, Projections, WACC, DCF, Final Valuation tabs
+- [ ] Relative Valuation tab shell — scaffold structure now, full peer-driven implementation later
+- [ ] Spreadsheet-style UI primitives — editable cell, read-only cell, calculated cell, dense model tables
+- [ ] Sensitivity table presentation — numeric grid first, light heatmap treatment later
 
 ### Backend
-- [ ] `/api/analysis/:ticker` disk-reuse — apply same `analysisDate` TTL check that `/api/technicals` and `/api/metrics` now use (currently `/api/analysis` always reruns)
-- [ ] Ticker input validation — reject malformed tickers at the route level before hitting services
-- [ ] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
-- [ ] `getKeyMetrics` wired into analysis output — endpoint exists in `financialData.js` but result is not currently used in `analysisRunner`
+- [ ] Ticker input validation — reject malformed tickers at the route level before hitting services *(also in current sprint)*
+- [ ] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500 *(also in current sprint)*
+- [ ] `getKeyMetrics` wired into analysis output — endpoint exists in `financialData.js` but result is not currently used in `analysisRunner` *(also in current sprint)*
 
 ### Testing
+- [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 - [ ] Unit tests for `dataAssembler.js` — verify pre-collected path, fetch-error path, and flag accumulation
 - [ ] Unit tests for `normalizers/fmp.js` — verify coercion, missing fields, and idempotency
 - [ ] Unit test for `getOrRunAnalysis()` freshness logic — stale/fresh/malformed cases
