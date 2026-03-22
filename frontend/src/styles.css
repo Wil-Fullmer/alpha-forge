@@ -826,6 +826,15 @@ code {
   margin-top: 0.1em;
 }
 
+.flags-panel__item-label {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+
+.flags-panel__item-detail {
+  color: var(--color-text-secondary);
+}
+
 /* Left-border accent on the card when flags are present — distinguishes this
    as a signal card rather than a plain data card without adding alarming colour */
 .flags-panel--has-flags {
@@ -958,7 +967,88 @@ code {
 }
 
 /* ============================================================
-   3b. FixtureSelector — dev-mode dropdown in app header
+   3b. TickerInput — backend-mode ticker entry form in app header
+   ============================================================ */
+
+/* Container — pushed to the right edge matching FixtureSelector */
+.ticker-input {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+}
+
+/* Text field — monospace so ticker characters sit at equal width */
+.ticker-input__field {
+  background: var(--color-surface-alt);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  padding: 0.25em 0.5em;
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.04em;
+  width: 6ch;
+  /* uppercase display is set inline via style prop on the element */
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ticker-input__field::placeholder {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+  letter-spacing: 0;
+}
+
+.ticker-input__field:hover {
+  border-color: var(--color-accent);
+}
+
+.ticker-input__field:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-dim);
+  /* Extend the focus ring across the joined button edge */
+  z-index: 1;
+  position: relative;
+}
+
+/* Submit button — accent-tinted, visually joined to the field */
+.ticker-input__submit {
+  background: var(--color-accent-dim);
+  color: var(--color-accent);
+  border: 1px solid rgba(79, 126, 255, 0.3);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 0.25em 0.6em;
+  font-size: var(--text-sm);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  outline: none;
+  transition: background var(--transition-fast), border-color var(--transition-fast),
+              box-shadow var(--transition-fast);
+  /* Align baseline with adjacent header text */
+  vertical-align: baseline;
+}
+
+.ticker-input__submit:hover {
+  background: rgba(79, 126, 255, 0.2);
+  border-color: var(--color-accent);
+}
+
+.ticker-input__submit:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-dim);
+}
+
+.ticker-input__submit:active {
+  background: rgba(79, 126, 255, 0.28);
+}
+
+/* ============================================================
+   3c. FixtureSelector — dev-mode dropdown in app header
    ============================================================ */
 
 /* Container — pushed to the right edge by margin-left: auto */

@@ -114,7 +114,7 @@ const server = http.createServer(async (req, res) => {
       const ticker = pathname.split('/')[3]
       const force = url.searchParams.get('force') === 'true'
       logger.info(`Web request for full analysis: ${ticker}${force ? ' (force)' : ''}`)
-      const data = await runFullAnalysis(ticker, { force })
+      const data = await getOrRunAnalysis(ticker, force)
       res.writeHead(200)
       res.end(JSON.stringify(data))
     }

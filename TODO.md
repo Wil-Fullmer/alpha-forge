@@ -1,34 +1,34 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-03-17
+> Current date: 2026-03-21
 
 ---
 
 ## Current Status
 
-Backend foundation is stable. The data pipeline is cache-first, provider calls are guarded,
-normalization is layered, and partial endpoints no longer trigger unnecessary full-pipeline runs.
-The project is ready to begin frontend/backend split and UI development.
+Backend is stable and the frontend/backend split is wired. Real API calls are gated by
+`VITE_API_URL` — fixture mode is the default, backend mode activates when the env var is set.
+TickerInput is in the header for backend mode, styled to match the dashboard aesthetic.
+FlagsPanel merges pipeline and DCF flags. Backend TTL check on `/api/analysis` is live.
 
 ---
 
 ## Current Priority
 
-**Establish a clean frontend/backend dev workflow.**
+**Complete the frontend experience and harden the backend.**
 
-The goal is that frontend development can proceed against stable, local data without touching
-the provider API. This means a mock/fixture server or static JSON contract must be in place
-before building new UI components.
+Real API wiring is done. The remaining sprint work is: staleness indicator, ticker validation,
+and end-to-end smoke test across all three fixture variants.
 
 ---
 
 ## Current Sprint
 
-- [ ] Frontend: wire real API calls (remove fixture-only mode, add `VITE_API_URL` env toggle)
+- [x] Frontend: wire real API calls (remove fixture-only mode, add `VITE_API_URL` env toggle)
+- [x] Frontend: surface `flags[]` warnings panel in UI
+- [x] Backend: apply `analysisDate` TTL check to `/api/analysis/:ticker` route
 - [ ] Frontend: add analysis staleness indicator (surface `analysisDate` in UI)
-- [ ] Frontend: surface `flags[]` warnings panel in UI
-- [ ] Backend: apply `analysisDate` TTL check to `/api/analysis/:ticker` route (currently always reruns)
 - [ ] Backend: ticker input validation at route level before hitting services
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 
@@ -113,6 +113,10 @@ These rules do not change without explicit decision:
 - [x] AAPL-null fixture set — `data/fixtures/AAPL-null/` (exercises null fields and non-empty flags)
 - [x] SPA dashboard — global header, sidebar nav, assumption sliders, real-time DCF recalc, sensitivity heatmap, scenario toggles, football field chart, story sidebar
 - [x] Tab-window animated dashboard — five-tab interface, slide/fade transitions, company profile strip, lazy report loading
+- [x] Frontend/backend split — `VITE_API_URL` env toggle, Vite proxy, fixture vs backend mode in App.jsx
+- [x] TickerInput component — backend-mode ticker entry form, submit-only (no fetch-on-keystroke), styled pill compound control in header
+- [x] FlagsPanel — merges `analysis.flags` + `analysis.dcf.flags`, renders nothing when empty
+- [x] Backend TTL check on `/api/analysis` — `getOrRunAnalysis()` reads `analysisDate` and reuses disk file if fresh
 - [x] Project scaffold — CLI, web server, services, utils
 - [x] SessionStart hook — npm install on web sessions
 - [x] financial-data-collector agent
