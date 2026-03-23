@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-03-21
+> Current date: 2026-03-22
 
 ---
 
@@ -18,7 +18,7 @@ FlagsPanel merges pipeline and DCF flags. Backend TTL check on `/api/analysis` i
 
 **Complete the current sprint, then begin the valuation workbench rework.**
 
-Real API wiring is done. Remaining sprint: staleness verification, ticker validation, differentiated error responses, getKeyMetrics wired into analysis output, smoke test.
+Real API wiring is done. Remaining sprint: staleness verification, ticker validation, differentiated error responses, smoke test.
 After the sprint closes, the next major work is Pass 1 of the valuation workbench — architecture,
 tab scaffolding, and the editable/derived/pulled state model. See Major UI Rework section below.
 
@@ -27,9 +27,8 @@ tab scaffolding, and the editable/derived/pulled state model. See Major UI Rewor
 ## Current Sprint
 
 - [ ] Frontend: verify analysis staleness indicator is fully surfaced and correct across fixture variants
-- [ ] Backend: ticker input validation at route level before hitting services
-- [ ] Backend: differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
-- [ ] Backend: `getKeyMetrics` wired into analysis output — endpoint exists in `financialData.js` but result is not currently used in `analysisRunner`
+- [x] Backend: ticker input validation at route level before hitting services
+- [x] Backend: differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 
 ---
@@ -117,8 +116,6 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 ### Backend
 - [ ] Ticker input validation — reject malformed tickers at the route level before hitting services *(also in current sprint)*
 - [ ] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500 *(also in current sprint)*
-- [ ] `getKeyMetrics` wired into analysis output — endpoint exists in `financialData.js` but result is not currently used in `analysisRunner` *(also in current sprint)*
-
 ### Testing
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 - [ ] Unit tests for `dataAssembler.js` — verify pre-collected path, fetch-error path, and flag accumulation
@@ -137,6 +134,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [ ] Rate-limit budget reporting — surface `_providerCallCount` in `/health` or a `/api/debug/budget` endpoint
 - [ ] `CACHE_TTL` env var wired into statement TTLs in `financialData.js` (currently documented in `.env.example` but not read at runtime)
 - [ ] Scheduled auto-refresh — background job to pre-warm analysis files for tracked tickers
+- [ ] `getKeyMetrics` ratio display panel — surface grahamNumber, earningsYield, evToEBITDA, returnOnEquity, etc. in a frontend metrics card; not wired into EPS/shares fallback chains (key-metrics endpoint has no direct eps/sharesOutstanding fields)
 
 ---
 
@@ -205,3 +203,5 @@ These rules do not change without explicit decision:
 - [x] Typed error handling — 429/401/403 rotation, soft-error JSON detection, negative FCF guard, CAGR clamping
 - [x] Web API endpoints — `/api/analysis`, `/api/technicals`, `/api/metrics`, `/api/company`, `/dashboard`, `/report`
 - [x] Integration tests — `tests/integration/analysisRunner.test.js`
+- [x] Ticker input validation — `src/utils/validation.js` with `normalizeTicker`/`validateTicker`; all routes reject malformed tickers with 400 before hitting services
+- [x] Differentiated HTTP error responses — `mapErrorToHttp()` in `server.js` maps TICKER_NOT_FOUND→404, FMP errors→503, others→500; `dataAssembler.js` throws typed errors

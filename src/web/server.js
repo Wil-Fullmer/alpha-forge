@@ -4,11 +4,26 @@ import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
+import { normalizeTicker, validateTicker } from '../utils/validation.js'
 import { getCompanyProfile } from '../services/financialData.js'
 import { runFullAnalysis } from '../services/analysisRunner.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = resolve(__dirname, '../../data')
+
+function mapErrorToHttp(error) {
+  const msg = (error && error.message) || ''
+  if (msg.startsWith('TICKER_NOT_FOUND'))
+    return { status: 404, type: 'NOT_FOUND', error: 'No data found for the requested ticker' }
+  if (
+    msg.startsWith('FMP_RATE_LIMITED') ||
+    msg.startsWith('FMP_AUTH_FAILED') ||
+    msg.startsWith('FMP_PLAN_RESTRICTED') ||
+    msg.startsWith('FMP_API_ERROR')
+  )
+    return { status: 503, type: 'PROVIDER_ERROR', error: 'Financial data provider is temporarily unavailable' }
+  return { status: 500, type: 'INTERNAL', error: 'An unexpected server error occurred' }
+}
 
 const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || 'localhost'
@@ -74,8 +89,14 @@ const server = http.createServer(async (req, res) => {
 </div></body></html>`)
     }
     // Route: GET /dashboard/:ticker — serve HTML dashboard
-    else if (pathname.match(/^\/dashboard\/[A-Z]+$/)) {
-      const ticker = pathname.split('/')[2]
+    else if (pathname.match(/^\/dashboard\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[2])
+      if (!validateTicker(ticker)) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.writeHead(400)
+        res.end('Invalid ticker format')
+        return
+      }
       const file = resolve(DATA_DIR, `${ticker}-dashboard.html`)
       if (!existsSync(file)) {
         res.setHeader('Content-Type', 'text/html')
@@ -88,8 +109,14 @@ const server = http.createServer(async (req, res) => {
       res.end(readFileSync(file, 'utf8'))
     }
     // Route: GET /report/:ticker — serve Markdown report as HTML
-    else if (pathname.match(/^\/report\/[A-Z]+$/)) {
-      const ticker = pathname.split('/')[2]
+    else if (pathname.match(/^\/report\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[2])
+      if (!validateTicker(ticker)) {
+        res.setHeader('Content-Type', 'text/plain')
+        res.writeHead(400)
+        res.end('Invalid ticker format')
+        return
+      }
       const file = resolve(DATA_DIR, `${ticker}-report.md`)
       if (!existsSync(file)) {
         res.setHeader('Content-Type', 'text/plain')
@@ -102,16 +129,26 @@ const server = http.createServer(async (req, res) => {
       res.end(readFileSync(file, 'utf8'))
     }
     // Route: GET /api/company/:ticker
-    else if (pathname.match(/^\/api\/company\/[A-Z]+$/)) {
-      const ticker = pathname.split('/')[3]
+    else if (pathname.match(/^\/api\/company\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[3])
+      if (!validateTicker(ticker)) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid ticker format' }))
+        return
+      }
       logger.info(`Web request for company profile: ${ticker}`)
       const data = await getCompanyProfile(ticker)
       res.writeHead(200)
       res.end(JSON.stringify(data))
     }
     // Route: GET /api/analysis/:ticker
-    else if (pathname.match(/^\/api\/analysis\/[A-Z]+$/)) {
-      const ticker = pathname.split('/')[3]
+    else if (pathname.match(/^\/api\/analysis\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[3])
+      if (!validateTicker(ticker)) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid ticker format' }))
+        return
+      }
       const force = url.searchParams.get('force') === 'true'
       logger.info(`Web request for full analysis: ${ticker}${force ? ' (force)' : ''}`)
       const data = await getOrRunAnalysis(ticker, force)
@@ -119,8 +156,13 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(data))
     }
     // Route: GET /api/technicals/:ticker
-    else if (pathname.match(/^\/api\/technicals\/[A-Z]+$/)) {
-      const ticker = pathname.split('/')[3]
+    else if (pathname.match(/^\/api\/technicals\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[3])
+      if (!validateTicker(ticker)) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid ticker format' }))
+        return
+      }
       const force = url.searchParams.get('force') === 'true'
       logger.info(`Web request for technicals: ${ticker}${force ? ' (force)' : ''}`)
       const data = await getOrRunAnalysis(ticker, force)
@@ -128,8 +170,13 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ ticker: data.ticker, technicals: data.technicals, flags: data.flags }))
     }
     // Route: GET /api/metrics/:ticker
-    else if (pathname.match(/^\/api\/metrics\/[A-Z]+$/)) {
-      const ticker = pathname.split('/')[3]
+    else if (pathname.match(/^\/api\/metrics\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[3])
+      if (!validateTicker(ticker)) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid ticker format' }))
+        return
+      }
       const force = url.searchParams.get('force') === 'true'
       logger.info(`Web request for core metrics: ${ticker}${force ? ' (force)' : ''}`)
       const data = await getOrRunAnalysis(ticker, force)
@@ -147,9 +194,12 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Not found' }))
     }
   } catch (error) {
-    logger.error(`Server error: ${error.message}`)
-    res.writeHead(500)
-    res.end(JSON.stringify({ error: error.message }))
+    // TODO: /dashboard/:ticker and /report/:ticker pre-route 400s use text/plain, but errors
+    // thrown from those routes fall through here and return JSON — minor UX inconsistency.
+    const { status, type, error: msg } = mapErrorToHttp(error)
+    logger.error(`[${status}] ${type}: ${error.message}`)
+    res.writeHead(status)
+    res.end(JSON.stringify({ error: msg, type }))
   }
 })
 

@@ -82,7 +82,13 @@ export async function assembleData(ticker, { force = false } = {}) {
 
   if (!collected) {
     const [pFetch, iFetch, bFetch, cFetch] = fetches
-    profile          = pFetch.status === 'fulfilled' ? (pFetch.value?.[0] ?? null) : null
+
+    // Surface profile failures — rejection means provider error; empty result means unknown ticker
+    if (pFetch.status === 'rejected') throw pFetch.reason
+    const profileData = pFetch.value ?? []
+    if (profileData.length === 0) throw new Error(`TICKER_NOT_FOUND: No company data found for "${ticker}"`)
+    profile = profileData[0]
+
     incomeStatements = iFetch.status === 'fulfilled' ? (iFetch.value ?? []) : []
     balanceSheets    = bFetch.status === 'fulfilled' ? (bFetch.value ?? []) : []
     cashFlows        = cFetch.status === 'fulfilled' ? (cFetch.value ?? []) : []
