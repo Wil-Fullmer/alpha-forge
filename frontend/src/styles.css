@@ -1095,6 +1095,311 @@ code {
   box-shadow: 0 0 0 2px var(--color-accent-dim);
 }
 
+/* ============================================================
+   18. Workbench — tab shell layout
+   ============================================================ */
+
+/* Main workbench container — replaces .company-page */
+.workbench {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Tab navigation bar */
+.workbench-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.workbench-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.workbench-tabs__btn {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-5);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  outline: none;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.workbench-tabs__btn:hover {
+  color: var(--color-text-primary);
+}
+
+.workbench-tabs__btn:focus-visible {
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 2px var(--color-accent-dim);
+}
+
+.workbench-tabs__btn--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* Tab panel container */
+.workbench__panel {
+  min-height: 400px;
+}
+
+/* Per-tab grid wrapper — two-column, matches old .company-page pattern */
+.tab-panel__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+/* Vertical spacer between sections within a tab */
+.tab-panel__spacer {
+  height: var(--space-5);
+}
+
+/* Shell placeholder — full-width dashed box for unimplemented tabs */
+.tab-shell {
+  padding: var(--space-8) var(--space-6);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+/* Inline variant — quieter, used below real content */
+.tab-shell--inline {
+  padding: var(--space-4) var(--space-5);
+  margin-top: var(--space-5);
+  border-style: dashed;
+}
+
+.tab-shell__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.tab-shell__note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: var(--line-height-relaxed);
+  margin: 0;
+}
+
+/* Responsive: collapse tab grid to single column */
+@media (max-width: 768px) {
+  .tab-panel__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   19. Revenue tab — spreadsheet table
+   ============================================================ */
+
+.revenue-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.revenue-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* Column header row */
+.revenue-col-header {
+  padding: var(--space-2) var(--space-4);
+  text-align: right;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: bottom;
+}
+
+.revenue-col-header--historical {
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.revenue-col-header--projected {
+  color: var(--color-accent);
+  background: var(--color-surface-alt);
+}
+
+.revenue-col-header__tag {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: var(--font-weight-normal);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* Row label column */
+.revenue-table__row-label {
+  padding: var(--space-2) var(--space-4);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.revenue-table__row-label--sub {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+/* Data cells */
+.revenue-cell {
+  padding: var(--space-2) var(--space-4);
+  text-align: right;
+  vertical-align: middle;
+  border-top: 1px solid var(--color-border-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.revenue-cell--historical {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+
+.revenue-cell--projected {
+  color: var(--color-text-primary);
+  background: var(--color-surface-alt);
+}
+
+.revenue-cell--growth {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+/* Editable input cell */
+.revenue-cell--input {
+  padding: var(--space-1) var(--space-3);
+  position: relative;
+}
+
+.revenue-input {
+  width: 5ch;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-medium);
+  text-align: right;
+  outline: none;
+  padding: 0.1em 0;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  transition: border-color var(--transition-fast);
+}
+
+.revenue-input::-webkit-inner-spin-button,
+.revenue-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.revenue-input:focus {
+  border-bottom-color: var(--color-accent);
+}
+
+.revenue-input__suffix {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-left: 1px;
+  user-select: none;
+}
+
+/* Row separators */
+.revenue-row--value + .revenue-row--growth td {
+  border-top: 1px solid var(--color-border);
+}
+
+/* ============================================================
+   20. Projections tab — section wrappers and row variants
+   ============================================================ */
+
+/* Each of the three sub-sections (IS, Common Size, Other) */
+.proj-section {
+  margin-bottom: var(--space-8);
+}
+
+.proj-section__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.proj-section__subtitle {
+  font-weight: var(--font-weight-normal);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* Subtotal rows (Gross Profit, Operating Profit, EBT) */
+.revenue-row--subtotal td {
+  font-weight: var(--font-weight-semibold);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Total row (Net Income) */
+.revenue-row--total td {
+  font-weight: var(--font-weight-bold);
+  border-top: 2px solid var(--color-border);
+}
+
+/* Indented label for sub-line items */
+.revenue-table__row-label--indent {
+  padding-left: var(--space-8);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-secondary);
+}
+
+/* Null projected cell */
+.revenue-cell--null {
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+/* Wider input for absolute dollar amounts */
+.revenue-input--wide {
+  width: 6ch;
+}
+
 /* Mobile: tighten further */
 @media (max-width: 480px) {
   .app-header__inner {

@@ -244,6 +244,42 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     coreMetrics,
     dcf,
     technicals,
+    historicalRevenue: incomeStatements
+      .slice(0, 3)
+      .map(s => ({ date: s.date, revenue: s.revenue })),
+    historicalFinancials: {
+      incomeStatements: incomeStatements.slice(0, 3).map(s => ({
+        date:               s.date,
+        revenue:            s.revenue,
+        costOfRevenue:      s.costOfRevenue,
+        grossProfit:        s.grossProfit,
+        researchAndDev:     s.researchAndDev,
+        sgaExpense:         s.sgaExpense,
+        depreciationAmort:  s.depreciationAmort,
+        operatingIncome:    s.operatingIncome,
+        netInterestIncome:  s.netInterestIncome ?? (
+          (s.interestIncome != null && s.interestExpense != null)
+            ? s.interestIncome - s.interestExpense : null
+        ),
+        otherIncomeExpense: s.otherIncomeExpense,
+        incomeBeforeTax:    s.incomeBeforeTax,
+        taxExpense:         s.taxExpense,
+        netIncome:          s.netIncome,
+      })),
+      balanceSheets: balanceSheets.slice(0, 3).map(s => ({
+        date:                    s.date,
+        totalCurrentAssets:      s.totalCurrentAssets,
+        totalCurrentLiabilities: s.totalCurrentLiabilities,
+        totalDebt:               s.totalDebt,
+        cashAndCashEquivalents:  s.cashAndCashEquivalents,
+        netDebt:                 s.netDebt,
+      })),
+      cashFlows: cashFlows.slice(0, 3).map(s => ({
+        date:               s.date,
+        capitalExpenditure: s.capitalExpenditure,
+        changeInWorkingCap: s.changeInWorkingCap,
+      })),
+    },
     flags,
     metadata
   }

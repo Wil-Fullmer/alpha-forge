@@ -46,13 +46,23 @@ export function normalizeProfile(raw) {
  */
 export function normalizeIncomeStatement(raw) {
   return (Array.isArray(raw) ? raw : []).map(d => ({
-    date:            d.date ?? null,
-    revenue:         toNum(d.revenue),
-    netIncome:       toNum(d.netIncome),
-    grossProfit:     toNum(d.grossProfit),
-    operatingIncome: toNum(d.operatingIncome),
-    ebitda:          toNum(d.ebitda),
-    eps:             toNum(d.eps),
+    date:              d.date ?? null,
+    revenue:           toNum(d.revenue),
+    netIncome:         toNum(d.netIncome),
+    grossProfit:       toNum(d.grossProfit),
+    operatingIncome:   toNum(d.operatingIncome),
+    ebitda:            toNum(d.ebitda),
+    eps:               toNum(d.eps),
+    costOfRevenue:     toNum(d.costOfRevenue),
+    researchAndDev:    toNum(d.researchAndDevelopmentExpenses),
+    sgaExpense:        toNum(d.sellingGeneralAndAdministrativeExpenses),
+    depreciationAmort: toNum(d.depreciationAndAmortization),
+    interestIncome:    toNum(d.interestIncome),
+    interestExpense:   toNum(d.interestExpense),
+    netInterestIncome: toNum(d.netInterestIncome),
+    otherIncomeExpense: toNum(d.totalOtherIncomeExpensesNet),
+    incomeBeforeTax:   toNum(d.incomeBeforeTax),
+    taxExpense:        toNum(d.incomeTaxExpense),
   }))
 }
 
@@ -69,6 +79,9 @@ export function normalizeBalanceSheet(raw) {
     totalStockholdersEquity: toNum(d.totalStockholdersEquity),
     totalDebt:               toNum(d.totalDebt),
     cashAndCashEquivalents:  toNum(d.cashAndCashEquivalents),
+    totalCurrentAssets:      toNum(d.totalCurrentAssets),
+    totalCurrentLiabilities: toNum(d.totalCurrentLiabilities),
+    netDebt:                 toNum(d.netDebt),
   }))
 }
 
@@ -92,6 +105,8 @@ export function normalizeCashFlow(raw) {
       operatingCashFlow:  operating,
       capitalExpenditure: capex,
       freeCashFlow:       fcf,
+      depreciationAmort:  toNum(d.depreciationAndAmortization),
+      changeInWorkingCap: toNum(d.changeInWorkingCapital),
     }
   })
 }

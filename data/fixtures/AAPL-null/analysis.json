@@ -39,5 +39,7 @@
   "metadata": {
     "dataSource": "fmp_direct",
     "historicalPriceDays": 48
-  }
+  },
+  "historicalRevenue": [],
+  "historicalFinancials": { "incomeStatements": [], "balanceSheets": [], "cashFlows": [] }
 }

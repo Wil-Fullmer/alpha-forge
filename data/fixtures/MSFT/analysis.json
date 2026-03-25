@@ -38,5 +38,51 @@
   "metadata": {
     "dataSource": "fmp_direct",
     "historicalPriceDays": 252
+  },
+  "historicalRevenue": [
+    { "date": "2025-06-30", "revenue": 281724000000 },
+    { "date": "2024-06-30", "revenue": 245122000000 },
+    { "date": "2023-06-30", "revenue": 211915000000 }
+  ],
+  "historicalFinancials": {
+    "incomeStatements": [
+      {
+        "date": "2025-06-30", "revenue": 281724000000,
+        "costOfRevenue": 87831000000, "grossProfit": 193893000000,
+        "researchAndDev": null, "sgaExpense": null, "depreciationAmort": null,
+        "operatingIncome": 128528000000, "netInterestIncome": null,
+        "otherIncomeExpense": null, "incomeBeforeTax": null,
+        "taxExpense": null, "netIncome": 101832000000
+      },
+      {
+        "date": "2024-06-30", "revenue": 245122000000,
+        "costOfRevenue": 74114000000, "grossProfit": 171008000000,
+        "researchAndDev": null, "sgaExpense": null, "depreciationAmort": null,
+        "operatingIncome": 109433000000, "netInterestIncome": null,
+        "otherIncomeExpense": null, "incomeBeforeTax": null,
+        "taxExpense": null, "netIncome": 88136000000
+      },
+      {
+        "date": "2023-06-30", "revenue": 211915000000,
+        "costOfRevenue": 65863000000, "grossProfit": 146052000000,
+        "researchAndDev": null, "sgaExpense": null, "depreciationAmort": null,
+        "operatingIncome": 88523000000, "netInterestIncome": null,
+        "otherIncomeExpense": null, "incomeBeforeTax": null,
+        "taxExpense": null, "netIncome": 72361000000
+      }
+    ],
+    "balanceSheets": [
+      { "date": "2025-06-30", "totalCurrentAssets": null, "totalCurrentLiabilities": null,
+        "totalDebt": 112184000000, "cashAndCashEquivalents": 30242000000, "netDebt": 81942000000 },
+      { "date": "2024-06-30", "totalCurrentAssets": null, "totalCurrentLiabilities": null,
+        "totalDebt": 97852000000, "cashAndCashEquivalents": 18315000000, "netDebt": 79537000000 },
+      { "date": "2023-06-30", "totalCurrentAssets": null, "totalCurrentLiabilities": null,
+        "totalDebt": 79441000000, "cashAndCashEquivalents": 34704000000, "netDebt": 44737000000 }
+    ],
+    "cashFlows": [
+      { "date": "2025-06-30", "capitalExpenditure": -64551000000, "changeInWorkingCap": null },
+      { "date": "2024-06-30", "capitalExpenditure": -44477000000, "changeInWorkingCap": null },
+      { "date": "2023-06-30", "capitalExpenditure": -28107000000, "changeInWorkingCap": null }
+    ]
   }
 }
