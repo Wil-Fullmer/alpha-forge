@@ -387,8 +387,22 @@ export default function ProjectionsTab({ analysis }) {
           <table className="revenue-table">
             <thead>{colHeaders}</thead>
             <tbody>
+              {/* Revenue row: show YoY growth %, not revenue/revenue */}
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label">Revenue</td>
+                {stmts.map((s, si) => (
+                  <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
+                    {si === 0 ? EM_DASH : fmtPct(safeDiv(s.revenue, stmts[si - 1].revenue) != null ? (s.revenue / stmts[si - 1].revenue) - 1 : null)}
+                  </td>
+                ))}
+                {assumptions.revenueGrowth.map((rate, pi) => (
+                  <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--growth">
+                    {fmtPct(rate)}
+                  </td>
+                ))}
+              </tr>
+
               {[
-                ['Revenue',                  s => s.revenue,           projRevenue],
                 ['COGS',                     s => s.costOfRevenue,     projCOGS],
                 ['Gross Profit',             s => s.grossProfit,       projGrossProfit],
                 ['R&D',                      s => s.researchAndDev,    projRD],

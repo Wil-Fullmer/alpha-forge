@@ -64,7 +64,7 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
         {activeTab === 'assumptions'        && <AssumptionsTab company={company} analysis={analysis} />}
         {activeTab === 'revenue'            && <RevenueTab analysis={analysis} />}
         {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
-        {activeTab === 'wacc'               && <WaccTab />}
+        {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} />}
         {activeTab === 'relative-valuation' && <RelativeValuationTab />}
         {activeTab === 'dcf'                && <DcfTab analysis={analysis} />}
         {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} />}

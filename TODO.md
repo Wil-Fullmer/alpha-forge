@@ -7,21 +7,18 @@
 
 ## Current Status
 
-Backend is stable. Frontend is in active valuation workbench build. The 7-tab workbench shell
-is live (Pass 1). Revenue tab (Pass 2) shows 3 historical + 4 projected years with editable
-growth rate inputs. Projections tab (Pass 2) has the full income statement model with per-row
-driver inputs and live cascade through to Net Income, Common Size, and Other Forecasted Terms.
-Remaining workbench tabs (WACC, DCF, Final Valuation, Assumptions) are shells awaiting
-implementation.
+Backend is stable. Frontend is in active valuation workbench build. Revenue, Projections, and
+WACC tabs are complete. WACC tab has live capital structure weights, CAPM cost of equity, and
+after-tax cost of debt with full WACC recalc. Common Size IS revenue row now shows YoY growth %.
+Remaining workbench tabs (DCF, Final Valuation, Assumptions) are shells awaiting implementation.
 
 ---
 
 ## Current Priority
 
-**Continue valuation workbench implementation — next tabs: WACC, then DCF.**
+**Continue valuation workbench implementation — next tab: DCF.**
 
-Revenue and Projections tabs are complete. Next logical tab is WACC (cost of equity via CAPM,
-cost of debt, capital structure weights). After WACC, DCF tab gets the deep rebuild
+Revenue, Projections, and WACC tabs are complete. Next is DCF tab deep rebuild
 (FCFF/FCFE side-by-side, sensitivity grid). Final Valuation and Assumptions tabs follow.
 
 ---
@@ -114,7 +111,8 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Valuation workbench Pass 2 (Projections tab) — full income statement model (3 sections: IS, Common Size, Other Forecasted Terms); per-row editable driver inputs with live cascade; normalizer extended with 15 new fields; `historicalFinancials` added to analysis response and fixtures
 - [x] Relative Valuation tab shell — scaffold structure in place; full peer-driven implementation later
 - [x] Spreadsheet-style UI primitives — editable cell, read-only cell, calculated cell, dense model tables (`.revenue-table`, driver rows, subtotal/total row variants)
-- [ ] Valuation workbench — WACC tab implementation
+- [x] Valuation workbench — WACC tab implementation (capital structure weights, CAPM cost of equity, after-tax cost of debt, live WACC recalc; seeded from fixture data)
+- [x] Common Size IS — Revenue row now shows YoY growth % instead of revenue/revenue; oldest year shows EM_DASH
 - [ ] Valuation workbench — DCF tab deep rebuild (FCFF/FCFE side-by-side, sensitivity grid)
 - [ ] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
 - [ ] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
