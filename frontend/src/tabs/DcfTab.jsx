@@ -1,17 +1,520 @@
-import React from 'react';
-import DcfValuation from '../components/DcfValuation.jsx';
-import Technicals from '../components/Technicals.jsx';
+import React, { useState, useEffect } from 'react';
+import { EM_DASH, formatLargeNumber, formatPct } from '../utils/format.js';
 
-export default function DcfTab({ analysis }) {
+const PROJ_COUNT = 5;
+const GRID_SIZE = 7;
+const HALF = 3;
+const RFR = 0.0438;
+const MRP = 0.05;
+
+function safeDiv(a, b) {
+  if (a == null || b == null || b === 0) return null;
+  return a / b;
+}
+
+function fmtPct(v, d = 2) {
+  if (v == null || isNaN(v)) return EM_DASH;
+  const sign = v >= 0 ? '+' : '';
+  return `${sign}${(v * 100).toFixed(d)}%`;
+}
+
+function fmtM(v) {
+  if (v == null || isNaN(v)) return EM_DASH;
+  const m = v / 1e6;
+  const abs = Math.abs(m).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  return m < 0 ? `(${abs})` : abs;
+}
+
+function sensitivityStyle(impliedPrice, currentPrice) {
+  if (impliedPrice == null || currentPrice == null || currentPrice === 0) return {};
+  const pctDiff = (impliedPrice - currentPrice) / currentPrice;
+  const intensity = Math.min(1, Math.abs(pctDiff) / 0.5);
+  if (pctDiff > 0) {
+    return {
+      backgroundColor: `rgba(52, 211, 153, ${(intensity * 0.3).toFixed(3)})`,
+      color: intensity > 0.25 ? 'rgb(52, 211, 153)' : undefined,
+    };
+  }
+  return {
+    backgroundColor: `rgba(248, 113, 113, ${(intensity * 0.3).toFixed(3)})`,
+    color: intensity > 0.25 ? 'rgb(248, 113, 113)' : undefined,
+  };
+}
+
+// Only user-editable values live in state. Everything else is derived inline.
+function buildState(analysis, company) {
+  const peRatio    = analysis?.coreMetrics?.peRatio ?? 20;
+  const assumedWACC = analysis?.dcf?.assumedWACC ?? 0.10;
+  const coe        = RFR + (company?.beta ?? 1.0) * MRP;
+  return {
+    terminalPE:       peRatio,
+    terminalEVEBITDA: 15,
+    waccCenter:       assumedWACC,
+    evEbitdaCenter:   15,
+    coeCenter:        coe,
+    peCenter:         peRatio,
+  };
+}
+
+export default function DcfTab({ company, analysis }) {
+  const [s, setS] = useState(() => buildState(analysis, company));
+
+  useEffect(() => {
+    setS(buildState(analysis, company));
+  }, [analysis, company]);
+
+  // Terminal multiple handlers (only editable fields in assumptions panel)
+  const updTermPE = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalPE: v })); };
+  const updTermEV = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalEVEBITDA: v })); };
+
+  // Sensitivity grid center handlers
+  const updWaccCenter     = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, waccCenter: v / 100 })); };
+  const updEvCenter       = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, evEbitdaCenter: v })); };
+  const updCoeCenter      = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, coeCenter: v / 100 })); };
+  const updPeCenter       = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, peCenter: v })); };
+
+  // ── Derived constants (read-only, from analysis + company) ────────────────
+  const stmts      = analysis?.historicalFinancials?.incomeStatements ?? [];
+  const lastIS     = stmts[0] ?? {};
+  const lastBS     = (analysis?.historicalFinancials?.balanceSheets ?? [])[0] ?? {};
+  const lastCF     = (analysis?.historicalFinancials?.cashFlows ?? [])[0] ?? {};
+  const rev        = lastIS.revenue || 1;
+
+  const cogsPct    = safeDiv(lastIS.costOfRevenue, rev) ?? 0.53;
+  const opExPct    = safeDiv((lastIS.researchAndDev ?? 0) + (lastIS.sgaExpense ?? 0), rev) ?? 0.14;
+  const daPct      = safeDiv(lastIS.depreciationAmort, rev) ?? 0.03;
+  const capexPct   = lastCF.capitalExpenditure != null ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03;
+  const rawTax     = safeDiv(lastIS.taxExpense, lastIS.incomeBeforeTax);
+  const taxRate    = rawTax != null ? Math.min(0.5, Math.max(0, rawTax)) : 0.21;
+  const wacc       = analysis?.dcf?.assumedWACC ?? 0.10;
+  const costOfEquity = RFR + (company?.beta ?? 1.0) * MRP;
+  const longTermDebt = lastBS.totalDebt ?? 0;
+  const shares     = company?.sharesOutstanding
+                     ?? (company?.marketCap && company?.price
+                         ? Math.round(company.marketCap / company.price)
+                         : 1e9);
+  const cash       = lastBS.cashAndCashEquivalents ?? 0;
+  const revenueGrowth = Array(PROJ_COUNT).fill(analysis?.dcf?.assumedGrowthRate ?? 0.05);
+  const nwcPct     = safeDiv((lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0), rev) ?? 0.05;
+  const netInterest  = lastIS.netInterestIncome ?? 0;
+  const lastRevenue  = lastIS.revenue ?? null;
+  const lastNWC    = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
+  const lastDate   = stmts[0]?.date ?? null;
+
+  const currentPrice = analysis?.technicals?.currentPrice ?? company?.price ?? null;
+
+  // ── Fiscal year labels & scale factors ───────────────────────────────────
+  const lastYear     = lastDate ? parseInt(lastDate.slice(0, 4), 10) : new Date().getFullYear();
+  const lastMonthDay = lastDate ? lastDate.slice(5) : '09-30';
+  const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastYear + i + 1}`);
+  const projFYEndDates = Array.from({ length: PROJ_COUNT }, (_, i) => `${lastYear + i + 1}-${lastMonthDay}`);
+
+  const today = new Date(2026, 2, 30);
+  const scaleFactors = projFYEndDates.map(d =>
+    Math.max(0.01, (new Date(d) - today) / (365.25 * 24 * 60 * 60 * 1000))
+  );
+
+  // ── Projections ──────────────────────────────────────────────────────────
+  const baseRev = lastRevenue ?? 1;
+  const projRevenue = revenueGrowth.reduce((acc, r) => {
+    const prev = acc.length ? acc[acc.length - 1] : baseRev;
+    acc.push(prev * (1 + r));
+    return acc;
+  }, []);
+
+  const projCOGS      = projRevenue.map(r => r * cogsPct);
+  const projGP        = projRevenue.map((r, i) => r - projCOGS[i]);
+  const projOpEx      = projRevenue.map(r => r * opExPct);
+  const projEBIT      = projGP.map((gp, i) => gp - projOpEx[i]);
+  const projTax       = projEBIT.map(e => Math.max(0, e * taxRate));
+  const projNOPAT     = projEBIT.map((e, i) => e - projTax[i]);
+  const projDA        = projRevenue.map(r => r * daPct);
+  const projEBITDA    = projEBIT.map((e, i) => e + projDA[i]);
+  const projNWC       = projRevenue.map(r => r * nwcPct);
+  const projChangeNWC = projNWC.map((nwc, i) => nwc - (i === 0 ? lastNWC : projNWC[i - 1]));
+  const projCAPEX     = projRevenue.map(r => r * capexPct);
+  const projFCFF      = projNOPAT.map((n, i) => n + projDA[i] - projChangeNWC[i] - projCAPEX[i]);
+  const projFCFE      = projFCFF.map(f => f + netInterest);
+
+  // ── Present values ───────────────────────────────────────────────────────
+  const pvUFCF    = projFCFF.map((f, i) => f / Math.pow(1 + wacc, scaleFactors[i]));
+  const pvLFCF    = projFCFE.map((f, i) => f / Math.pow(1 + costOfEquity, scaleFactors[i]));
+  const sumPvUFCF = pvUFCF.reduce((a, b) => a + b, 0);
+  const sumPvLFCF = pvLFCF.reduce((a, b) => a + b, 0);
+
+  // ── Terminal values ──────────────────────────────────────────────────────
+  const lastEBITDA   = projEBITDA[PROJ_COUNT - 1];
+  const lastEarnings = projNOPAT[PROJ_COUNT - 1] + netInterest;
+  const lastScale    = scaleFactors[PROJ_COUNT - 1];
+
+  const tvEVEBITDA   = lastEBITDA * s.terminalEVEBITDA;
+  const pvTvEVEBITDA = tvEVEBITDA / Math.pow(1 + wacc, lastScale);
+  const ev           = sumPvUFCF + pvTvEVEBITDA;
+  const equityFCFF   = ev - longTermDebt + cash;
+  const impliedFCFF  = shares > 0 ? equityFCFF / shares : null;
+  const upsideFCFF   = safeDiv(impliedFCFF != null ? impliedFCFF - currentPrice : null, currentPrice);
+
+  const tvPE         = lastEarnings * s.terminalPE;
+  const pvTvPE       = tvPE / Math.pow(1 + costOfEquity, lastScale);
+  const equityFCFE   = sumPvLFCF + pvTvPE;
+  const impliedFCFE  = shares > 0 ? equityFCFE / shares : null;
+  const upsideFCFE   = safeDiv(impliedFCFE != null ? impliedFCFE - currentPrice : null, currentPrice);
+
+  const pctFirstFCFF = safeDiv(sumPvUFCF, ev);
+  const pctTermFCFF  = safeDiv(pvTvEVEBITDA, ev);
+  const pctFirstFCFE = safeDiv(sumPvLFCF, equityFCFE);
+  const pctTermFCFE  = safeDiv(pvTvPE, equityFCFE);
+
+  const perShare = v => shares > 0 ? v / shares : null;
+  const revCAGR  = lastRevenue && projRevenue[PROJ_COUNT - 1]
+    ? Math.pow(projRevenue[PROJ_COUNT - 1] / lastRevenue, 1 / PROJ_COUNT) - 1
+    : null;
+
+  // ── Sensitivity grids ────────────────────────────────────────────────────
+  // Axis steps generated from editable center values
+  const waccSteps   = Array.from({ length: GRID_SIZE }, (_, i) => s.waccCenter + (i - HALF) * 0.01);
+  const evMultSteps = Array.from({ length: GRID_SIZE }, (_, i) => s.evEbitdaCenter + (i - HALF));
+  const coeSteps    = Array.from({ length: GRID_SIZE }, (_, i) => s.coeCenter + (i - HALF) * 0.01);
+  const peSteps     = Array.from({ length: GRID_SIZE }, (_, i) => s.peCenter + (i - HALF));
+
+  const grid1 = waccSteps.map(w => {
+    const pvs   = projFCFF.map((f, i) => f / Math.pow(1 + w, scaleFactors[i]));
+    const sumPv = pvs.reduce((a, b) => a + b, 0);
+    return evMultSteps.map(mult => {
+      const pvTv = (lastEBITDA * mult) / Math.pow(1 + w, lastScale);
+      const eq   = sumPv + pvTv - longTermDebt + cash;
+      return shares > 0 ? eq / shares : null;
+    });
+  });
+
+  const grid2 = coeSteps.map(coe => {
+    const pvs   = projFCFE.map((f, i) => f / Math.pow(1 + coe, scaleFactors[i]));
+    const sumPv = pvs.reduce((a, b) => a + b, 0);
+    return peSteps.map(pe => {
+      const pvTv = (lastEarnings * pe) / Math.pow(1 + coe, lastScale);
+      const eq   = sumPv + pvTv;
+      return shares > 0 ? eq / shares : null;
+    });
+  });
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="tab-panel tab-panel--dcf" id="tabpanel-dcf" role="tabpanel">
-      <DcfValuation analysis={analysis} />
-      <div className="tab-panel__spacer" />
-      <Technicals analysis={analysis} />
-      <div className="tab-shell tab-shell--inline">
-        <p className="tab-shell__note">
-          Full FCFF/FCFE DCF model, sensitivity matrix, and scenario toggles will expand here.
-        </p>
+
+      {/* ── Areas 1+2: Top row ────────────────────────────────────────────── */}
+      <div className="dcf-top-grid">
+
+        {/* Area 1: Assumptions Panel */}
+        <div className="dcf-assumptions-panel">
+          <p className="dcf-assumptions-panel__section-title">Current Stock Price</p>
+          <div className="dcf-kv">
+            <span className="dcf-kv__label">Price</span>
+            <span className="dcf-kv__value">{currentPrice != null ? `$${currentPrice.toFixed(2)}` : EM_DASH}</span>
+          </div>
+
+          <p className="dcf-assumptions-panel__section-title">Operating Assumptions</p>
+          {[
+            ['OpEx % Revenue',  (opExPct * 100).toFixed(2) + '%'],
+            ['D&A % Revenue',   (daPct * 100).toFixed(2) + '%'],
+            ['CapEx % Revenue', (capexPct * 100).toFixed(2) + '%'],
+            ['COGS % Revenue',  (cogsPct * 100).toFixed(2) + '%'],
+            ['Tax Rate',        (taxRate * 100).toFixed(2) + '%'],
+          ].map(([label, display]) => (
+            <div className="dcf-kv" key={label}>
+              <span className="dcf-kv__label">{label}</span>
+              <span className="dcf-kv__value">{display}</span>
+            </div>
+          ))}
+
+          <p className="dcf-assumptions-panel__section-title">DCF Assumptions</p>
+          {[
+            ['WACC',             (wacc * 100).toFixed(2) + '%'],
+            ['Cost of Equity',   (costOfEquity * 100).toFixed(2) + '%'],
+            ['Revenue Growth',   ((revenueGrowth[0] ?? 0) * 100).toFixed(2) + '%'],
+            ['Long-term Debt',   '$' + (longTermDebt / 1e6).toFixed(0) + 'M'],
+            ['Dil. Shares (M)',  (shares / 1e6).toFixed(0)],
+            ['Cash',             '$' + (cash / 1e6).toFixed(0) + 'M'],
+            ['Net Interest',     '$' + (netInterest / 1e6).toFixed(0) + 'M'],
+          ].map(([label, display]) => (
+            <div className="dcf-kv" key={label}>
+              <span className="dcf-kv__label">{label}</span>
+              <span className="dcf-kv__value">{display}</span>
+            </div>
+          ))}
+
+          <p className="dcf-assumptions-panel__section-title">Terminal Multiples</p>
+          <div className="dcf-kv">
+            <span className="dcf-kv__label">Terminal P/E</span>
+            <span className="dcf-kv__value">
+              <input
+                type="number"
+                className="dcf-kv__input"
+                value={s.terminalPE.toFixed(1)}
+                step="0.5"
+                onChange={e => updTermPE(e.target.value)}
+                aria-label="Terminal P/E"
+              />
+              <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>x</span>
+            </span>
+          </div>
+          <div className="dcf-kv">
+            <span className="dcf-kv__label">Terminal EV/EBITDA</span>
+            <span className="dcf-kv__value">
+              <input
+                type="number"
+                className="dcf-kv__input"
+                value={s.terminalEVEBITDA.toFixed(1)}
+                step="0.5"
+                onChange={e => updTermEV(e.target.value)}
+                aria-label="Terminal EV/EBITDA"
+              />
+              <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>x</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Area 2: Valuation Summary */}
+        <div className="dcf-summary-panel">
+          <div className="dcf-summary-block">
+            <p className="dcf-summary-block__title">FCFF — EV/EBITDA Exit</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+              <span className="dcf-summary-block__hero">{impliedFCFF != null ? `$${impliedFCFF.toFixed(2)}` : EM_DASH}</span>
+              <span
+                className="dcf-summary-block__upside"
+                style={{ color: upsideFCFF != null ? (upsideFCFF >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : undefined }}
+              >
+                {upsideFCFF != null ? fmtPct(upsideFCFF, 2) : EM_DASH}
+              </span>
+            </div>
+            <div className="dcf-summary-block__detail-grid">
+              <div><span className="dcf-kv__label">PV of FCFF (Stage 1)</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatLargeNumber(sumPvUFCF)}</span></div>
+              <div><span className="dcf-kv__label">PV of Terminal Value</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatLargeNumber(pvTvEVEBITDA)}</span></div>
+              <div><span className="dcf-kv__label">% from Stage 1</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatPct(pctFirstFCFF, 2)}</span></div>
+              <div><span className="dcf-kv__label">% from Terminal</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatPct(pctTermFCFF, 2)}</span></div>
+              <div><span className="dcf-kv__label">Rev CAGR</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatPct(revCAGR, 2)}</span></div>
+            </div>
+          </div>
+
+          <div className="dcf-summary-block">
+            <p className="dcf-summary-block__title">FCFE — P/E Exit</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+              <span className="dcf-summary-block__hero">{impliedFCFE != null ? `$${impliedFCFE.toFixed(2)}` : EM_DASH}</span>
+              <span
+                className="dcf-summary-block__upside"
+                style={{ color: upsideFCFE != null ? (upsideFCFE >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : undefined }}
+              >
+                {upsideFCFE != null ? fmtPct(upsideFCFE, 2) : EM_DASH}
+              </span>
+            </div>
+            <div className="dcf-summary-block__detail-grid">
+              <div><span className="dcf-kv__label">PV of FCFE (Stage 1) / share</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{perShare(sumPvLFCF) != null ? `$${perShare(sumPvLFCF).toFixed(2)}` : EM_DASH}</span></div>
+              <div><span className="dcf-kv__label">PV of Terminal Value / share</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{perShare(pvTvPE) != null ? `$${perShare(pvTvPE).toFixed(2)}` : EM_DASH}</span></div>
+              <div><span className="dcf-kv__label">% from Stage 1</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatPct(pctFirstFCFE, 2)}</span></div>
+              <div><span className="dcf-kv__label">% from Terminal</span></div>
+              <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatPct(pctTermFCFE, 2)}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Area 3: Projection Table ─────────────────────────────────────── */}
+      <div className="proj-section">
+        <p className="proj-section__title">FCFF / FCFE Projection Model</p>
+        <div className="revenue-table-wrap">
+          <table className="revenue-table">
+            <thead>
+              <tr>
+                <th className="revenue-table__row-label" scope="col"></th>
+                {projFYLabels.map(fy => (
+                  <th key={fy} className="revenue-col-header revenue-col-header--projected" scope="col">
+                    {fy}<span className="revenue-col-header__tag">Projected</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="revenue-row revenue-row--growth">
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Scale Factor</td>
+                {scaleFactors.map((sf, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{sf.toFixed(2)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--growth">
+                <td className="revenue-table__row-label revenue-table__row-label--sub">FY End Date</td>
+                {projFYEndDates.map((d, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{d}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label">Revenue</td>
+                {projRevenue.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: COGS</td>
+                {projCOGS.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--subtotal">
+                <td className="revenue-table__row-label">Gross Profit</td>
+                {projGP.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Operating Expenses</td>
+                {projOpEx.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--subtotal">
+                <td className="revenue-table__row-label">EBIT</td>
+                {projEBIT.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Taxes</td>
+                {projTax.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--subtotal">
+                <td className="revenue-table__row-label">NOPAT</td>
+                {projNOPAT.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Plus: D&amp;A</td>
+                {projDA.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Change in NWC</td>
+                {projChangeNWC.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Capital Expenditures</td>
+                {projCAPEX.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--total">
+                <td className="revenue-table__row-label">Unlevered Free Cash Flow (FCFF)</td>
+                {projFCFF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--growth">
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Per Share</td>
+                {projFCFF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{perShare(v) != null ? perShare(v).toFixed(2) : EM_DASH}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Interest Income (Expense)</td>
+                {projFCFF.map((_, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(netInterest)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--total">
+                <td className="revenue-table__row-label">Levered Free Cash Flow (FCFE)</td>
+                {projFCFE.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--growth">
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Per Share</td>
+                {projFCFE.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{perShare(v) != null ? perShare(v).toFixed(2) : EM_DASH}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label">Present Value of UFCF</td>
+                {pvUFCF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--growth">
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Per Share</td>
+                {pvUFCF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{perShare(v) != null ? perShare(v).toFixed(2) : EM_DASH}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label">Present Value of LFCF</td>
+                {pvLFCF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--growth">
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Per Share</td>
+                {pvLFCF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{perShare(v) != null ? perShare(v).toFixed(2) : EM_DASH}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Area 4: Sensitivity Grids ─────────────────────────────────────── */}
+      <div className="dcf-sensitivity-grid">
+
+        {/* Grid 1: WACC vs EV/EBITDA */}
+        <div className="dcf-sensitivity">
+          <p className="dcf-sensitivity__title">Sensitivity: WACC vs EV/EBITDA — Implied FCFF Price</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="dcf-sensitivity__table">
+              <thead>
+                <tr>
+                  <th className="dcf-sensitivity__corner">WACC \ EV/EBITDA</th>
+                  {evMultSteps.map((m, ci) => (
+                    <th key={ci}>
+                      {ci === HALF
+                        ? <input type="number" className="dcf-sens-input" value={s.evEbitdaCenter.toFixed(0)} step="1" onChange={e => updEvCenter(e.target.value)} aria-label="EV/EBITDA center" />
+                        : `${m.toFixed(0)}x`}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {grid1.map((row, ri) => (
+                  <tr key={ri}>
+                    <th>
+                      {ri === HALF
+                        ? <input type="number" className="dcf-sens-input" value={(s.waccCenter * 100).toFixed(2)} step="0.01" onChange={e => updWaccCenter(e.target.value)} aria-label="WACC center" />
+                        : `${(waccSteps[ri] * 100).toFixed(2)}%`}
+                    </th>
+                    {row.map((price, ci) => (
+                      <td
+                        key={ci}
+                        className={ri === HALF && ci === HALF ? 'dcf-sensitivity__cell--base' : ''}
+                        style={sensitivityStyle(price, currentPrice)}
+                      >
+                        {price != null ? `$${price.toFixed(2)}` : EM_DASH}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Grid 2: Cost of Equity vs P/E */}
+        <div className="dcf-sensitivity">
+          <p className="dcf-sensitivity__title">Sensitivity: Cost of Equity vs P/E — Implied FCFE Price</p>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="dcf-sensitivity__table">
+              <thead>
+                <tr>
+                  <th className="dcf-sensitivity__corner">CoE \ P/E</th>
+                  {peSteps.map((p, ci) => (
+                    <th key={ci}>
+                      {ci === HALF
+                        ? <input type="number" className="dcf-sens-input" value={s.peCenter.toFixed(0)} step="1" onChange={e => updPeCenter(e.target.value)} aria-label="P/E center" />
+                        : `${p.toFixed(0)}x`}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {grid2.map((row, ri) => (
+                  <tr key={ri}>
+                    <th>
+                      {ri === HALF
+                        ? <input type="number" className="dcf-sens-input" value={(s.coeCenter * 100).toFixed(2)} step="0.01" onChange={e => updCoeCenter(e.target.value)} aria-label="Cost of Equity center" />
+                        : `${(coeSteps[ri] * 100).toFixed(2)}%`}
+                    </th>
+                    {row.map((price, ci) => (
+                      <td
+                        key={ci}
+                        className={ri === HALF && ci === HALF ? 'dcf-sensitivity__cell--base' : ''}
+                        style={sensitivityStyle(price, currentPrice)}
+                      >
+                        {price != null ? `$${price.toFixed(2)}` : EM_DASH}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   );

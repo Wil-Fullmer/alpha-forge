@@ -66,7 +66,7 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
         {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
         {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} />}
         {activeTab === 'relative-valuation' && <RelativeValuationTab />}
-        {activeTab === 'dcf'                && <DcfTab analysis={analysis} />}
+        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} />}
         {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} />}
       </div>
     </div>

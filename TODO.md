@@ -7,19 +7,20 @@
 
 ## Current Status
 
-Backend is stable. Frontend is in active valuation workbench build. Revenue, Projections, and
-WACC tabs are complete. WACC tab has live capital structure weights, CAPM cost of equity, and
-after-tax cost of debt with full WACC recalc. Common Size IS revenue row now shows YoY growth %.
-Remaining workbench tabs (DCF, Final Valuation, Assumptions) are shells awaiting implementation.
+Backend is stable. Frontend valuation workbench is 4/7 tabs complete: Revenue, Projections,
+WACC, and DCF. DCF tab has a full 5-year FCFF/FCFE model, EV/EBITDA and P/E terminal values,
+valuation summary with implied prices, and two color-coded 7×7 sensitivity grids.
+Remaining: Final Valuation, Assumptions (shells), Relative Valuation (deferred).
 
 ---
 
 ## Current Priority
 
-**Continue valuation workbench implementation — next tab: DCF.**
+**Continue valuation workbench implementation — next tab: Final Valuation.**
 
-Revenue, Projections, and WACC tabs are complete. Next is DCF tab deep rebuild
-(FCFF/FCFE side-by-side, sensitivity grid). Final Valuation and Assumptions tabs follow.
+Revenue, Projections, WACC, and DCF tabs are complete. Next is Final Valuation tab
+(weighted rollup of FCFF/FCFE implied prices, football field chart, editable weights).
+Assumptions tab follows.
 
 ---
 
@@ -113,7 +114,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Spreadsheet-style UI primitives — editable cell, read-only cell, calculated cell, dense model tables (`.revenue-table`, driver rows, subtotal/total row variants)
 - [x] Valuation workbench — WACC tab implementation (capital structure weights, CAPM cost of equity, after-tax cost of debt, live WACC recalc; seeded from fixture data)
 - [x] Common Size IS — Revenue row now shows YoY growth % instead of revenue/revenue; oldest year shows EM_DASH
-- [ ] Valuation workbench — DCF tab deep rebuild (FCFF/FCFE side-by-side, sensitivity grid)
+- [x] Valuation workbench — DCF tab deep rebuild (FCFF/FCFE side-by-side, 5-year projection model, EV/EBITDA + P/E terminal value, two color-coded 7×7 sensitivity grids)
 - [ ] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
 - [ ] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
 - [ ] Sensitivity table presentation — numeric grid first, light heatmap treatment later
