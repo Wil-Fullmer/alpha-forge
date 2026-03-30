@@ -117,6 +117,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [ ] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
 - [ ] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
 - [ ] Sensitivity table presentation — numeric grid first, light heatmap treatment later
+- [ ] Start panel — user-friendly entry point: landing panel with ticker input, triggers `/api/analysis/{ticker}` on submit (runs full pipeline if no cached data), loading state while fetching, transitions to workbench tab view on success; replaces fixture-selector/header-ticker workflow for production use
 
 ### Backend
 - [ ] Ticker input validation — reject malformed tickers at the route level before hitting services *(also in current sprint)*
