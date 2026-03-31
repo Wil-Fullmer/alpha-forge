@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if command -v powershell >/dev/null 2>&1; then
+  powershell -ExecutionPolicy Bypass -File "$repo_root/scripts/handoff-check.ps1"
+else
+  echo "powershell not found: cannot run scripts/handoff-check.ps1" >&2
+  exit 1
+fi

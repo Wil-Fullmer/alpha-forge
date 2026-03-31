@@ -32,3 +32,4 @@ Claude agent files in `.claude/agents/` are the canonical source.
 Codex consumes a mirrored copy in `.codex/agents/` so both tools stay aligned.
 Use `scripts/sync-agents.ps1` to refresh the mirror and verify file hashes.
 See `docs/AGENT_SYNC.md` for the full process.
+For session continuity, append handoff notes to `docs/WORKLOG.md`.

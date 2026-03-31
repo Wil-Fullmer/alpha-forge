@@ -36,6 +36,8 @@ Skip for: single-file typo fixes pushed immediately after a clean session.
 - [ ] Tests pass locally (`npm test`)
 - [ ] The fixture server starts clean (`npm run web:fixtures`)
 - [ ] No TODO/FIXME comments left in files you're committing that point to unresolved blockers
+- [ ] `docs/WORKLOG.md` has a current handoff entry (today) with next step + touched files
+- [ ] `powershell -ExecutionPolicy Bypass -File .\scripts\handoff-check.ps1` passes
 
 ---
 
