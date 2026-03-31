@@ -157,6 +157,39 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [ ] Scheduled auto-refresh — background job to pre-warm analysis files for tracked tickers
 - [ ] `getKeyMetrics` ratio display panel — surface grahamNumber, earningsYield, evToEBITDA, returnOnEquity, etc. in a frontend metrics card; not wired into EPS/shares fallback chains (key-metrics endpoint has no direct eps/sharesOutstanding fields)
 
+### v1.1 — SEC EDGAR Enrichment Layer
+
+> Deferred post-workbench (v1.0). Conceptual audit completed 2026-03-31 via pipeline-orchestrator.
+> Do not begin until Final Valuation, Assumptions, and Relative Valuation tabs are shipped.
+
+**What it is:** SEC EDGAR Company Facts API (data.sec.gov) as a supplementary enrichment layer
+sitting after FMP normalization — not a provider replacement. Adds audited, XBRL-tagged financials
+direct from SEC filings (10+ years quarterly + annual, free, no API key, 10 req/s rate limit).
+
+**Architectural pattern:**
+```
+FMP (primary) → normalize → assemble → [optional enrichWithEdgar()] → analyze → frontend
+```
+Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR source per field.
+
+**Highest-value tabs:**
+- **Projections** — 10-year trend history to anchor driver assumptions (currently limited by FMP depth)
+- **DCF** — verified CapEx and cash flow figures from actual filings vs FMP aggregation
+
+**5 decisions to resolve at implementation time:**
+1. CIK resolution — ticker → CIK lookup + 24h cache (respect 10 req/s limit)
+2. XBRL tag mapping — hardcoded alias dict (`us-gaap:Revenues` → `revenue`, etc.)
+3. Fiscal period alignment — quarterly for trends, annual for structure; explicit labeling to stay in sync with FMP annual data
+4. Cache TTL — ~45 days to match quarterly filing cadence
+5. Reconciliation flags — surface FMP vs EDGAR discrepancies so the user knows which source drives each number
+
+**Deliverables when scoped:**
+- `src/services/edgar.js` — CIK resolver + Company Facts fetcher
+- `src/services/normalizers/edgar.js` — XBRL → normalized schema
+- `dataAssembler.js` — optional `enrichWithEdgar()` export
+- Test fixtures — EDGAR samples for 3–5 tickers across sectors
+- Provenance field added to normalized output schema
+
 ---
 
 ## Agent Board — Claude Code
