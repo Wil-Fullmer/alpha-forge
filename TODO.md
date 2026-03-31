@@ -131,8 +131,8 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [ ] Start panel — user-friendly entry point: landing panel with ticker input, triggers `/api/analysis/{ticker}` on submit (runs full pipeline if no cached data), loading state while fetching, transitions to workbench tab view on success; replaces fixture-selector/header-ticker workflow for production use
 
 ### Backend
-- [ ] Ticker input validation — reject malformed tickers at the route level before hitting services *(also in current sprint)*
-- [ ] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500 *(also in current sprint)*
+- [x] Ticker input validation — reject malformed tickers at the route level before hitting services
+- [x] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
 ### Testing
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 - [ ] Unit tests for `dataAssembler.js` — verify pre-collected path, fetch-error path, and flag accumulation
@@ -173,6 +173,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 | A-005 | **BUG FIX — Sharpe ratio units mismatch (annualisation)** | `src/services/analysis.js:9–25` | Was: `(dailyMean − 0.02) / dailyStd` (annual RFR vs daily returns). Now: `((dailyMean − 0.02/252) / dailyStd) × √252`. Fixture will update on next live pipeline run. |
 | A-006 | **AUDIT — Full data accuracy review of all new tabs** | All tab files, `data/fixtures/AAPL/analysis.json` | Used pipeline orchestrator to regenerate data; cross-referenced every tab field against FMP JSON schema and backend normalizers. Found 4 bugs + 2 notes. |
 | A-016 | **UI clarity pass — Dark Terminal Gold retheme + charts + collapsibles** | `styles.css`, `CollapsibleSection.jsx`, `CompanyPage.jsx`, `ProjectionsTab.jsx`, `RevenueTab.jsx`, `DcfTab.jsx`, `WaccTab.jsx`, `CompanyOverview.jsx` | Full retheme (gold accent, deep navy, warm parchment); CollapsibleSection with grid-row animation; tab fade-in; recharts charts in Revenue + Projections; input/table density improvements across all tabs. |
+| A-017 | **Pre-push hook — enforce TODO.md update on every git push** | `.claude/hooks/pre-push-todo-check.sh`, `.claude/settings.json`, `CLAUDE.md`, `docs/WORKFLOW_CHECKPOINT_SKILL.md` | PreToolUse hook blocks `git push` if TODO.md is absent from HEAD commit or date is not today. CLAUDE.md policy section added. Enforcement note added to WORKFLOW_CHECKPOINT_SKILL.md. |
 
 ---
 
@@ -270,4 +271,5 @@ These rules do not change without explicit decision:
 - [x] Valuation workbench Pass 2 (Revenue tab) — `RevenueTab.jsx`: 3 historical + 4 projected columns, editable growth % inputs, live rolling revenue projection; `historicalRevenue` added to `/api/analysis` response, all fixture files updated
 - [x] Valuation workbench Pass 2 (Projections tab) — `ProjectionsTab.jsx`: three-section model (Income Statement, Common Size, Other Forecasted Terms); per-row driver inputs (gross margin, R&D %, SG&A %, D&A %, tax rate, CAPEX %, NWC %); full cascade from revenue through net income; `historicalFinancials` added to analysis response; normalizers extended with 15 new fields (costOfRevenue, researchAndDev, sgaExpense, depreciationAmort, netInterestIncome, otherIncomeExpense, incomeBeforeTax, taxExpense, totalCurrentAssets, totalCurrentLiabilities, netDebt, changeInWorkingCap, etc.)
 - [x] Data accuracy audit + fixes — cross-referenced all workbench tab data points against backend fields and FMP data definitions; resolved: D&A double-count in Projections IS, hardcoded date in DCF scale factors, WACC→DCF tab wiring, NWC methodology mismatch, Sharpe ratio annualisation
+- [x] Pre-push hook — `.claude/hooks/pre-push-todo-check.sh` enforces TODO.md update on every `git push`; PreToolUse hook in `settings.json`; policy documented in `CLAUDE.md`
 - [x] UI clarity pass — "Dark Terminal Gold" retheme (gold accent `#d4a853`, deep navy bg, warm parchment text); `CollapsibleSection` component (CSS grid-row height animation); tab fade-in animation; recharts `ComposedChart` in Revenue tab (gold bars + YoY growth line) and Projections tab (stacked COGS/OpEx bars + gross/net margin lines); input width/hover/tint fixes; DCF sensitivity color floor + base-cell inset; CompanyOverview line-clamp with show-more toggle; WACC result row gold tint; monospace font on all data cells
