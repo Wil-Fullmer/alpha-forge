@@ -25,3 +25,10 @@ is not today, the push will be blocked with instructions. Update TODO.md, commit
 (new commit — do not amend), then re-run the push.
 
 See docs/WORKFLOW_CHECKPOINT_SKILL.md Section 3 for the full checklist.
+
+## Claude and Codex Interop
+
+Claude agent files in `.claude/agents/` are the canonical source.
+Codex consumes a mirrored copy in `.codex/agents/` so both tools stay aligned.
+Use `scripts/sync-agents.ps1` to refresh the mirror and verify file hashes.
+See `docs/AGENT_SYNC.md` for the full process.

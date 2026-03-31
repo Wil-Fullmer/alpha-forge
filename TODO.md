@@ -236,6 +236,7 @@ These rules do not change without explicit decision:
 - [x] Analysis file freshness TTL — `getOrRunAnalysis()` checks `analysisDate` against `ANALYSIS_CACHE_TTL_MS`; stale/malformed files are rerun
 - [x] Integration test fixture — `data/AAPL-collected.json` created; test skips if fixture missing, live test gated by `RUN_LIVE_TESTS=1`
 - [x] `.env.example` updated — `ANALYSIS_CACHE_TTL_MS` and `MAX_PROVIDER_CALLS` documented
+- [x] Claude/Codex agent interop docs — `.codex/agents` mirror added, `scripts/sync-agents.ps1` hash-verified sync, and workflow notes updated in README/CLAUDE/checklists
 - [x] Frontend project structure — Vite + React SPA (`frontend/`) with full component tree and `package.json`
 - [x] Company page — `CompanyPage.jsx` with `CompanyOverview`, `CoreMetrics`, `DcfValuation`, `Technicals`, `FlagsPanel` components
 - [x] Frontend API client layer — `frontend/src/api/{client,company,analysis}.js`

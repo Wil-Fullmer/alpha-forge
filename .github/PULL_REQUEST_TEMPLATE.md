@@ -20,4 +20,5 @@
 - [ ] Code follows project style
 - [ ] No API keys or secrets in code
 - [ ] Documentation updated if needed
+- [ ] If `.claude/agents` changed, `.codex/agents` mirror sync was run
 - [ ] Ready to merge

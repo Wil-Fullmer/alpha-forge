@@ -30,6 +30,7 @@ Skip for: single-file typo fixes pushed immediately after a clean session.
 - [ ] Large binary files not accidentally staged (check sizes in `git status`)
 - [ ] No `node_modules/`, `dist/`, `data/cache/`, `data/exports/`, or `logs/` included
 - [ ] No `.env` variants (`.env.local`, `.env.production`, etc.) included
+- [ ] If `.claude/agents/` changed: run `scripts/sync-agents.ps1` and verify `.codex/agents/` hash match
 
 ### Correctness
 - [ ] Tests pass locally (`npm test`)

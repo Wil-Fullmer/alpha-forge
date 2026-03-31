@@ -101,6 +101,19 @@ Push to GitHub, pull on another device. No extra setup needed.
 - Use Issues/Projects for tracking todos
 - Claude can read todos on every push
 
+## AI Workflow
+
+Claude agent definitions remain the source of truth in `.claude/agents/`.
+Codex uses a mirrored copy in `.codex/agents/` so both tools can work from the same agent instructions without modifying Claude-owned files.
+
+When agent files change, run:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-agents.ps1
+```
+
+See `docs/AGENT_SYNC.md` for safety rules and verification behavior.
+
 ## Contributing
 
 1. Create an issue or discussion on GitHub
