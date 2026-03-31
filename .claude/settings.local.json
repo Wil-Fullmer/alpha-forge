@@ -1,5 +1,4 @@
 {
-  "model": "sonnet",
   "env": {
     "MAX_THINKING_TOKENS": "13000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60",
@@ -61,7 +60,13 @@
       "Bash(find 'C:\\\\Users\\\\Kak Vlek\\\\projects\\\\alpha-forge' -type f \\\\\\(-name *.json -path */scripts/* -o -name *config* -type f \\\\\\))",
       "Bash(git:*)",
       "Bash(npm install:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(find . -type f -name *DCF* -o -name *dcf*)",
+      "Bash(find '/c/Users/Kak Vlek/projects/alpha-forge' -name sync-agents.ps1 -o -name *sync* -type f)",
+      "Bash(grep -E \"\\\\.\\(ps1|sh\\)$\")",
+      "Bash(find '/c/Users/Kak Vlek/projects/alpha-forge' -path */.claude/hooks/* -o -path */.githooks/* -o -path */.codex/hooks/*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File scripts/sync-agents.ps1)",
+      "Bash(powershell -ExecutionPolicy Bypass -File scripts/handoff-check.ps1)"
     ],
     "deny": [
       "Read(./.env)",
@@ -90,6 +95,7 @@
     ],
     "defaultMode": "acceptEdits"
   },
+  "model": "sonnet",
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   }
