@@ -9,3 +9,19 @@ Use this key only for authorized Financial Modeling Prep API requests.
 Never print, reveal, repeat, log, or echo the API key in responses, code output, terminal output, or comments.
 Never hardcode the API key into source files.
 Prefer reading the key from environment variables at runtime.
+
+## TODO.md Update Policy
+
+Before every `git push`, TODO.md must be updated and included in the most recent commit.
+
+Required updates:
+1. Set `Current date:` at the top to today's date (YYYY-MM-DD)
+2. Check off any sprint items completed in the commits being pushed
+3. Update `Current Status` if the project state changed
+4. Update `Current Sprint` with the actual next steps (not what was just finished)
+
+A pre-push hook enforces this. If TODO.md is missing from the last commit or its date
+is not today, the push will be blocked with instructions. Update TODO.md, commit it
+(new commit — do not amend), then re-run the push.
+
+See docs/WORKFLOW_CHECKPOINT_SKILL.md Section 3 for the full checklist.

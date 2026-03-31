@@ -6,20 +6,23 @@ import logger from '../utils/logger.js'
  * @param {number} riskFreeRate - Risk-free rate (default 0.02)
  * @returns {number} Sharpe ratio
  */
-export function calculateSharpeRatio(returns, riskFreeRate = 0.02) {
+export function calculateSharpeRatio(returns, annualRiskFreeRate = 0.02) {
   if (!returns || returns.length === 0) {
     throw new Error('No returns data provided')
   }
 
-  const meanReturn = returns.reduce((a, b) => a + b, 0) / returns.length
-  const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - meanReturn, 2), 0) / returns.length
-  const stdDev = Math.sqrt(variance)
+  const TRADING_DAYS = 252
+  const meanDailyReturn = returns.reduce((a, b) => a + b, 0) / returns.length
+  const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - meanDailyReturn, 2), 0) / returns.length
+  const dailyStdDev = Math.sqrt(variance)
 
-  if (stdDev === 0) {
+  if (dailyStdDev === 0) {
     throw new Error('Standard deviation is zero (no variation in returns)')
   }
 
-  const sharpeRatio = (meanReturn - riskFreeRate) / stdDev
+  // Annualise: (mean_daily − daily_rfr) / daily_std × √252
+  const dailyRfr = annualRiskFreeRate / TRADING_DAYS
+  const sharpeRatio = ((meanDailyReturn - dailyRfr) / dailyStdDev) * Math.sqrt(TRADING_DAYS)
   logger.info(`Sharpe ratio calculated: ${sharpeRatio.toFixed(4)}`)
   return sharpeRatio
 }

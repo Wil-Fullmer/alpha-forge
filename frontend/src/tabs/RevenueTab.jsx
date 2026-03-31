@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
+import CollapsibleSection from '../components/CollapsibleSection.jsx';
+import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
+         XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
 const PROJ_COUNT = 4;
 const FALLBACK_RATE = 0.05;
@@ -76,6 +79,21 @@ export default function RevenueTab({ analysis }) {
     );
   }
 
+  const revChartData = [
+    ...historical.map((h, i) => ({
+      year: fiscalYear(h.date),
+      revenue: h.revenue != null ? +(h.revenue / 1e9).toFixed(2) : null,
+      growth:  yoyGrowth(historical, i) != null ? +(yoyGrowth(historical, i) * 100).toFixed(1) : null,
+      isProjected: false,
+    })),
+    ...projectedRevenue.map((rev, i) => ({
+      year: projYears[i],
+      revenue: rev != null ? +(rev / 1e9).toFixed(2) : null,
+      growth:  +(growthRates[i] * 100).toFixed(1),
+      isProjected: true,
+    })),
+  ];
+
   return (
     <div className="tab-panel tab-panel--revenue" id="tabpanel-revenue" role="tabpanel">
       <div className="revenue-table-wrap">
@@ -140,6 +158,30 @@ export default function RevenueTab({ analysis }) {
           </tbody>
         </table>
       </div>
+
+      <CollapsibleSection title="Revenue Trend" defaultOpen={false}>
+        <div className="chart-panel">
+          <ResponsiveContainer width="100%" height={240}>
+            <ComposedChart data={revChartData} margin={{ top: 4, right: 48, bottom: 0, left: 8 }}>
+              <CartesianGrid stroke="#1e2d40" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="year" tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="left"  tickFormatter={v => `$${v}B`} tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v}%`} tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ background: '#0e1624', border: '1px solid #1e2d40', borderRadius: '8px', fontSize: '12px', color: '#f0ead6' }}
+                       labelStyle={{ color: '#8a9ab5', marginBottom: '4px' }} />
+              <Legend wrapperStyle={{ fontSize: '11px', color: '#8a9ab5' }} />
+              <ReferenceLine y={0} yAxisId="right" stroke="#1e2d40" />
+              <Bar dataKey="revenue" yAxisId="left" name="Revenue ($B)" maxBarSize={40}>
+                {revChartData.map((entry, i) => (
+                  <Cell key={i} fill={entry.isProjected ? 'rgba(212,168,83,0.35)' : '#d4a853'} />
+                ))}
+              </Bar>
+              <Line dataKey="growth" yAxisId="right" name="YoY Growth (%)" type="monotone"
+                    stroke="#4ade80" strokeWidth={2} dot={{ r: 3, fill: '#4ade80' }} connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </CollapsibleSection>
 
       <div className="tab-shell tab-shell--inline">
         <p className="tab-shell__note">

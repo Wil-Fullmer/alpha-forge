@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { EM_DASH, formatEmployees } from '../utils/format.js';
 
 export default function CompanyOverview({ company }) {
+  const [descExpanded, setDescExpanded] = useState(false);
   if (!company) return null;
 
   const name       = company.companyName ?? EM_DASH;

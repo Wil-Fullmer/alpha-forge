@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
+import CollapsibleSection from '../components/CollapsibleSection.jsx';
+import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
+         XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
 const PROJ_COUNT = 4;
 const EM_DASH = '—';
@@ -151,8 +154,10 @@ export default function ProjectionsTab({ analysis }) {
     rev != null ? rev * assumptions.sgaPct[i] : null);
   const projDA  = projRevenue.map((rev, i) =>
     rev != null ? rev * assumptions.daPct[i] : null);
+  // Operating income matches FMP definition: GP − R&D − SG&A
+  // D&A is embedded in COGS (informational field, not a separate P&L deduction)
   const projOpIncome = projGrossProfit.map((gp, i) =>
-    gp != null ? gp - (projRD[i] ?? 0) - (projSGA[i] ?? 0) - (projDA[i] ?? 0) : null);
+    gp != null ? gp - (projRD[i] ?? 0) - (projSGA[i] ?? 0) : null);
   const projEBT = projOpIncome.map((op, i) =>
     op != null ? op + (assumptions.netInterest[i] ?? 0) + (assumptions.otherIncome[i] ?? 0) : null);
   const projTax = projEBT.map((ebt, i) =>
@@ -171,6 +176,33 @@ export default function ProjectionsTab({ analysis }) {
     const prev = i === 0 ? nwcLast : (projNWC[i - 1] ?? nwcLast);
     return nwc != null && prev != null ? nwc - prev : null;
   });
+
+  // ── Chart data ────────────────────────────────────────────────────────────
+  const csChartData = [
+    ...stmts.map(s => {
+      const rev = s.revenue;
+      return {
+        year: fiscalYear(s.date),
+        isProjected: false,
+        cogs:   rev ? +((safeDiv(s.costOfRevenue,  rev) ?? 0) * 100).toFixed(1) : null,
+        gross:  rev ? +((safeDiv(s.grossProfit,    rev) ?? 0) * 100).toFixed(1) : null,
+        opex:   rev ? +(((s.researchAndDev ?? 0) + (s.sgaExpense ?? 0) + (s.depreciationAmort ?? 0)) / rev * 100).toFixed(1) : null,
+        netInc: rev ? +((safeDiv(s.netIncome,      rev) ?? 0) * 100).toFixed(1) : null,
+      };
+    }),
+    ...projYears.map((yr, i) => {
+      const rev = projRevenue[i];
+      return {
+        year: yr,
+        isProjected: true,
+        cogs:   rev ? +((rev - (projGrossProfit[i] ?? rev)) / rev * 100).toFixed(1) : null,
+        gross:  rev ? +((projGrossProfit[i] ?? 0) / rev * 100).toFixed(1) : null,
+        opex:   rev ? +(((projRD[i] ?? 0) + (projSGA[i] ?? 0) + (projDA[i] ?? 0)) / rev * 100).toFixed(1) : null,
+        netInc: rev ? +((projNetIncome[i] ?? 0) / rev * 100).toFixed(1) : null,
+      };
+    }),
+  ];
+  const lastHistLabel = stmts.at(-1) ? fiscalYear(stmts.at(-1).date) : null;
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
@@ -268,8 +300,7 @@ export default function ProjectionsTab({ analysis }) {
     <div className="tab-panel tab-panel--projections" id="tabpanel-projections" role="tabpanel">
 
       {/* ── Section 1: Income Statement ──────────────────────────────────── */}
-      <div className="proj-section">
-        <p className="proj-section__title">Income Statement</p>
+      <CollapsibleSection title="Income Statement" subtitle="Historical & Projected" defaultOpen={true}>
         <div className="revenue-table-wrap">
           <table className="revenue-table">
             <thead>{colHeaders}</thead>
@@ -378,11 +409,10 @@ export default function ProjectionsTab({ analysis }) {
             </tbody>
           </table>
         </div>
-      </div>
+      </CollapsibleSection>
 
       {/* ── Section 2: Common Size Income Statement ─────────────────────── */}
-      <div className="proj-section">
-        <p className="proj-section__title">Common Size Income Statement <span className="proj-section__subtitle">(% of Revenue)</span></p>
+      <CollapsibleSection title="Common Size Income Statement" subtitle="(% of Revenue)" defaultOpen={true}>
         <div className="revenue-table-wrap">
           <table className="revenue-table">
             <thead>{colHeaders}</thead>
@@ -437,11 +467,32 @@ export default function ProjectionsTab({ analysis }) {
             </tbody>
           </table>
         </div>
-      </div>
+        <CollapsibleSection title="Trend Chart" defaultOpen={false}>
+          <div className="chart-panel">
+            <ResponsiveContainer width="100%" height={260}>
+              <ComposedChart data={csChartData} margin={{ top: 4, right: 48, bottom: 0, left: 8 }}>
+                <CartesianGrid stroke="#1e2d40" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="year" tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={v => `${v}%`} tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: '#0e1624', border: '1px solid #1e2d40', borderRadius: '8px', fontSize: '12px', color: '#f0ead6' }}
+                         labelStyle={{ color: '#8a9ab5', marginBottom: '4px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px', color: '#8a9ab5' }} />
+                {lastHistLabel && (
+                  <ReferenceLine x={lastHistLabel} stroke="#d4a853" strokeDasharray="4 4"
+                    label={{ value: 'Projected →', position: 'insideTopRight', fill: '#8a9ab5', fontSize: 10 }} />
+                )}
+                <Bar dataKey="cogs"   name="COGS %"         stackId="a" fill="rgba(248,113,113,0.7)" maxBarSize={40} />
+                <Bar dataKey="opex"   name="OpEx %"          stackId="a" fill="rgba(251,191,36,0.6)"  maxBarSize={40} />
+                <Line dataKey="gross"  name="Gross Margin %" type="monotone" stroke="rgba(212,168,83,0.9)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                <Line dataKey="netInc" name="Net Margin %"   type="monotone" stroke="#4ade80"               strokeWidth={2} dot={{ r: 3 }} connectNulls />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </CollapsibleSection>
+      </CollapsibleSection>
 
       {/* ── Section 3: Other Forecasted Terms ───────────────────────────── */}
-      <div className="proj-section">
-        <p className="proj-section__title">Other Forecasted Terms</p>
+      <CollapsibleSection title="Other Forecasted Terms" defaultOpen={true}>
         <div className="revenue-table-wrap">
           <table className="revenue-table">
             <thead>{colHeaders}</thead>
@@ -516,11 +567,19 @@ export default function ProjectionsTab({ analysis }) {
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Change in NWC</td>
-                {cfs.map((s, i) => (
-                  <td key={s.date ?? i} className="revenue-cell revenue-cell--historical">
-                    {formatLargeNumber(s.changeInWorkingCap)}
-                  </td>
-                ))}
+                {bss.map((s, i) => {
+                  const nwcCurr = s.totalCurrentAssets != null && s.totalCurrentLiabilities != null
+                    ? s.totalCurrentAssets - s.totalCurrentLiabilities : null;
+                  const prev = bss[i - 1];
+                  const nwcPrev = prev?.totalCurrentAssets != null && prev?.totalCurrentLiabilities != null
+                    ? prev.totalCurrentAssets - prev.totalCurrentLiabilities : null;
+                  const delta = nwcCurr != null && nwcPrev != null ? nwcCurr - nwcPrev : null;
+                  return (
+                    <td key={s.date ?? i} className="revenue-cell revenue-cell--historical">
+                      {formatLargeNumber(i === 0 ? null : delta)}
+                    </td>
+                  );
+                })}
                 {projChangeNWC.map((v, i) => (
                   <td key={projYears[i]} className="revenue-cell revenue-cell--projected">
                     {formatLargeNumber(v)}
@@ -545,7 +604,7 @@ export default function ProjectionsTab({ analysis }) {
             </tbody>
           </table>
         </div>
-      </div>
+      </CollapsibleSection>
 
     </div>
   );

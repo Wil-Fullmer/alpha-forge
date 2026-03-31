@@ -23,10 +23,12 @@ const TABS = [
 export default function CompanyPage({ ticker = 'AAPL' }) {
   const { company, analysis, loading, error } = useCompanyPage(ticker);
   const [activeTab, setActiveTab] = useState('assumptions');
+  const [waccOverride, setWaccOverride] = useState(null);
 
-  // Reset to default tab whenever the ticker changes.
+  // Reset to default tab and WACC override whenever the ticker changes.
   useEffect(() => {
     setActiveTab('assumptions');
+    setWaccOverride(null);
   }, [ticker]);
 
   if (loading) {
@@ -60,13 +62,13 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
       <WorkbenchTabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Active tab panel */}
-      <div className="workbench__panel">
+      <div className="workbench__panel tab-panel-enter" key={activeTab}>
         {activeTab === 'assumptions'        && <AssumptionsTab company={company} analysis={analysis} />}
         {activeTab === 'revenue'            && <RevenueTab analysis={analysis} />}
         {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
-        {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} />}
+        {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} />}
         {activeTab === 'relative-valuation' && <RelativeValuationTab />}
-        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} />}
+        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} />}
         {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} />}
       </div>
     </div>

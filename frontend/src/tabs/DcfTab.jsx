@@ -31,20 +31,20 @@ function sensitivityStyle(impliedPrice, currentPrice) {
   const intensity = Math.min(1, Math.abs(pctDiff) / 0.5);
   if (pctDiff > 0) {
     return {
-      backgroundColor: `rgba(52, 211, 153, ${(intensity * 0.3).toFixed(3)})`,
-      color: intensity > 0.25 ? 'rgb(52, 211, 153)' : undefined,
+      backgroundColor: `rgba(74, 222, 128, ${(0.05 + intensity * 0.25).toFixed(3)})`,
+      color: intensity > 0.25 ? 'rgb(74, 222, 128)' : undefined,
     };
   }
   return {
-    backgroundColor: `rgba(248, 113, 113, ${(intensity * 0.3).toFixed(3)})`,
+    backgroundColor: `rgba(248, 113, 113, ${(0.05 + intensity * 0.25).toFixed(3)})`,
     color: intensity > 0.25 ? 'rgb(248, 113, 113)' : undefined,
   };
 }
 
 // Only user-editable values live in state. Everything else is derived inline.
-function buildState(analysis, company) {
+function buildState(analysis, company, waccOverride) {
   const peRatio    = analysis?.coreMetrics?.peRatio ?? 20;
-  const assumedWACC = analysis?.dcf?.assumedWACC ?? 0.10;
+  const assumedWACC = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
   const coe        = RFR + (company?.beta ?? 1.0) * MRP;
   return {
     terminalPE:       peRatio,
@@ -56,12 +56,12 @@ function buildState(analysis, company) {
   };
 }
 
-export default function DcfTab({ company, analysis }) {
-  const [s, setS] = useState(() => buildState(analysis, company));
+export default function DcfTab({ company, analysis, waccOverride }) {
+  const [s, setS] = useState(() => buildState(analysis, company, waccOverride));
 
   useEffect(() => {
-    setS(buildState(analysis, company));
-  }, [analysis, company]);
+    setS(buildState(analysis, company, waccOverride));
+  }, [analysis, company, waccOverride]);
 
   // Terminal multiple handlers (only editable fields in assumptions panel)
   const updTermPE = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalPE: v })); };
@@ -86,7 +86,7 @@ export default function DcfTab({ company, analysis }) {
   const capexPct   = lastCF.capitalExpenditure != null ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03;
   const rawTax     = safeDiv(lastIS.taxExpense, lastIS.incomeBeforeTax);
   const taxRate    = rawTax != null ? Math.min(0.5, Math.max(0, rawTax)) : 0.21;
-  const wacc       = analysis?.dcf?.assumedWACC ?? 0.10;
+  const wacc       = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
   const costOfEquity = RFR + (company?.beta ?? 1.0) * MRP;
   const longTermDebt = lastBS.totalDebt ?? 0;
   const shares     = company?.sharesOutstanding
@@ -109,7 +109,7 @@ export default function DcfTab({ company, analysis }) {
   const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastYear + i + 1}`);
   const projFYEndDates = Array.from({ length: PROJ_COUNT }, (_, i) => `${lastYear + i + 1}-${lastMonthDay}`);
 
-  const today = new Date(2026, 2, 30);
+  const today = new Date();
   const scaleFactors = projFYEndDates.map(d =>
     Math.max(0.01, (new Date(d) - today) / (365.25 * 24 * 60 * 60 * 1000))
   );
@@ -242,7 +242,7 @@ export default function DcfTab({ company, analysis }) {
             </div>
           ))}
 
-          <p className="dcf-assumptions-panel__section-title">Terminal Multiples</p>
+          <p className="dcf-assumptions-panel__section-title dcf-assumptions-panel__section-title--editable">Terminal Multiples</p>
           <div className="dcf-kv">
             <span className="dcf-kv__label">Terminal P/E</span>
             <span className="dcf-kv__value">

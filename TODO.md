@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-03-22
+> Current date: 2026-03-31
 
 ---
 
@@ -12,15 +12,24 @@ WACC, and DCF. DCF tab has a full 5-year FCFF/FCFE model, EV/EBITDA and P/E term
 valuation summary with implied prices, and two color-coded 7×7 sensitivity grids.
 Remaining: Final Valuation, Assumptions (shells), Relative Valuation (deferred).
 
+Data accuracy audit complete (2026-03-30): 4 bugs fixed across ProjectionsTab, DcfTab, WaccTab,
+CompanyPage, and analysis.js. WACC tab is now live-wired to the DCF tab. Sharpe ratio
+annualisation corrected in backend; fixture will update on next live pipeline run with API key.
+
+UI clarity pass complete (2026-03-31): full "Dark Terminal Gold" retheme (gold accent, deep navy,
+warm parchment text), CollapsibleSection component with smooth grid-row animation, tab fade-in
+animation, recharts visualizations in Revenue and Projections tabs, and comprehensive input/table
+readability improvements across all tabs.
+
 ---
 
 ## Current Priority
 
 **Continue valuation workbench implementation — next tab: Final Valuation.**
 
-Revenue, Projections, WACC, and DCF tabs are complete. Next is Final Valuation tab
-(weighted rollup of FCFF/FCFE implied prices, football field chart, editable weights).
-Assumptions tab follows.
+Revenue, Projections, WACC, and DCF tabs are complete. UI clarity pass is done. Next is Final
+Valuation tab (weighted rollup of FCFF/FCFE implied prices, football field chart, editable
+weights). Assumptions tab follows.
 
 ---
 
@@ -115,6 +124,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Valuation workbench — WACC tab implementation (capital structure weights, CAPM cost of equity, after-tax cost of debt, live WACC recalc; seeded from fixture data)
 - [x] Common Size IS — Revenue row now shows YoY growth % instead of revenue/revenue; oldest year shows EM_DASH
 - [x] Valuation workbench — DCF tab deep rebuild (FCFF/FCFE side-by-side, 5-year projection model, EV/EBITDA + P/E terminal value, two color-coded 7×7 sensitivity grids)
+- [x] Data accuracy audit — pipeline orchestrator used to cross-reference tab data points against backend fields; 4 bugs fixed (see Agent Board below)
 - [ ] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
 - [ ] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
 - [ ] Sensitivity table presentation — numeric grid first, light heatmap treatment later
@@ -142,6 +152,50 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [ ] `CACHE_TTL` env var wired into statement TTLs in `financialData.js` (currently documented in `.env.example` but not read at runtime)
 - [ ] Scheduled auto-refresh — background job to pre-warm analysis files for tracked tickers
 - [ ] `getKeyMetrics` ratio display panel — surface grahamNumber, earningsYield, evToEBITDA, returnOnEquity, etc. in a frontend metrics card; not wired into EPS/shares fallback chains (key-metrics endpoint has no direct eps/sharesOutstanding fields)
+
+---
+
+## Agent Board — Claude Code
+
+> My own task tracking. Columns: `[ BACKLOG ]` `[ TODO ]` `[ IN PROGRESS ]` `[ DONE ]`
+> Updated after each session. Oldest done items roll off into the Completed section above.
+
+---
+
+### DONE
+
+| # | Task | Files Touched | Notes |
+|---|------|---------------|-------|
+| A-001 | **BUG FIX — DCF hardcoded date** | `DcfTab.jsx:112` | `new Date(2026,2,30)` → `new Date()`. Scale factors now always reflect actual current date. |
+| A-002 | **BUG FIX — D&A double-counted in projected Operating Income** | `ProjectionsTab.jsx:154–157` | FMP's `operatingIncome` = GP − R&D − SG&A (D&A embedded in COGS). Removed `projDA` from `projOpIncome`. Historical/projected margins now comparable. |
+| A-003 | **BUG FIX — Change in NWC methodology mismatch** | `ProjectionsTab.jsx:519–534` | Switched historical Change in NWC from CF-statement `changeInWorkingCap` to balance-sheet delta (`NWC_curr − NWC_prev`). Eliminates false −$25B → +$5.7B cliff for AAPL. |
+| A-004 | **BUG FIX — WACC Tab not wired to DCF Tab** | `CompanyPage.jsx`, `WaccTab.jsx`, `DcfTab.jsx` | Lifted `waccOverride` state to `CompanyPage`. WACC tab calls `onWaccChange` on every compute. DCF tab accepts `waccOverride` prop and uses it for all projections, terminal values, and sensitivity grids. |
+| A-005 | **BUG FIX — Sharpe ratio units mismatch (annualisation)** | `src/services/analysis.js:9–25` | Was: `(dailyMean − 0.02) / dailyStd` (annual RFR vs daily returns). Now: `((dailyMean − 0.02/252) / dailyStd) × √252`. Fixture will update on next live pipeline run. |
+| A-006 | **AUDIT — Full data accuracy review of all new tabs** | All tab files, `data/fixtures/AAPL/analysis.json` | Used pipeline orchestrator to regenerate data; cross-referenced every tab field against FMP JSON schema and backend normalizers. Found 4 bugs + 2 notes. |
+| A-016 | **UI clarity pass — Dark Terminal Gold retheme + charts + collapsibles** | `styles.css`, `CollapsibleSection.jsx`, `CompanyPage.jsx`, `ProjectionsTab.jsx`, `RevenueTab.jsx`, `DcfTab.jsx`, `WaccTab.jsx`, `CompanyOverview.jsx` | Full retheme (gold accent, deep navy, warm parchment); CollapsibleSection with grid-row animation; tab fade-in; recharts charts in Revenue + Projections; input/table density improvements across all tabs. |
+
+---
+
+### TODO
+
+| # | Task | Priority | Depends On |
+|---|------|----------|------------|
+| A-007 | **NOTE — Surface backend intrinsic value in DCF tab** | Low | — | Add `analysis.dcf.intrinsicValuePerShare` as a read-only reference row in DCF summary panel with tooltip explaining Gordon Growth method vs EV/EBITDA model. |
+| A-008 | **Regenerate AAPL fixture after Sharpe fix** | Medium | FMP API key in `.env` | Run `node src/services/analysisRunner.js AAPL`, copy output to `data/fixtures/AAPL/`. Annualised Sharpe should land in −1 to +1 range for AAPL 2025. |
+| A-009 | **Verify MSFT + AAPL-null fixtures against audit findings** | Medium | A-003 | AAPL-null fixture has null balanceSheet fields — confirm NWC delta renders as `—` gracefully. MSFT fixture has positive NWC — confirm delta is consistent. |
+
+---
+
+### BACKLOG
+
+| # | Task | Area |
+|---|------|------|
+| A-010 | Final Valuation tab — weighted rollup of FCFF/FCFE implied prices, editable weights, football field chart | Frontend |
+| A-011 | Assumptions tab — expose all live model controls (tax rate, WACC inputs, growth overrides) currently scattered across other tabs | Frontend |
+| A-012 | Relative Valuation tab — EV/EBITDA, P/E, P/S peer table; requires peer data in pipeline | Frontend + Backend |
+| A-013 | Smoke-test all three fixture variants (AAPL, MSFT, AAPL-null) end-to-end after audit fixes | QA |
+| A-014 | Sensitivity grid — add light heatmap overlay treatment (CSS background intensity, currently numeric only) | Frontend |
+| A-015 | FCFE bridge accuracy — `projFCFE = projFCFF + netInterestIncome` is a simplification; proper bridge is `FCFF − interest×(1−tax) + net borrowings` | Modeling |
 
 ---
 
@@ -215,3 +269,5 @@ These rules do not change without explicit decision:
 - [x] Valuation workbench Pass 1 — `WorkbenchTabs` nav + 7 tab panel components, `CompanyPage` converted to workbench container, tab state resets on ticker change, dark spreadsheet-pane aesthetic
 - [x] Valuation workbench Pass 2 (Revenue tab) — `RevenueTab.jsx`: 3 historical + 4 projected columns, editable growth % inputs, live rolling revenue projection; `historicalRevenue` added to `/api/analysis` response, all fixture files updated
 - [x] Valuation workbench Pass 2 (Projections tab) — `ProjectionsTab.jsx`: three-section model (Income Statement, Common Size, Other Forecasted Terms); per-row driver inputs (gross margin, R&D %, SG&A %, D&A %, tax rate, CAPEX %, NWC %); full cascade from revenue through net income; `historicalFinancials` added to analysis response; normalizers extended with 15 new fields (costOfRevenue, researchAndDev, sgaExpense, depreciationAmort, netInterestIncome, otherIncomeExpense, incomeBeforeTax, taxExpense, totalCurrentAssets, totalCurrentLiabilities, netDebt, changeInWorkingCap, etc.)
+- [x] Data accuracy audit + fixes — cross-referenced all workbench tab data points against backend fields and FMP data definitions; resolved: D&A double-count in Projections IS, hardcoded date in DCF scale factors, WACC→DCF tab wiring, NWC methodology mismatch, Sharpe ratio annualisation
+- [x] UI clarity pass — "Dark Terminal Gold" retheme (gold accent `#d4a853`, deep navy bg, warm parchment text); `CollapsibleSection` component (CSS grid-row height animation); tab fade-in animation; recharts `ComposedChart` in Revenue tab (gold bars + YoY growth line) and Projections tab (stacked COGS/OpEx bars + gross/net margin lines); input width/hover/tint fixes; DCF sensitivity color floor + base-cell inset; CompanyOverview line-clamp with show-more toggle; WACC result row gold tint; monospace font on all data cells

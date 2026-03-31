@@ -6,7 +6,7 @@ function safeDiv(a, b) {
   return a / b;
 }
 
-export default function WaccTab({ company, analysis }) {
+export default function WaccTab({ company, analysis, onWaccChange }) {
   const [inputs, setInputs] = useState({
     riskFreeRate: 0.0438,
     beta: 1.0,
@@ -64,6 +64,10 @@ export default function WaccTab({ company, analysis }) {
     ? weightEquity * capm + weightDebt * afterTaxCOD
     : null;
 
+  useEffect(() => {
+    if (wacc != null) onWaccChange?.(wacc);
+  }, [wacc]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="tab-panel tab-panel--wacc" id="tabpanel-wacc" role="tabpanel">
 
@@ -95,7 +99,7 @@ export default function WaccTab({ company, analysis }) {
               <tr className="revenue-row revenue-row--growth">
                 <td className="revenue-table__row-label revenue-table__row-label--sub">Price</td>
                 <td className="revenue-cell revenue-cell--input">
-                  <span className="revenue-input__suffix" style={{ marginRight: '4px' }}>$</span>
+                  <span className="revenue-input__prefix">$</span>
                   <input
                     type="number"
                     className="revenue-input"

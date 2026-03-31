@@ -48,6 +48,10 @@ Skip for: single-file typo fixes pushed immediately after a clean session.
 
 Commit `TODO.md` in the same commit as the work it documents — it should be a contemporaneous record.
 
+A pre-push hook in `.claude/hooks/pre-push-todo-check.sh` enforces this: if TODO.md
+is absent from the last commit or its date is not today, the push is blocked until
+the update is committed.
+
 ---
 
 ## 4. What to Document in the Handoff File
