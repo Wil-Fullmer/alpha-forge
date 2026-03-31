@@ -1473,6 +1473,34 @@ code {
    WACC Tab
    ============================================================ */
 
+/* Two-column grid: Capital Structure left, CoE+CoD right */
+.wacc-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-10);
+}
+
+/* Right column stacks CoE and CoD with a gap */
+.wacc-layout-grid__right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Sections inside the grid use the gap for spacing — suppress own margin */
+.wacc-layout-grid > .proj-section,
+.wacc-layout-grid__right > .proj-section {
+  margin-bottom: 0;
+}
+
+/* Narrow viewports: stack back to single column */
+@media (max-width: 640px) {
+  .wacc-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Result row — highlighted accent for final WACC output */
 .wacc-result-row td {
   background: rgba(212, 168, 83, 0.08);

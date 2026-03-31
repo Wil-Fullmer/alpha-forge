@@ -24,11 +24,13 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
   const { company, analysis, loading, error } = useCompanyPage(ticker);
   const [activeTab, setActiveTab] = useState('assumptions');
   const [waccOverride, setWaccOverride] = useState(null);
+  const [waccModel, setWaccModel] = useState(null);
 
   // Reset to default tab and WACC override whenever the ticker changes.
   useEffect(() => {
     setActiveTab('assumptions');
     setWaccOverride(null);
+    setWaccModel(null);
   }, [ticker]);
 
   if (loading) {
@@ -66,9 +68,9 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
         {activeTab === 'assumptions'        && <AssumptionsTab company={company} analysis={analysis} />}
         {activeTab === 'revenue'            && <RevenueTab analysis={analysis} />}
         {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
-        {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} />}
+        {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
         {activeTab === 'relative-valuation' && <RelativeValuationTab />}
-        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} />}
+        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} />}
         {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} />}
       </div>
     </div>

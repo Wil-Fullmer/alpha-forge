@@ -6,7 +6,7 @@ function safeDiv(a, b) {
   return a / b;
 }
 
-export default function WaccTab({ company, analysis, onWaccChange }) {
+export default function WaccTab({ company, analysis, onWaccChange, onModelChange }) {
   const [inputs, setInputs] = useState({
     riskFreeRate: 0.0438,
     beta: 1.0,
@@ -68,178 +68,201 @@ export default function WaccTab({ company, analysis, onWaccChange }) {
     if (wacc != null) onWaccChange?.(wacc);
   }, [wacc]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    onModelChange?.({
+      riskFreeRate: inputs.riskFreeRate,
+      beta: inputs.beta,
+      mrp: inputs.mrp,
+      costOfDebt: inputs.costOfDebt,
+      taxRate: inputs.taxRate,
+      capm,
+      afterTaxCOD,
+      wacc,
+      debt,
+      marketValueEquity: mve,
+      weightDebt,
+      weightEquity,
+    });
+  }, [inputs, capm, afterTaxCOD, wacc, debt, mve, weightDebt, weightEquity]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="tab-panel tab-panel--wacc" id="tabpanel-wacc" role="tabpanel">
 
-      {/* ── Capital Structure ── */}
-      <section className="proj-section">
-        <h2 className="proj-section__title">Capital Structure</h2>
-        <div className="revenue-table-wrap">
-          <table className="revenue-table">
-            <tbody>
-              <tr className="revenue-row revenue-row--value">
-                <td className="revenue-table__row-label">Debt</td>
-                <td className="revenue-cell">{formatLargeNumber(debt)}</td>
-              </tr>
+      {/* ── Top grid: Capital Structure (left) + Cost of Equity / Cost of Debt (right) ── */}
+      <div className="wacc-layout-grid">
+        {/* ── Capital Structure ── */}
+        <section className="proj-section">
+          <h2 className="proj-section__title">Capital Structure</h2>
+          <div className="revenue-table-wrap">
+            <table className="revenue-table">
+              <tbody>
+                <tr className="revenue-row revenue-row--value">
+                  <td className="revenue-table__row-label">Debt</td>
+                  <td className="revenue-cell">{formatLargeNumber(debt)}</td>
+                </tr>
 
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Dil. Shares Outstanding</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <input
-                    type="number"
-                    className="revenue-input revenue-input--wide"
-                    value={inputs.shares != null ? inputs.shares.toFixed(0) : ''}
-                    step="1000000"
-                    onChange={e => updateRaw('shares', e.target.value)}
-                    aria-label="Diluted Shares Outstanding"
-                  />
-                </td>
-              </tr>
+                <tr className="revenue-row revenue-row--growth">
+                  <td className="revenue-table__row-label revenue-table__row-label--sub">Dil. Shares Outstanding</td>
+                  <td className="revenue-cell revenue-cell--input">
+                    <input
+                      type="number"
+                      className="revenue-input revenue-input--wide"
+                      value={inputs.shares != null ? inputs.shares.toFixed(0) : ''}
+                      step="1000000"
+                      onChange={e => updateRaw('shares', e.target.value)}
+                      aria-label="Diluted Shares Outstanding"
+                    />
+                  </td>
+                </tr>
 
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Price</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <span className="revenue-input__prefix">$</span>
-                  <input
-                    type="number"
-                    className="revenue-input"
-                    value={inputs.price != null ? inputs.price.toFixed(2) : ''}
-                    step="0.01"
-                    onChange={e => updateRaw('price', e.target.value)}
-                    aria-label="Price"
-                  />
-                </td>
-              </tr>
+                <tr className="revenue-row revenue-row--growth">
+                  <td className="revenue-table__row-label revenue-table__row-label--sub">Price</td>
+                  <td className="revenue-cell revenue-cell--input">
+                    <span className="revenue-input__prefix">$</span>
+                    <input
+                      type="number"
+                      className="revenue-input"
+                      value={inputs.price != null ? inputs.price.toFixed(2) : ''}
+                      step="0.01"
+                      onChange={e => updateRaw('price', e.target.value)}
+                      aria-label="Price"
+                    />
+                  </td>
+                </tr>
 
-              <tr className="revenue-row revenue-row--value">
-                <td className="revenue-table__row-label">Market Value of Equity</td>
-                <td className="revenue-cell">{formatLargeNumber(mve)}</td>
-              </tr>
+                <tr className="revenue-row revenue-row--value">
+                  <td className="revenue-table__row-label">Market Value of Equity</td>
+                  <td className="revenue-cell">{formatLargeNumber(mve)}</td>
+                </tr>
 
-              <tr className="revenue-row revenue-row--subtotal">
-                <td className="revenue-table__row-label">Total</td>
-                <td className="revenue-cell">{formatLargeNumber(total)}</td>
-              </tr>
+                <tr className="revenue-row revenue-row--subtotal">
+                  <td className="revenue-table__row-label">Total</td>
+                  <td className="revenue-cell">{formatLargeNumber(total)}</td>
+                </tr>
 
-              <tr className="revenue-row revenue-row--value">
-                <td className="revenue-table__row-label">Weight of Debt</td>
-                <td className="revenue-cell">{formatPct(weightDebt, 2)}</td>
-              </tr>
+                <tr className="revenue-row revenue-row--value">
+                  <td className="revenue-table__row-label">Weight of Debt</td>
+                  <td className="revenue-cell">{formatPct(weightDebt, 2)}</td>
+                </tr>
 
-              <tr className="revenue-row revenue-row--value">
-                <td className="revenue-table__row-label">Weight of Equity</td>
-                <td className="revenue-cell">{formatPct(weightEquity, 2)}</td>
-              </tr>
-            </tbody>
-          </table>
+                <tr className="revenue-row revenue-row--value">
+                  <td className="revenue-table__row-label">Weight of Equity</td>
+                  <td className="revenue-cell">{formatPct(weightEquity, 2)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* ── Right column: Cost of Equity + Cost of Debt stacked ── */}
+        <div className="wacc-layout-grid__right">
+          {/* ── Cost of Equity ── */}
+          <section className="proj-section">
+            <h2 className="proj-section__title">Cost of Equity</h2>
+            <div className="revenue-table-wrap">
+              <table className="revenue-table">
+                <tbody>
+                  <tr className="revenue-row revenue-row--growth">
+                    <td className="revenue-table__row-label revenue-table__row-label--sub">Risk Free Rate</td>
+                    <td className="revenue-cell revenue-cell--input">
+                      <input
+                        type="number"
+                        className="revenue-input"
+                        value={(inputs.riskFreeRate * 100).toFixed(2)}
+                        step="0.01"
+                        onChange={e => updateInput('riskFreeRate', e.target.value)}
+                        aria-label="Risk Free Rate"
+                      />
+                      <span className="revenue-input__suffix">%</span>
+                    </td>
+                  </tr>
+
+                  <tr className="revenue-row revenue-row--growth">
+                    <td className="revenue-table__row-label revenue-table__row-label--sub">Beta</td>
+                    <td className="revenue-cell revenue-cell--input">
+                      <input
+                        type="number"
+                        className="revenue-input"
+                        value={inputs.beta.toFixed(3)}
+                        step="0.001"
+                        onChange={e => updateRaw('beta', e.target.value)}
+                        aria-label="Beta"
+                      />
+                    </td>
+                  </tr>
+
+                  <tr className="revenue-row revenue-row--growth">
+                    <td className="revenue-table__row-label revenue-table__row-label--sub">MRP</td>
+                    <td className="revenue-cell revenue-cell--input">
+                      <input
+                        type="number"
+                        className="revenue-input"
+                        value={(inputs.mrp * 100).toFixed(2)}
+                        step="0.01"
+                        onChange={e => updateInput('mrp', e.target.value)}
+                        aria-label="Market Risk Premium"
+                      />
+                      <span className="revenue-input__suffix">%</span>
+                    </td>
+                  </tr>
+
+                  <tr className="revenue-row revenue-row--total">
+                    <td className="revenue-table__row-label">CAPM</td>
+                    <td className="revenue-cell">{formatPct(capm, 2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* ── Cost of Debt ── */}
+          <section className="proj-section">
+            <h2 className="proj-section__title">Cost of Debt</h2>
+            <div className="revenue-table-wrap">
+              <table className="revenue-table">
+                <tbody>
+                  <tr className="revenue-row revenue-row--growth">
+                    <td className="revenue-table__row-label revenue-table__row-label--sub">Cost of Debt</td>
+                    <td className="revenue-cell revenue-cell--input">
+                      <input
+                        type="number"
+                        className="revenue-input"
+                        value={(inputs.costOfDebt * 100).toFixed(2)}
+                        step="0.01"
+                        onChange={e => updateInput('costOfDebt', e.target.value)}
+                        aria-label="Cost of Debt"
+                      />
+                      <span className="revenue-input__suffix">%</span>
+                    </td>
+                  </tr>
+
+                  <tr className="revenue-row revenue-row--growth">
+                    <td className="revenue-table__row-label revenue-table__row-label--sub">Expected Marginal Tax Rate</td>
+                    <td className="revenue-cell revenue-cell--input">
+                      <input
+                        type="number"
+                        className="revenue-input"
+                        value={(inputs.taxRate * 100).toFixed(2)}
+                        step="0.01"
+                        onChange={e => updateInput('taxRate', e.target.value)}
+                        aria-label="Expected Marginal Tax Rate"
+                      />
+                      <span className="revenue-input__suffix">%</span>
+                    </td>
+                  </tr>
+
+                  <tr className="revenue-row revenue-row--total">
+                    <td className="revenue-table__row-label">After Tax Cost of Debt</td>
+                    <td className="revenue-cell">{formatPct(afterTaxCOD, 2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
-      {/* ── Cost of Equity ── */}
-      <section className="proj-section">
-        <h2 className="proj-section__title">Cost of Equity</h2>
-        <div className="revenue-table-wrap">
-          <table className="revenue-table">
-            <tbody>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Risk Free Rate</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <input
-                    type="number"
-                    className="revenue-input"
-                    value={(inputs.riskFreeRate * 100).toFixed(2)}
-                    step="0.01"
-                    onChange={e => updateInput('riskFreeRate', e.target.value)}
-                    aria-label="Risk Free Rate"
-                  />
-                  <span className="revenue-input__suffix">%</span>
-                </td>
-              </tr>
-
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Beta</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <input
-                    type="number"
-                    className="revenue-input"
-                    value={inputs.beta.toFixed(3)}
-                    step="0.001"
-                    onChange={e => updateRaw('beta', e.target.value)}
-                    aria-label="Beta"
-                  />
-                </td>
-              </tr>
-
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">MRP</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <input
-                    type="number"
-                    className="revenue-input"
-                    value={(inputs.mrp * 100).toFixed(2)}
-                    step="0.01"
-                    onChange={e => updateInput('mrp', e.target.value)}
-                    aria-label="Market Risk Premium"
-                  />
-                  <span className="revenue-input__suffix">%</span>
-                </td>
-              </tr>
-
-              <tr className="revenue-row revenue-row--total">
-                <td className="revenue-table__row-label">CAPM</td>
-                <td className="revenue-cell">{formatPct(capm, 2)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ── Cost of Debt ── */}
-      <section className="proj-section">
-        <h2 className="proj-section__title">Cost of Debt</h2>
-        <div className="revenue-table-wrap">
-          <table className="revenue-table">
-            <tbody>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Cost of Debt</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <input
-                    type="number"
-                    className="revenue-input"
-                    value={(inputs.costOfDebt * 100).toFixed(2)}
-                    step="0.01"
-                    onChange={e => updateInput('costOfDebt', e.target.value)}
-                    aria-label="Cost of Debt"
-                  />
-                  <span className="revenue-input__suffix">%</span>
-                </td>
-              </tr>
-
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Expected Marginal Tax Rate</td>
-                <td className="revenue-cell revenue-cell--input">
-                  <input
-                    type="number"
-                    className="revenue-input"
-                    value={(inputs.taxRate * 100).toFixed(2)}
-                    step="0.01"
-                    onChange={e => updateInput('taxRate', e.target.value)}
-                    aria-label="Expected Marginal Tax Rate"
-                  />
-                  <span className="revenue-input__suffix">%</span>
-                </td>
-              </tr>
-
-              <tr className="revenue-row revenue-row--total">
-                <td className="revenue-table__row-label">After Tax Cost of Debt</td>
-                <td className="revenue-cell">{formatPct(afterTaxCOD, 2)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ── WACC ── */}
+      {/* ── WACC result — full width ── */}
       <section className="proj-section">
         <h2 className="proj-section__title">Weighted Average Cost of Capital</h2>
         <div className="revenue-table-wrap">

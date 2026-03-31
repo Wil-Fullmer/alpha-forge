@@ -6,6 +6,7 @@ const GRID_SIZE = 7;
 const HALF = 3;
 const RFR = 0.0438;
 const MRP = 0.05;
+const DEFAULT_TAX = 0.21;
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
@@ -25,19 +26,32 @@ function fmtM(v) {
   return m < 0 ? `(${abs})` : abs;
 }
 
-function sensitivityStyle(impliedPrice, currentPrice) {
-  if (impliedPrice == null || currentPrice == null || currentPrice === 0) return {};
-  const pctDiff = (impliedPrice - currentPrice) / currentPrice;
-  const intensity = Math.min(1, Math.abs(pctDiff) / 0.5);
-  if (pctDiff > 0) {
-    return {
-      backgroundColor: `rgba(74, 222, 128, ${(0.05 + intensity * 0.25).toFixed(3)})`,
-      color: intensity > 0.25 ? 'rgb(74, 222, 128)' : undefined,
-    };
+function getGridRange(grid) {
+  const vals = grid.flat().filter(v => v != null && Number.isFinite(v));
+  if (!vals.length) return { min: null, max: null };
+  return { min: Math.min(...vals), max: Math.max(...vals) };
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function sensitivityStyle(value, min, max) {
+  if (value == null || min == null || max == null) return {};
+  if (max === min) {
+    return { backgroundColor: 'rgba(251, 191, 36, 0.12)' };
   }
+
+  // Lowest value = red, highest value = green.
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const r = Math.round(lerp(248, 74, t));
+  const g = Math.round(lerp(113, 222, t));
+  const b = Math.round(lerp(113, 128, t));
+  const alpha = 0.1 + 0.22 * Math.abs(t - 0.5) * 2;
+
   return {
-    backgroundColor: `rgba(248, 113, 113, ${(0.05 + intensity * 0.25).toFixed(3)})`,
-    color: intensity > 0.25 ? 'rgb(248, 113, 113)' : undefined,
+    backgroundColor: `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`,
+    color: t > 0.7 ? 'rgb(74, 222, 128)' : t < 0.3 ? 'rgb(248, 113, 113)' : undefined,
   };
 }
 
@@ -45,10 +59,15 @@ function sensitivityStyle(impliedPrice, currentPrice) {
 function buildState(analysis, company, waccOverride) {
   const peRatio    = analysis?.coreMetrics?.peRatio ?? 20;
   const assumedWACC = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
+  const debtSeries = analysis?.historicalFinancials?.balanceSheets ?? [];
+  const latestDebt = debtSeries[0]?.totalDebt;
+  const priorDebt = debtSeries[1]?.totalDebt;
+  const impliedNetBorrowing = (latestDebt != null && priorDebt != null) ? latestDebt - priorDebt : 0;
   const coe        = RFR + (company?.beta ?? 1.0) * MRP;
   return {
     terminalPE:       peRatio,
     terminalEVEBITDA: 15,
+    netBorrowingAnnual: impliedNetBorrowing,
     waccCenter:       assumedWACC,
     evEbitdaCenter:   15,
     coeCenter:        coe,
@@ -56,7 +75,7 @@ function buildState(analysis, company, waccOverride) {
   };
 }
 
-export default function DcfTab({ company, analysis, waccOverride }) {
+export default function DcfTab({ company, analysis, waccOverride, waccModel }) {
   const [s, setS] = useState(() => buildState(analysis, company, waccOverride));
 
   useEffect(() => {
@@ -66,6 +85,7 @@ export default function DcfTab({ company, analysis, waccOverride }) {
   // Terminal multiple handlers (only editable fields in assumptions panel)
   const updTermPE = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalPE: v })); };
   const updTermEV = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalEVEBITDA: v })); };
+  const updNetBorrow = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, netBorrowingAnnual: v * 1e6 })); };
 
   // Sensitivity grid center handlers
   const updWaccCenter     = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, waccCenter: v / 100 })); };
@@ -85,9 +105,10 @@ export default function DcfTab({ company, analysis, waccOverride }) {
   const daPct      = safeDiv(lastIS.depreciationAmort, rev) ?? 0.03;
   const capexPct   = lastCF.capitalExpenditure != null ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03;
   const rawTax     = safeDiv(lastIS.taxExpense, lastIS.incomeBeforeTax);
-  const taxRate    = rawTax != null ? Math.min(0.5, Math.max(0, rawTax)) : 0.21;
+  const taxRateFromStatements = rawTax != null ? Math.min(0.5, Math.max(0, rawTax)) : DEFAULT_TAX;
+  const taxRate = waccModel?.taxRate ?? taxRateFromStatements;
   const wacc       = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
-  const costOfEquity = RFR + (company?.beta ?? 1.0) * MRP;
+  const costOfEquity = waccModel?.capm ?? (RFR + (company?.beta ?? 1.0) * MRP);
   const longTermDebt = lastBS.totalDebt ?? 0;
   const shares     = company?.sharesOutstanding
                      ?? (company?.marketCap && company?.price
@@ -96,7 +117,8 @@ export default function DcfTab({ company, analysis, waccOverride }) {
   const cash       = lastBS.cashAndCashEquivalents ?? 0;
   const revenueGrowth = Array(PROJ_COUNT).fill(analysis?.dcf?.assumedGrowthRate ?? 0.05);
   const nwcPct     = safeDiv((lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0), rev) ?? 0.05;
-  const netInterest  = lastIS.netInterestIncome ?? 0;
+  const netInterestIncome  = lastIS.netInterestIncome ?? 0;
+  const afterTaxInterestExpense = Math.max(0, -netInterestIncome) * (1 - taxRate);
   const lastRevenue  = lastIS.revenue ?? null;
   const lastNWC    = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
   const lastDate   = stmts[0]?.date ?? null;
@@ -109,10 +131,8 @@ export default function DcfTab({ company, analysis, waccOverride }) {
   const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastYear + i + 1}`);
   const projFYEndDates = Array.from({ length: PROJ_COUNT }, (_, i) => `${lastYear + i + 1}-${lastMonthDay}`);
 
-  const today = new Date();
-  const scaleFactors = projFYEndDates.map(d =>
-    Math.max(0.01, (new Date(d) - today) / (365.25 * 24 * 60 * 60 * 1000))
-  );
+  // Use fixed annual period indexing for discounting consistency with full-year projections.
+  const discountPeriods = Array.from({ length: PROJ_COUNT }, (_, i) => i + 1);
 
   // ── Projections ──────────────────────────────────────────────────────────
   const baseRev = lastRevenue ?? 1;
@@ -134,28 +154,31 @@ export default function DcfTab({ company, analysis, waccOverride }) {
   const projChangeNWC = projNWC.map((nwc, i) => nwc - (i === 0 ? lastNWC : projNWC[i - 1]));
   const projCAPEX     = projRevenue.map(r => r * capexPct);
   const projFCFF      = projNOPAT.map((n, i) => n + projDA[i] - projChangeNWC[i] - projCAPEX[i]);
-  const projFCFE      = projFCFF.map(f => f + netInterest);
+  const projAfterTaxInterestExpense = Array(PROJ_COUNT).fill(afterTaxInterestExpense);
+  const projNetBorrowing = Array(PROJ_COUNT).fill(s.netBorrowingAnnual);
+  const projFCFE      = projFCFF.map((f, i) => f - projAfterTaxInterestExpense[i] + projNetBorrowing[i]);
 
   // ── Present values ───────────────────────────────────────────────────────
-  const pvUFCF    = projFCFF.map((f, i) => f / Math.pow(1 + wacc, scaleFactors[i]));
-  const pvLFCF    = projFCFE.map((f, i) => f / Math.pow(1 + costOfEquity, scaleFactors[i]));
+  const pvUFCF    = projFCFF.map((f, i) => f / Math.pow(1 + wacc, discountPeriods[i]));
+  const pvLFCF    = projFCFE.map((f, i) => f / Math.pow(1 + costOfEquity, discountPeriods[i]));
   const sumPvUFCF = pvUFCF.reduce((a, b) => a + b, 0);
   const sumPvLFCF = pvLFCF.reduce((a, b) => a + b, 0);
 
   // ── Terminal values ──────────────────────────────────────────────────────
   const lastEBITDA   = projEBITDA[PROJ_COUNT - 1];
-  const lastEarnings = projNOPAT[PROJ_COUNT - 1] + netInterest;
-  const lastScale    = scaleFactors[PROJ_COUNT - 1];
+  const projectedNetIncomeToEquity = projNOPAT.map(v => v - afterTaxInterestExpense);
+  const lastEarnings = projectedNetIncomeToEquity[PROJ_COUNT - 1];
+  const lastPeriod    = discountPeriods[PROJ_COUNT - 1];
 
   const tvEVEBITDA   = lastEBITDA * s.terminalEVEBITDA;
-  const pvTvEVEBITDA = tvEVEBITDA / Math.pow(1 + wacc, lastScale);
+  const pvTvEVEBITDA = tvEVEBITDA / Math.pow(1 + wacc, lastPeriod);
   const ev           = sumPvUFCF + pvTvEVEBITDA;
   const equityFCFF   = ev - longTermDebt + cash;
   const impliedFCFF  = shares > 0 ? equityFCFF / shares : null;
   const upsideFCFF   = safeDiv(impliedFCFF != null ? impliedFCFF - currentPrice : null, currentPrice);
 
   const tvPE         = lastEarnings * s.terminalPE;
-  const pvTvPE       = tvPE / Math.pow(1 + costOfEquity, lastScale);
+  const pvTvPE       = tvPE / Math.pow(1 + costOfEquity, lastPeriod);
   const equityFCFE   = sumPvLFCF + pvTvPE;
   const impliedFCFE  = shares > 0 ? equityFCFE / shares : null;
   const upsideFCFE   = safeDiv(impliedFCFE != null ? impliedFCFE - currentPrice : null, currentPrice);
@@ -178,24 +201,27 @@ export default function DcfTab({ company, analysis, waccOverride }) {
   const peSteps     = Array.from({ length: GRID_SIZE }, (_, i) => s.peCenter + (i - HALF));
 
   const grid1 = waccSteps.map(w => {
-    const pvs   = projFCFF.map((f, i) => f / Math.pow(1 + w, scaleFactors[i]));
+    const pvs   = projFCFF.map((f, i) => f / Math.pow(1 + w, discountPeriods[i]));
     const sumPv = pvs.reduce((a, b) => a + b, 0);
     return evMultSteps.map(mult => {
-      const pvTv = (lastEBITDA * mult) / Math.pow(1 + w, lastScale);
+      const pvTv = (lastEBITDA * mult) / Math.pow(1 + w, lastPeriod);
       const eq   = sumPv + pvTv - longTermDebt + cash;
       return shares > 0 ? eq / shares : null;
     });
   });
 
   const grid2 = coeSteps.map(coe => {
-    const pvs   = projFCFE.map((f, i) => f / Math.pow(1 + coe, scaleFactors[i]));
+    const pvs   = projFCFE.map((f, i) => f / Math.pow(1 + coe, discountPeriods[i]));
     const sumPv = pvs.reduce((a, b) => a + b, 0);
     return peSteps.map(pe => {
-      const pvTv = (lastEarnings * pe) / Math.pow(1 + coe, lastScale);
+      const pvTv = (lastEarnings * pe) / Math.pow(1 + coe, lastPeriod);
       const eq   = sumPv + pvTv;
       return shares > 0 ? eq / shares : null;
     });
   });
+
+  const grid1Range = getGridRange(grid1);
+  const grid2Range = getGridRange(grid2);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -234,7 +260,8 @@ export default function DcfTab({ company, analysis, waccOverride }) {
             ['Long-term Debt',   '$' + (longTermDebt / 1e6).toFixed(0) + 'M'],
             ['Dil. Shares (M)',  (shares / 1e6).toFixed(0)],
             ['Cash',             '$' + (cash / 1e6).toFixed(0) + 'M'],
-            ['Net Interest',     '$' + (netInterest / 1e6).toFixed(0) + 'M'],
+            ['Net Interest Income', '$' + (netInterestIncome / 1e6).toFixed(0) + 'M'],
+            ['After-tax Interest Expense', '$' + (afterTaxInterestExpense / 1e6).toFixed(0) + 'M'],
           ].map(([label, display]) => (
             <div className="dcf-kv" key={label}>
               <span className="dcf-kv__label">{label}</span>
@@ -269,6 +296,20 @@ export default function DcfTab({ company, analysis, waccOverride }) {
                 aria-label="Terminal EV/EBITDA"
               />
               <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>x</span>
+            </span>
+          </div>
+          <div className="dcf-kv">
+            <span className="dcf-kv__label">Net Borrowing (Annual)</span>
+            <span className="dcf-kv__value">
+              <input
+                type="number"
+                className="dcf-kv__input"
+                value={(s.netBorrowingAnnual / 1e6).toFixed(0)}
+                step="100"
+                onChange={e => updNetBorrow(e.target.value)}
+                aria-label="Net Borrowing Annual (millions)"
+              />
+              <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>M</span>
             </span>
           </div>
         </div>
@@ -342,8 +383,8 @@ export default function DcfTab({ company, analysis, waccOverride }) {
             </thead>
             <tbody>
               <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Scale Factor</td>
-                {scaleFactors.map((sf, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{sf.toFixed(2)}</td>)}
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Discount Period</td>
+                {discountPeriods.map((period, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{period.toFixed(0)}</td>)}
               </tr>
               <tr className="revenue-row revenue-row--growth">
                 <td className="revenue-table__row-label revenue-table__row-label--sub">FY End Date</td>
@@ -398,8 +439,12 @@ export default function DcfTab({ company, analysis, waccOverride }) {
                 {projFCFF.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected revenue-cell--growth">{perShare(v) != null ? perShare(v).toFixed(2) : EM_DASH}</td>)}
               </tr>
               <tr className="revenue-row revenue-row--value">
-                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Interest Income (Expense)</td>
-                {projFCFF.map((_, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(netInterest)}</td>)}
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: After-tax Interest Expense</td>
+                {projAfterTaxInterestExpense.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Plus: Net Borrowing</td>
+                {projNetBorrowing.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(v)}</td>)}
               </tr>
               <tr className="revenue-row revenue-row--total">
                 <td className="revenue-table__row-label">Levered Free Cash Flow (FCFE)</td>
@@ -462,7 +507,7 @@ export default function DcfTab({ company, analysis, waccOverride }) {
                       <td
                         key={ci}
                         className={ri === HALF && ci === HALF ? 'dcf-sensitivity__cell--base' : ''}
-                        style={sensitivityStyle(price, currentPrice)}
+                        style={sensitivityStyle(price, grid1Range.min, grid1Range.max)}
                       >
                         {price != null ? `$${price.toFixed(2)}` : EM_DASH}
                       </td>
@@ -503,7 +548,7 @@ export default function DcfTab({ company, analysis, waccOverride }) {
                       <td
                         key={ci}
                         className={ri === HALF && ci === HALF ? 'dcf-sensitivity__cell--base' : ''}
-                        style={sensitivityStyle(price, currentPrice)}
+                        style={sensitivityStyle(price, grid2Range.min, grid2Range.max)}
                       >
                         {price != null ? `$${price.toFixed(2)}` : EM_DASH}
                       </td>
