@@ -3,7 +3,7 @@ import logger from '../utils/logger.js'
 /**
  * Calculate Sharpe Ratio from returns data
  * @param {number[]} returns - Array of returns
- * @param {number} riskFreeRate - Risk-free rate (default 0.02)
+ * @param {number} annualRiskFreeRate - Annual risk-free rate (default 0.02); converted to daily internally
  * @returns {number} Sharpe ratio
  */
 export function calculateSharpeRatio(returns, annualRiskFreeRate = 0.02) {

@@ -174,6 +174,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 | A-006 | **AUDIT — Full data accuracy review of all new tabs** | All tab files, `data/fixtures/AAPL/analysis.json` | Used pipeline orchestrator to regenerate data; cross-referenced every tab field against FMP JSON schema and backend normalizers. Found 4 bugs + 2 notes. |
 | A-016 | **UI clarity pass — Dark Terminal Gold retheme + charts + collapsibles** | `styles.css`, `CollapsibleSection.jsx`, `CompanyPage.jsx`, `ProjectionsTab.jsx`, `RevenueTab.jsx`, `DcfTab.jsx`, `WaccTab.jsx`, `CompanyOverview.jsx` | Full retheme (gold accent, deep navy, warm parchment); CollapsibleSection with grid-row animation; tab fade-in; recharts charts in Revenue + Projections; input/table density improvements across all tabs. |
 | A-017 | **Pre-push hook — enforce TODO.md update on every git push** | `.claude/hooks/pre-push-todo-check.sh`, `.claude/settings.json`, `CLAUDE.md`, `docs/WORKFLOW_CHECKPOINT_SKILL.md` | PreToolUse hook blocks `git push` if TODO.md is absent from HEAD commit or date is not today. CLAUDE.md policy section added. Enforcement note added to WORKFLOW_CHECKPOINT_SKILL.md. |
+| A-018 | **Claude Code settings — model + env config** | `.claude/settings.local.json` | Set `model: sonnet`, `MAX_THINKING_TOKENS: 13000`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: 60`, `CLAUDE_CODE_SUBAGENT_MODEL: haiku`. |
 
 ---
 
