@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 // Formatting helpers
 function fmtDollarsM(v) {
@@ -50,7 +50,7 @@ function identifyOutliers(values) {
   return new Set(values.filter(v => v > threshold));
 }
 
-export default function RelativeValuationTab({ company, analysis }) {
+export default function RelativeValuationTab({ company, analysis, onPricesChange }) {
   // ===== Data Extraction =====
   const symbol = company?.symbol;
   const name = company?.companyName;
@@ -114,6 +114,7 @@ export default function RelativeValuationTab({ company, analysis }) {
   const statsPE = calcStats(p => p.pe);
 
   // ===== Implied Prices =====
+  // (defined before useEffect so they can be referenced in the effect body)
   function impliedFromEV(statMultiple, financialMetricM) {
     if (statMultiple == null || financialMetricM == null || netDebtM == null || dilutedSharesM == null) {
       return null;
@@ -150,6 +151,7 @@ export default function RelativeValuationTab({ company, analysis }) {
       <div className="rv-wrap">
         <div className="rv-section">
           <h2 className="rv-section__title">Relative Valuation for {symbol || '—'}</h2>
+          <p className="rv-section__subtitle">Subject company benchmarked against peer multiples</p>
           <div className="rv-table-scroll">
             <table className="rv-table">
               <thead>
@@ -162,9 +164,9 @@ export default function RelativeValuationTab({ company, analysis }) {
               </thead>
               <tbody>
                 <tr className="rv-row--subject">
-                  <td className="rv-table__col-hdr">1</td>
-                  <td className="rv-table__col-hdr">{name || '—'} ← Your company</td>
-                  <td className="rv-table__col-hdr">{symbol || '—'}</td>
+                  <td className="rv-cell--text">—</td>
+                  <td className="rv-cell--text">{name || '—'}<span className="rv-subject-badge">← You</span></td>
+                  <td className="rv-cell--text">{symbol || '—'}</td>
                   <td className="rv-cell--num">{fmtPrice(price)}</td>
                   <td className="rv-cell--num">{fmtShares(dilutedSharesM)}</td>
                   <td className="rv-cell--num">{fmtDollarsM(equityValueM)}</td>
@@ -185,23 +187,24 @@ export default function RelativeValuationTab({ company, analysis }) {
 
         <div className="rv-section">
           <h2 className="rv-section__title">Statistics for the Multiples</h2>
+          <p className="rv-section__subtitle">Peer multiple distribution — outliers and negatives excluded from percentiles</p>
           <div className="rv-table-scroll">
             <table className="rv-stats-table">
               <thead>
                 <tr>
-                  <th className="rv-table__col-hdr" style={{ textAlign: 'left' }}>Statistic</th>
+                  <th className="rv-table__col-hdr">Statistic</th>
                   <th className="rv-table__col-hdr">EV/Revenue</th>
                   <th className="rv-table__col-hdr">EV/EBITDA</th>
                   <th className="rv-table__col-hdr">P/E</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td style={{ textAlign: 'left' }}>High</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>75th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Average</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Median</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>25th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Low</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>High</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>75th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Average</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Median</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>25th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Low</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
               </tbody>
             </table>
           </div>
@@ -209,24 +212,25 @@ export default function RelativeValuationTab({ company, analysis }) {
         </div>
 
         <div className="rv-section">
-          <h2 className="rv-section__title">Statistical Analysis of Multiple Valuation</h2>
+          <h2 className="rv-section__title">Implied Share Price Analysis</h2>
+          <p className="rv-section__subtitle">Peer-implied share prices using each multiple applied to subject financials</p>
           <div className="rv-table-scroll">
             <table className="rv-stats-table">
               <thead>
                 <tr>
-                  <th className="rv-table__col-hdr" style={{ textAlign: 'left' }}>Implied Price</th>
+                  <th className="rv-table__col-hdr">Implied Price</th>
                   <th className="rv-table__col-hdr">EV/Revenue</th>
                   <th className="rv-table__col-hdr">EV/EBITDA</th>
                   <th className="rv-table__col-hdr">P/E</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td style={{ textAlign: 'left' }}>High</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>75th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Average</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Median</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>25th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Low</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>High</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>75th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Average</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Median</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>25th Percentile</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Low</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
               </tbody>
             </table>
           </div>
@@ -234,20 +238,21 @@ export default function RelativeValuationTab({ company, analysis }) {
 
         <div className="rv-section">
           <h2 className="rv-section__title">Team Relative Valuation Model</h2>
+          <p className="rv-section__subtitle">Scenario price targets derived from peer multiple percentiles</p>
           <div className="rv-table-scroll">
             <table className="rv-stats-table">
               <thead>
                 <tr>
-                  <th className="rv-table__col-hdr" style={{ textAlign: 'left' }}>Scenario</th>
+                  <th className="rv-table__col-hdr">Scenario</th>
                   <th className="rv-table__col-hdr">EV/Revenue</th>
                   <th className="rv-table__col-hdr">EV/EBITDA</th>
                   <th className="rv-table__col-hdr">P/E</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td style={{ textAlign: 'left' }}>Bull</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Neutral</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
-                <tr><td style={{ textAlign: 'left' }}>Bear</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Bull<span className="rv-scenario-hint">75th percentile</span></td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Neutral<span className="rv-scenario-hint">Median</span></td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
+                <tr><td>Bear<span className="rv-scenario-hint">25th percentile</span></td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td><td className="rv-cell--num">—</td></tr>
               </tbody>
             </table>
           </div>
@@ -262,6 +267,7 @@ export default function RelativeValuationTab({ company, analysis }) {
       {/* Section 1: Comps Table */}
       <div className="rv-section">
         <h2 className="rv-section__title">Relative Valuation for {symbol}</h2>
+        <p className="rv-section__subtitle">Subject company benchmarked against peer multiples</p>
         <div className="rv-table-scroll">
           <table className="rv-table">
             <thead>
@@ -291,9 +297,9 @@ export default function RelativeValuationTab({ company, analysis }) {
             <tbody>
               {/* Subject company row */}
               <tr className="rv-row--subject">
-                <td className="rv-table__col-hdr">—</td>
-                <td className="rv-table__col-hdr">{name} ← Your company</td>
-                <td className="rv-table__col-hdr">{symbol}</td>
+                <td className="rv-cell--text">—</td>
+                <td className="rv-cell--text">{name}<span className="rv-subject-badge">← You</span></td>
+                <td className="rv-cell--text">{symbol}</td>
                 <td className={`rv-cell--num`}>{fmtPrice(price)}</td>
                 <td className={`rv-cell--num`}>{fmtShares(dilutedSharesM)}</td>
                 <td className={`rv-cell--num`}>{fmtDollarsM(equityValueM)}</td>
@@ -336,9 +342,9 @@ export default function RelativeValuationTab({ company, analysis }) {
 
                 return (
                   <tr key={idx}>
-                    <td className="rv-table__col-hdr">{idx + 1}</td>
-                    <td className="rv-table__col-hdr">{peer.name}</td>
-                    <td className="rv-table__col-hdr">{peer.ticker}</td>
+                    <td className="rv-cell--text">{idx + 1}</td>
+                    <td className="rv-cell--text">{peer.name}</td>
+                    <td className="rv-cell--text">{peer.ticker}</td>
                     <td className="rv-cell--num">{fmtPrice(peer.sharePrice)}</td>
                     <td className="rv-cell--num">{fmtShares(peer.dilutedShares)}</td>
                     <td className="rv-cell--num">{fmtDollarsM(peerEqVal)}</td>
@@ -374,11 +380,12 @@ export default function RelativeValuationTab({ company, analysis }) {
       {/* Section 2: Statistics */}
       <div className="rv-section">
         <h2 className="rv-section__title">Statistics for the Multiples</h2>
+        <p className="rv-section__subtitle">Peer multiple distribution — outliers and negatives excluded from percentiles</p>
         <div className="rv-table-scroll">
           <table className="rv-stats-table">
             <thead>
               <tr>
-                <th className="rv-table__col-hdr" style={{ textAlign: 'left' }}>Statistic</th>
+                <th className="rv-table__col-hdr">Statistic</th>
                 <th className="rv-table__col-hdr">EV/Revenue</th>
                 <th className="rv-table__col-hdr">EV/EBITDA</th>
                 <th className="rv-table__col-hdr">P/E</th>
@@ -386,7 +393,7 @@ export default function RelativeValuationTab({ company, analysis }) {
             </thead>
             <tbody>
               <tr>
-                <td style={{ textAlign: 'left' }}>High</td>
+                <td>High</td>
                 <td className={`rv-cell--num ${statsEVRevenue.high != null && statsEVRevenue.high < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtMultiple(statsEVRevenue.high)}
                 </td>
@@ -398,7 +405,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>75th Percentile</td>
+                <td>75th Percentile</td>
                 <td className={`rv-cell--num ${statsEVRevenue.p75 != null && statsEVRevenue.p75 < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtMultiple(statsEVRevenue.p75)}
                 </td>
@@ -410,7 +417,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Average</td>
+                <td>Average</td>
                 <td className={`rv-cell--num ${statsEVRevenue.avg != null && statsEVRevenue.avg < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtMultiple(statsEVRevenue.avg)}
                 </td>
@@ -422,7 +429,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Median</td>
+                <td>Median</td>
                 <td className={`rv-cell--num ${statsEVRevenue.median != null && statsEVRevenue.median < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtMultiple(statsEVRevenue.median)}
                 </td>
@@ -434,7 +441,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>25th Percentile</td>
+                <td>25th Percentile</td>
                 <td className={`rv-cell--num ${statsEVRevenue.p25 != null && statsEVRevenue.p25 < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtMultiple(statsEVRevenue.p25)}
                 </td>
@@ -446,7 +453,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Low</td>
+                <td>Low</td>
                 <td className={`rv-cell--num ${statsEVRevenue.low != null && statsEVRevenue.low < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtMultiple(statsEVRevenue.low)}
                 </td>
@@ -465,12 +472,13 @@ export default function RelativeValuationTab({ company, analysis }) {
 
       {/* Section 3: Implied Prices */}
       <div className="rv-section">
-        <h2 className="rv-section__title">Statistical Analysis of Multiple Valuation</h2>
+        <h2 className="rv-section__title">Implied Share Price Analysis</h2>
+        <p className="rv-section__subtitle">Peer-implied share prices using each multiple applied to subject financials</p>
         <div className="rv-table-scroll">
           <table className="rv-stats-table">
             <thead>
               <tr>
-                <th className="rv-table__col-hdr" style={{ textAlign: 'left' }}>Implied Price</th>
+                <th className="rv-table__col-hdr">Implied Price</th>
                 <th className="rv-table__col-hdr">EV/Revenue</th>
                 <th className="rv-table__col-hdr">EV/EBITDA</th>
                 <th className="rv-table__col-hdr">P/E</th>
@@ -478,7 +486,7 @@ export default function RelativeValuationTab({ company, analysis }) {
             </thead>
             <tbody>
               <tr>
-                <td style={{ textAlign: 'left' }}>High</td>
+                <td>High</td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.high, revenue) != null && impliedFromEV(statsEVRevenue.high, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.high, revenue))}
                 </td>
@@ -490,7 +498,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>75th Percentile</td>
+                <td>75th Percentile</td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.p75, revenue) != null && impliedFromEV(statsEVRevenue.p75, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.p75, revenue))}
                 </td>
@@ -502,7 +510,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Average</td>
+                <td>Average</td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.avg, revenue) != null && impliedFromEV(statsEVRevenue.avg, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.avg, revenue))}
                 </td>
@@ -514,7 +522,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Median</td>
+                <td>Median</td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.median, revenue) != null && impliedFromEV(statsEVRevenue.median, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.median, revenue))}
                 </td>
@@ -526,7 +534,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>25th Percentile</td>
+                <td>25th Percentile</td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.p25, revenue) != null && impliedFromEV(statsEVRevenue.p25, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.p25, revenue))}
                 </td>
@@ -538,7 +546,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Low</td>
+                <td>Low</td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.low, revenue) != null && impliedFromEV(statsEVRevenue.low, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.low, revenue))}
                 </td>
@@ -552,16 +560,18 @@ export default function RelativeValuationTab({ company, analysis }) {
             </tbody>
           </table>
         </div>
+        <p className="rv-footnote">Current price: {fmtPrice(price)}</p>
       </div>
 
       {/* Section 4: Team RV Model */}
       <div className="rv-section">
         <h2 className="rv-section__title">Team Relative Valuation Model</h2>
+        <p className="rv-section__subtitle">Scenario price targets derived from peer multiple percentiles</p>
         <div className="rv-table-scroll">
           <table className="rv-stats-table">
             <thead>
               <tr>
-                <th className="rv-table__col-hdr" style={{ textAlign: 'left' }}>Scenario</th>
+                <th className="rv-table__col-hdr">Scenario</th>
                 <th className="rv-table__col-hdr">EV/Revenue</th>
                 <th className="rv-table__col-hdr">EV/EBITDA</th>
                 <th className="rv-table__col-hdr">P/E</th>
@@ -569,7 +579,7 @@ export default function RelativeValuationTab({ company, analysis }) {
             </thead>
             <tbody>
               <tr>
-                <td style={{ textAlign: 'left' }}>Bull</td>
+                <td>Bull<span className="rv-scenario-hint">75th percentile</span></td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.p75, revenue) != null && impliedFromEV(statsEVRevenue.p75, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.p75, revenue))}
                 </td>
@@ -581,7 +591,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Neutral</td>
+                <td>Neutral<span className="rv-scenario-hint">Median</span></td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.median, revenue) != null && impliedFromEV(statsEVRevenue.median, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.median, revenue))}
                 </td>
@@ -593,7 +603,7 @@ export default function RelativeValuationTab({ company, analysis }) {
                 </td>
               </tr>
               <tr>
-                <td style={{ textAlign: 'left' }}>Bear</td>
+                <td>Bear<span className="rv-scenario-hint">25th percentile</span></td>
                 <td className={`rv-cell--num ${impliedFromEV(statsEVRevenue.p25, revenue) != null && impliedFromEV(statsEVRevenue.p25, revenue) < 0 ? 'rv-cell--neg' : ''}`}>
                   {fmtPrice(impliedFromEV(statsEVRevenue.p25, revenue))}
                 </td>

@@ -78,6 +78,16 @@ Purpose: high-signal session handoff between Codex and Claude.
 
 ## 2026-03-31 - claude
 - Branch: feature/valuation-workbench
+- Objective: UI clarity pass on Relative Valuation tab — full audit and targeted fixes for readability, semantic correctness, and style consistency
+- Decisions: (1) replaced misused `rv-table__col-hdr` on `<td>` elements with new `rv-cell--text` class so company names render in text-primary not muted secondary; (2) extracted "← Your company" into a styled gold `rv-subject-badge` span; (3) added 2px gold border-bottom to `.rv-row--subject` as a hard separator from peers; (4) added descriptive subtitles under all 4 section titles; (5) renamed "Statistical Analysis of Multiple Valuation" → "Implied Share Price Analysis" to disambiguate from Statistics section; (6) removed all 35 `style={{ textAlign: 'left' }}` inline overrides (CSS `th/td:first-child` rules already cover this); (7) added `rv-scenario-hint` spans to Bull/Neutral/Bear rows showing percentile used; (8) added current price footnote under implied prices table; bumped group header font 10px → 11px
+- Open Questions: none
+- Next Step: Final Valuation tab — weighted rollup of DCF + RV implied prices, football field chart, editable weights
+- Owns Next: frontend/src/tabs/FinalValuationTab.jsx (new), frontend/src/pages/CompanyPage.jsx
+- Do Not Touch: src/services/**, data/fixtures/**, .claude/agents/**
+- Files Touched: frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/styles.css, TODO.md, docs/WORKLOG.md
+
+## 2026-03-31 - claude
+- Branch: feature/valuation-workbench
 - Objective: implement Relative Valuation tab (comps table, statistics, implied prices, Bull/Neutral/Bear model)
 - Decisions: peers flow via analysis.peers array (generic schema); stats use all values for High/Low, positive-only for 75th/Avg/Median/25th; outlier detection via Q3+3×IQR; implied prices use EV bridge for EV-based multiples and EPS for P/E; MSFT fixture seeded with 5 peers from data/MSFT-collected.json as first live example; no example data hardcoded — fully data-driven
 - Open Questions: data pipeline does not yet populate analysis.peers for live tickers (only MSFT fixture has peers); EBITDA derived from operatingIncome + depreciationAmort where available, otherwise shown as —

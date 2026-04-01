@@ -3,6 +3,7 @@
 > Operating checklist. Keep committed after every meaningful change.
 > Current date: 2026-03-31
 
+
 ---
 
 ## Current Status
@@ -26,6 +27,11 @@ readability improvements across all tabs.
 Multi-agent workflow audit complete (2026-03-31): Claude-side audit of Codex-built handoff system.
 Fixed stale agent memory paths (kakvl → Kak Vlek) in 3 agent files; Codex mirror re-synced and
 all 7 SHA-256 hashes verified. All 5 handoff checks passing.
+
+Relative Valuation tab UI clarity pass complete (2026-03-31): fixed dual-use class bug on
+company name/ticker cells (text now renders in primary color), added subject company gold badge
++ 2px separator, descriptive subtitles under all 4 section titles, scenario percentile hints,
+current price footnote under implied prices, and removed 35 inline style overrides.
 
 ---
 
@@ -215,6 +221,7 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 | A-017 | **Pre-push hook — enforce TODO.md update on every git push** | `.claude/hooks/pre-push-todo-check.sh`, `.claude/settings.json`, `CLAUDE.md`, `docs/WORKFLOW_CHECKPOINT_SKILL.md` | PreToolUse hook blocks `git push` if TODO.md is absent from HEAD commit or date is not today. CLAUDE.md policy section added. Enforcement note added to WORKFLOW_CHECKPOINT_SKILL.md. |
 | A-018 | **Claude Code settings — model + env config** | `.claude/settings.local.json` | Set `model: sonnet`, `MAX_THINKING_TOKENS: 13000`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: 60`, `CLAUDE_CODE_SUBAGENT_MODEL: haiku`. |
 | A-019 | **Multi-agent workflow audit — Claude-side verification** | `.claude/agents/*.md`, `.codex/agents/*.md`, `docs/WORKLOG.md` | Audited Codex-built handoff system from Claude's side. Fixed stale memory paths in 3 agent files (kakvl → Kak Vlek). Re-synced Codex mirror; all 7 SHA-256 hashes verified. All 5 handoff-check gates passing. |
+| A-020 | **UI clarity pass — Relative Valuation tab** | `frontend/src/tabs/RelativeValuationTab.jsx`, `frontend/src/styles.css` | Fixed `rv-table__col-hdr` misuse on data cells → `rv-cell--text`; gold subject badge; 2px gold row separator; subtitles under all 4 section titles; renamed section 3 to "Implied Share Price Analysis"; scenario percentile hints (75th/Median/25th); current price footnote; removed 35 inline `style` overrides; bumped group header font 10→11px. |
 
 ---
 
