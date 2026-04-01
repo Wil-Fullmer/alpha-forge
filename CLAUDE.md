@@ -33,3 +33,13 @@ Codex consumes a mirrored copy in `.codex/agents/` so both tools stay aligned.
 Use `scripts/sync-agents.ps1` to refresh the mirror and verify file hashes.
 See `docs/AGENT_SYNC.md` for the full process.
 For session continuity, append handoff notes to `docs/WORKLOG.md`.
+
+## Current Audit Artifacts
+
+Latest workbook-fidelity audit deliverables live in `logs/`:
+- `logs/master-lineage.md`
+- `logs/audit-report.html`
+- `logs/lineage.json`
+- `logs/executive-summary.md`
+
+These files compare Alpha Forge against the Summit Fund HW1 workbook using the AAPL fixture path and should be treated as the current reference for architecture gaps before any refactor or model-unification work begins.

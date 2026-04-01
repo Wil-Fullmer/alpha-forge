@@ -16,6 +16,16 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-01 17:09 (America/Denver) - codex
+- Branch: feature/valuation-workbench
+- Objective: audit Alpha Forge against the Summit Fund HW1 workbook using the AAPL fixture path and generate a read-only lineage package for workbook-fidelity review
+- Decisions: (1) treat the workbook as canonical for structure, dependency order, and calculation sequence; (2) extract workbook sheet/formula topology from the `.xlsx` archive under `logs/tmp_hw1` because Excel COM was unavailable in-session; (3) classify fixture-limited gaps separately from architecture failures; (4) keep the audit at field-family level rather than cell-by-cell except where sequence mismatches required deeper tracing
+- Open Questions: whether the next implementation pass should centralize assumptions first or unify Revenue/Projections/DCF into a single authoritative forecast model first; whether `logs/tmp_hw1` should remain checked in locally as workbook-inspection support or be deleted after handoff
+- Next Step: convert the audit findings into an implementation-sequenced remediation plan, starting with shared assumption ownership and a single forecast lineage for Revenue -> Projections -> DCF
+- Owns Next: frontend/src/pages/CompanyPage.jsx, frontend/src/tabs/AssumptionsTab.jsx, frontend/src/tabs/RevenueTab.jsx, frontend/src/tabs/ProjectionsTab.jsx, frontend/src/tabs/WaccTab.jsx, frontend/src/tabs/DcfTab.jsx, src/services/analysisRunner.js, src/services/analysis.js
+- Do Not Touch: logs/master-lineage.md, logs/audit-report.html, logs/lineage.json, logs/executive-summary.md unless updating the audit itself; current app code was intentionally left read-only in this session
+- Files Touched: docs/WORKLOG.md, CLAUDE.md, logs/master-lineage.md, logs/audit-report.html, logs/lineage.json, logs/executive-summary.md
+
 ## 2026-04-01 (session 2) — claude
 - Branch: feature/valuation-workbench
 - Objective: full data integrity audit of Relative Valuation tab — ensure calculations are accurate, flow from previous data (not re-derived), and the tab is ready for full functionality once the starter screen is implemented

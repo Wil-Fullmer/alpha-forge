@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Alpha Forge Workbook Audit</title>
+  <style>
+    :root { --bg:#f5f1e8; --panel:#fffdf8; --ink:#1f1a14; --muted:#6f675d; --border:#d8ccbb; --accent:#8c4b2f; --good:#2f7d4a; --warn:#b57c00; --bad:#b42318; --info:#175cd3; }
+    body { margin:0; font-family:Georgia, "Times New Roman", serif; background:linear-gradient(180deg,#efe7d8 0%,var(--bg) 100%); color:var(--ink); }
+    .wrap { max-width:1200px; margin:0 auto; padding:32px 24px 64px; }
+    h1,h2,h3 { margin:0 0 12px; } h1 { font-size:34px; } h2 { font-size:22px; margin-top:32px; } h3 { font-size:17px; margin-top:24px; }
+    p,li { line-height:1.45; } .lede { font-size:18px; color:var(--muted); max-width:900px; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:20px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 8px 24px rgba(41,30,17,.06); }
+    .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; text-transform:uppercase; margin-right:8px; }
+    .critical { background:rgba(180,35,24,.12); color:var(--bad); } .moderate { background:rgba(181,124,0,.14); color:var(--warn); } .low { background:rgba(23,92,211,.1); color:var(--info); } .info { background:rgba(47,125,74,.1); color:var(--good); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; background:var(--panel); border:1px solid var(--border); }
+    th,td { border-bottom:1px solid var(--border); padding:10px 12px; vertical-align:top; text-align:left; font-size:14px; }
+    th { background:#f0e7d8; font-size:12px; text-transform:uppercase; } tr:last-child td { border-bottom:none; }
+    code { background:#f3eadf; padding:1px 5px; border-radius:4px; font-size:12px; }
+    .tree { white-space:pre-line; font-family:"Courier New", monospace; font-size:13px; background:#f8f2e8; padding:12px; border-radius:12px; border:1px solid var(--border); }
+    .small { color:var(--muted); font-size:13px; } a { color:var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Alpha Forge Workbook Audit</h1>
+    <p class="lede">The app matches the workbook's tab names and general navigation, but it does not yet behave like one workbook-driven model. The highest-risk gap is broken dependency ownership: assumptions, revenue, projections, WACC, and DCF are split across separate local frontend models instead of one shared lineage.</p>
+
+    <div class="grid">
+      <div class="card"><h3>Broad Verdict</h3><p>UI structure is workbook-like. Model structure is not yet workbook-faithful.</p></div>
+      <div class="card"><h3>Strongest Areas</h3><p>WACC layout, relative valuation structure, and final valuation weighting are closest to workbook intent.</p></div>
+      <div class="card"><h3>Highest-Risk Areas</h3><p>Global assumptions, segment revenue rollup, projections-to-DCF dependency, and D&amp;A sequence handling.</p></div>
+    </div>
+
+    <h2>Major Findings</h2>
+    <div class="grid">
+      <div class="card"><span class="badge critical">Critical</span><h3>No Shared Assumptions Model</h3><p>The workbook expects one assumptions layer. Alpha Forge splits tax, risk-free rate, and MRP across WACC local state, Projections local state, DCF constants, and backend defaults.</p></div>
+      <div class="card"><span class="badge critical">Critical</span><h3>Revenue Is Not Segment-First</h3><p>The workbook rolls total revenue from segment rows. Alpha Forge exposes only total revenue and a single growth vector.</p></div>
+      <div class="card"><span class="badge critical">Critical</span><h3>Projections Do Not Feed DCF</h3><p>Revenue and Projections edits stay inside their own tabs. DCF builds a separate forecast tree and ignores those edits.</p></div>
+      <div class="card"><span class="badge critical">Critical</span><h3>D&amp;A Sequence Deviates</h3><p>Projected operating profit excludes D&amp;A as a deduction even though D&amp;A is also added back later, which breaks workbook-like EBIT and NOPAT lineage.</p></div>
+      <div class="card"><span class="badge moderate">Moderate</span><h3>WACC Share Sourcing Is Inconsistent</h3><p>WACC leaves diluted shares blank when fixture data is missing, while DCF falls back to market cap divided by price.</p></div>
+      <div class="card"><span class="badge moderate">Moderate</span><h3>Backend Is Not The Canonical Model Backbone</h3><p>The backend payload is still a thin historical snapshot plus a simple standalone DCF, not a unified workbook-style model graph.</p></div>
+    </div>
+
+    <h2>Canonical vs Observed Flow</h2>
+    <div class="grid">
+      <div class="card"><h3>Canonical Workbook Flow</h3><div class="tree">Introduction / seed values
+→ Assumptions
+→ Revenue (segment-first)
+→ Projections
+→ WACC
+→ Relative Valuation
+→ DCF
+→ Final Valuation</div></div>
+      <div class="card"><h3>Observed Alpha Forge Flow</h3><div class="tree">Backend payload
+→ CompanyPage tab shell
+→ Assumptions display only
+→ Revenue local model
+→ Projections local model
+→ WACC local model (shared upward)
+→ Relative Valuation local model (shared upward)
+→ DCF local model (shared upward)
+→ Final Valuation weighting</div></div>
+    </div>
+
+    <h2>Tab-by-Tab Summary</h2>
+    <table>
+      <thead><tr><th>Tab</th><th>Canonical Requirement</th><th>Observed Implementation</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Introduction</td><td>Identity plus filing-date-driven seed values.</td><td>Identity is present; filing-date timing anchors are missing from the app model.</td><td><span class="badge moderate">Partially Wired</span></td></tr>
+        <tr><td>Assumptions</td><td>Global tax rate, risk-free rate, and market risk premium propagate everywhere.</td><td>Tab is display-only. Real assumption ownership is split across WACC, Projections, DCF constants, and backend defaults.</td><td><span class="badge critical">Probable Issue</span></td></tr>
+        <tr><td>Revenue</td><td>Segment-first revenue with rollup to total revenue.</td><td>Total revenue only, local growth inputs only, no segment rollup.</td><td><span class="badge critical">Partially Wired</span></td></tr>
+        <tr><td>Projections</td><td>Assumption-driven statement and forecast-term bridge that feeds DCF.</td><td>Local forecast model only; does not feed DCF and diverges on D&amp;A sequence.</td><td><span class="badge critical">Probable Issue</span></td></tr>
+        <tr><td>WACC</td><td>Capital structure and cost-of-capital model using global assumptions.</td><td>Structure matches well; blank shares are fixture-limited but cross-tab share sourcing is inconsistent.</td><td><span class="badge moderate">Fixture-Limited</span></td></tr>
+        <tr><td>Relative Valuation</td><td>Subject row, peer ingestion, statistics, implied prices, scenarios.</td><td>Close match; peer structures and stat rollups are present.</td><td><span class="badge info">Aligned</span></td></tr>
+        <tr><td>DCF</td><td>FCFF and FCFE trees fed by upstream projections and WACC/CoE.</td><td>Two-tree structure exists, but it is rebuilt locally and does not consume Revenue/Projections edits.</td><td><span class="badge critical">Partially Wired</span></td></tr>
+        <tr><td>Final Valuation</td><td>User-weighted blend of DCF and relative valuation outputs.</td><td>Weighting logic is structurally aligned and recomputes live from emitted DCF/RV outputs.</td><td><span class="badge info">Aligned</span></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Field-Family Lineage Trees</h2>
+    <div class="grid">
+      <div class="card"><h3>Revenue Required Lineage</h3><div class="tree">Global timing
+→ segment historical revenue
+→ segment growth inputs
+→ segment projected revenue
+→ total revenue rollup
+→ projections
+→ DCF</div></div>
+      <div class="card"><h3>Revenue Observed Lineage</h3><div class="tree">analysis.historicalRevenue
+→ RevenueTab local growthRates
+→ projected total revenue
+→ RevenueTab table/chart only</div></div>
+      <div class="card"><h3>DCF Required Lineage</h3><div class="tree">Revenue outputs
+→ Projections outputs
+→ WACC / Cost of Equity
+→ FCFF tree
+→ FCFE tree
+→ Final valuation</div></div>
+      <div class="card"><h3>DCF Observed Lineage</h3><div class="tree">analysis.historicalFinancials
++ analysis.dcf seed values
++ WACC callback
+→ DcfTab local projection tree
+→ emitted implied prices
+→ Final valuation</div></div>
+    </div>
+
+    <h2>Code References</h2>
+    <table>
+      <thead><tr><th>Concern</th><th>Primary Code Reference</th><th>Why It Matters</th></tr></thead>
+      <tbody>
+        <tr><td>Top-level cross-tab state</td><td><code>frontend/src/pages/CompanyPage.jsx:23-89</code></td><td>Shows the only shared values crossing tabs: WACC override/model, emitted DCF prices, emitted RV prices, and final valuation weight.</td></tr>
+        <tr><td>Revenue local-only model</td><td><code>frontend/src/tabs/RevenueTab.jsx:29-69</code></td><td>Growth inputs affect only the Revenue tab and never feed Projections or DCF.</td></tr>
+        <tr><td>Projections local-only model</td><td><code>frontend/src/tabs/ProjectionsTab.jsx:79-178</code></td><td>Projected statement rows are built locally and remain isolated from DCF.</td></tr>
+        <tr><td>WACC callback bridge</td><td><code>frontend/src/tabs/WaccTab.jsx:67-86</code></td><td>WACC is the only major modeling tab that publishes structured outputs upward.</td></tr>
+        <tr><td>DCF local rebuild</td><td><code>frontend/src/tabs/DcfTab.jsx:137-189</code></td><td>DCF computes FCFF and FCFE from its own local assumptions instead of consuming Projections outputs.</td></tr>
+        <tr><td>Backend simple DCF</td><td><code>src/services/analysis.js:139-179</code></td><td>The backend still exposes a standalone Gordon-growth DCF rather than the workbook-style model engine.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>What To Inspect Next</h2>
+    <ol>
+      <li>Define one shared assumptions owner and confirm propagation into WACC, Projections, and DCF.</li>
+      <li>Decide which model owns projected revenue and statement rows, then remove parallel forecast trees.</li>
+      <li>Add a segment-first revenue schema and total-revenue rollup contract.</li>
+      <li>Reconcile D&amp;A, EBIT, EBITDA, and NOPAT sequence with the workbook.</li>
+      <li>Normalize share-count sourcing across WACC, relative valuation, and DCF.</li>
+    </ol>
+
+    <p class="small">Supporting files: <code>logs/master-lineage.md</code>, <code>logs/lineage.json</code>, <code>logs/executive-summary.md</code></p>
+  </div>
+</body>
+</html>
