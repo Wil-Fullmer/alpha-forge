@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCompanyPage } from '../hooks/useCompanyPage.js';
 import CompanyOverview from '../components/CompanyOverview.jsx';
 import WorkbenchTabs from '../components/WorkbenchTabs.jsx';
@@ -25,12 +25,19 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
   const [activeTab, setActiveTab] = useState('assumptions');
   const [waccOverride, setWaccOverride] = useState(null);
   const [waccModel, setWaccModel] = useState(null);
+  const [dcfPrices, setDcfPrices] = useState(null);
+  const [rvPrices, setRvPrices] = useState(null);
+
+  const handleDcfPricesChange = useCallback((p) => setDcfPrices(p), []);
+  const handleRvPricesChange  = useCallback((p) => setRvPrices(p),  []);
 
   // Reset to default tab and WACC override whenever the ticker changes.
   useEffect(() => {
     setActiveTab('assumptions');
     setWaccOverride(null);
     setWaccModel(null);
+    setDcfPrices(null);
+    setRvPrices(null);
   }, [ticker]);
 
   if (loading) {
@@ -69,9 +76,9 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
         {activeTab === 'revenue'            && <RevenueTab analysis={analysis} />}
         {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
         {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
-        {activeTab === 'relative-valuation' && <RelativeValuationTab company={company} analysis={analysis} />}
-        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} />}
-        {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} />}
+        {activeTab === 'relative-valuation' && <RelativeValuationTab company={company} analysis={analysis} onPricesChange={handleRvPricesChange} />}
+        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} onPricesChange={handleDcfPricesChange} />}
+        {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} company={company} dcfPrices={dcfPrices} rvPrices={rvPrices} />}
       </div>
     </div>
   );

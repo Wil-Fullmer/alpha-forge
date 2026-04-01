@@ -75,7 +75,7 @@ function buildState(analysis, company, waccOverride) {
   };
 }
 
-export default function DcfTab({ company, analysis, waccOverride, waccModel }) {
+export default function DcfTab({ company, analysis, waccOverride, waccModel, onPricesChange }) {
   const [s, setS] = useState(() => buildState(analysis, company, waccOverride));
 
   useEffect(() => {
@@ -182,6 +182,11 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel }) {
   const equityFCFE   = sumPvLFCF + pvTvPE;
   const impliedFCFE  = shares > 0 ? equityFCFE / shares : null;
   const upsideFCFE   = safeDiv(impliedFCFE != null ? impliedFCFE - currentPrice : null, currentPrice);
+
+  // Emit implied prices to parent (FinalValuationTab via CompanyPage)
+  useEffect(() => {
+    onPricesChange?.({ fcfe: impliedFCFE ?? null, fcff: impliedFCFF ?? null });
+  }, [impliedFCFE, impliedFCFF, onPricesChange]);
 
   const pctFirstFCFF = safeDiv(sumPvUFCF, ev);
   const pctTermFCFF  = safeDiv(pvTvEVEBITDA, ev);

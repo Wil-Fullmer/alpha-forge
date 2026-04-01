@@ -8,12 +8,15 @@
 
 ## Current Status
 
-Backend is stable. Frontend valuation workbench is 5/7 tabs complete: Revenue, Projections,
-WACC, DCF, and Relative Valuation. DCF tab has a full 5-year FCFF/FCFE model, EV/EBITDA and P/E
-terminal values, valuation summary with implied prices, and two color-coded 7×7 sensitivity grids.
-Relative Valuation tab has a full comps table (14-column with column-group headers), statistics
-section, implied-price derivation, and Bull/Neutral/Bear team model. Peers flow via analysis.peers;
-MSFT fixture seeded with 5 peers from collected data. Remaining: Final Valuation, Assumptions.
+Backend is stable. Frontend valuation workbench is 6/7 tabs complete: Revenue, Projections,
+WACC, DCF, Relative Valuation, and Final Valuation. DCF tab has a full 5-year FCFF/FCFE model,
+EV/EBITDA and P/E terminal values, valuation summary with implied prices, and two color-coded 7×7
+sensitivity grids. Relative Valuation tab has a full comps table (14-column with column-group headers),
+statistics section, implied-price derivation, and Bull/Neutral/Bear team model. Peers flow via
+analysis.peers; MSFT fixture seeded with 5 peers from collected data. Final Valuation tab delivers
+a weighted rollup of DCF + RV implied prices (FCFE and FCFF paths), user-editable DCF weight with
+auto-derived RV weight, 3-card summary (avg price, current price, upside %), and analyst targets
+table. Remaining: Assumptions tab.
 
 Data accuracy audit complete (2026-03-30): 4 bugs fixed across ProjectionsTab, DcfTab, WaccTab,
 CompanyPage, and analysis.js. WACC tab is now live-wired to the DCF tab. Sharpe ratio
@@ -37,11 +40,11 @@ current price footnote under implied prices, and removed 35 inline style overrid
 
 ## Current Priority
 
-**Continue valuation workbench implementation — next tab: Final Valuation.**
+**Continue valuation workbench implementation — next tab: Assumptions.**
 
-Revenue, Projections, WACC, DCF, and Relative Valuation tabs are complete. UI clarity pass is
-done. Next is Final Valuation tab (weighted rollup of DCF + RV implied prices, football field
-chart, editable weights). Assumptions tab follows.
+Revenue, Projections, WACC, DCF, Relative Valuation, and Final Valuation tabs are complete.
+Next is the Assumptions tab (editable model inputs: growth rates, margins, WACC overrides, terminal
+value assumptions). This is the last remaining stub tab.
 
 ---
 

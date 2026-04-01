@@ -132,6 +132,16 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
     return statMultiple * subjectEPS;
   }
 
+  // Emit neutral (median) implied prices to parent (FinalValuationTab via CompanyPage)
+  const evRevNeutral   = impliedFromEV(statsEVRevenue.median, revenue);
+  const evEbitdaNeutral = impliedFromEV(statsEVEbitda.median, ebitda);
+  const peNeutral      = impliedFromPE(statsPE.median);
+
+  useEffect(() => {
+    onPricesChange?.({ evRevNeutral, evEbitdaNeutral, peNeutral });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evRevNeutral, evEbitdaNeutral, peNeutral]);
+
   // ===== Outlier Detection for Table =====
   function getAllPeerMultiples(getMultiple) {
     return peers.map(getMultiple).filter(v => v !== null && v !== undefined && !isNaN(v));
