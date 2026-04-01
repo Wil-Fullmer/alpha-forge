@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import FlagsPanel from '../components/FlagsPanel.jsx';
 
 function fmtPrice(v) {
@@ -64,8 +64,7 @@ function WeightingTable({ title, subtitle, dcfLabel, dcfPrice, rvLabel, rvPrice,
   );
 }
 
-export default function FinalValuationTab({ analysis, company, dcfPrices, rvPrices }) {
-  const [dcfWeight, setDcfWeight] = useState(0.5);
+export default function FinalValuationTab({ analysis, company, dcfPrices, rvPrices, dcfWeight, onDcfWeightChange }) {
   const rvWeight = 1 - dcfWeight;
 
   // FCFE path: DCF FCFE + RV P/E median
@@ -82,7 +81,7 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
     ? (fcfeWeighted + fcffWeighted) / 2
     : fcfeWeighted ?? fcffWeighted ?? null;
 
-  const currentPrice = company?.price ?? null;
+  const currentPrice = analysis?.technicals?.currentPrice ?? company?.price ?? null;
   const upside = avgValuation != null && currentPrice != null && currentPrice > 0
     ? (avgValuation / currentPrice) - 1
     : null;
@@ -98,7 +97,7 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
 
   const handleWeightChange = (e) => {
     const val = Math.max(0, Math.min(100, Number(e.target.value)));
-    setDcfWeight(val / 100);
+    onDcfWeightChange?.(val / 100);
   };
 
   return (
@@ -166,6 +165,30 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
         dcfWeight={dcfWeight}
         rvWeight={rvWeight}
       />
+
+      {/* EV/Revenue Reference — surfaced but not included in weighted blend */}
+      {rvPrices?.evRevNeutral != null && (
+        <div className="fv-section">
+          <h2 className="fv-section__title">Alternative RV Reference</h2>
+          <p className="fv-section__subtitle">EV/Revenue implied price from Relative Valuation — for reference only, not included in the weighted blend above</p>
+          <div className="fv-table-scroll">
+            <table className="fv-table">
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th className="fv-cell--num">Implied Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>RV — EV/Revenue Median</td>
+                  <td className="fv-cell--num">{fmtPrice(rvPrices.evRevNeutral)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Summary Metrics */}
       <div className="fv-section">

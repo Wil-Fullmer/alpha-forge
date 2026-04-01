@@ -27,6 +27,7 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
   const [waccModel, setWaccModel] = useState(null);
   const [dcfPrices, setDcfPrices] = useState(null);
   const [rvPrices, setRvPrices] = useState(null);
+  const [dcfWeight, setDcfWeight] = useState(0.5);
 
   const handleDcfPricesChange = useCallback((p) => setDcfPrices(p), []);
   const handleRvPricesChange  = useCallback((p) => setRvPrices(p),  []);
@@ -38,6 +39,7 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
     setWaccModel(null);
     setDcfPrices(null);
     setRvPrices(null);
+    setDcfWeight(0.5);
   }, [ticker]);
 
   if (loading) {
@@ -70,15 +72,21 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
       {/* Top-level tab navigation */}
       <WorkbenchTabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Active tab panel */}
+      {/* DcfTab and RelativeValuationTab always mounted — emit prices as soon as data loads */}
+      <div style={{ display: activeTab === 'dcf' ? 'block' : 'none' }}>
+        <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} onPricesChange={handleDcfPricesChange} />
+      </div>
+      <div style={{ display: activeTab === 'relative-valuation' ? 'block' : 'none' }}>
+        <RelativeValuationTab company={company} analysis={analysis} onPricesChange={handleRvPricesChange} />
+      </div>
+
+      {/* Active tab panel — all other tabs, keyed for fade-in animation */}
       <div className="workbench__panel tab-panel-enter" key={activeTab}>
-        {activeTab === 'assumptions'        && <AssumptionsTab company={company} analysis={analysis} />}
-        {activeTab === 'revenue'            && <RevenueTab analysis={analysis} />}
-        {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
-        {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
-        {activeTab === 'relative-valuation' && <RelativeValuationTab company={company} analysis={analysis} onPricesChange={handleRvPricesChange} />}
-        {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} onPricesChange={handleDcfPricesChange} />}
-        {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} company={company} dcfPrices={dcfPrices} rvPrices={rvPrices} />}
+        {activeTab === 'assumptions'     && <AssumptionsTab company={company} analysis={analysis} />}
+        {activeTab === 'revenue'         && <RevenueTab analysis={analysis} />}
+        {activeTab === 'projections'     && <ProjectionsTab analysis={analysis} />}
+        {activeTab === 'wacc'            && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
+        {activeTab === 'final-valuation' && <FinalValuationTab analysis={analysis} company={company} dcfPrices={dcfPrices} rvPrices={rvPrices} dcfWeight={dcfWeight} onDcfWeightChange={setDcfWeight} />}
       </div>
     </div>
   );

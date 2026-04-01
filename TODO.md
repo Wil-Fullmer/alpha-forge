@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-03-31
+> Current date: 2026-04-01
 
 
 ---
@@ -15,8 +15,13 @@ sensitivity grids. Relative Valuation tab has a full comps table (14-column with
 statistics section, implied-price derivation, and Bull/Neutral/Bear team model. Peers flow via
 analysis.peers; MSFT fixture seeded with 5 peers from collected data. Final Valuation tab delivers
 a weighted rollup of DCF + RV implied prices (FCFE and FCFF paths), user-editable DCF weight with
-auto-derived RV weight, 3-card summary (avg price, current price, upside %), and analyst targets
-table. Remaining: Assumptions tab.
+auto-derived RV weight, 3-card summary (avg price, current price, upside %), analyst targets table,
+and EV/Revenue reference panel. Remaining: Assumptions tab.
+
+Final Valuation accuracy audit complete (2026-04-01): 5 issues resolved — tab-visit dependency
+eliminated (DcfTab + RVTab always mounted), dcfWeight state lifted to CompanyPage (persists across
+navigation), currentPrice source unified to technicals-first, negative-earnings guard added to P/E
+terminal path, and evRevNeutral surfaced as reference panel.
 
 Data accuracy audit complete (2026-03-30): 4 bugs fixed across ProjectionsTab, DcfTab, WaccTab,
 CompanyPage, and analysis.js. WACC tab is now live-wired to the DCF tab. Sharpe ratio
@@ -140,7 +145,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Common Size IS — Revenue row now shows YoY growth % instead of revenue/revenue; oldest year shows EM_DASH
 - [x] Valuation workbench — DCF tab deep rebuild (FCFF/FCFE side-by-side, 5-year projection model, EV/EBITDA + P/E terminal value, two color-coded 7×7 sensitivity grids)
 - [x] Data accuracy audit — pipeline orchestrator used to cross-reference tab data points against backend fields; 4 bugs fixed (see Agent Board below)
-- [ ] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
+- [x] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
 - [ ] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
 - [ ] Sensitivity table presentation — numeric grid first, light heatmap treatment later
 - [ ] Start panel — user-friendly entry point: landing panel with ticker input, triggers `/api/analysis/{ticker}` on submit (runs full pipeline if no cached data), loading state while fetching, transitions to workbench tab view on success; replaces fixture-selector/header-ticker workflow for production use
@@ -225,6 +230,7 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 | A-018 | **Claude Code settings — model + env config** | `.claude/settings.local.json` | Set `model: sonnet`, `MAX_THINKING_TOKENS: 13000`, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: 60`, `CLAUDE_CODE_SUBAGENT_MODEL: haiku`. |
 | A-019 | **Multi-agent workflow audit — Claude-side verification** | `.claude/agents/*.md`, `.codex/agents/*.md`, `docs/WORKLOG.md` | Audited Codex-built handoff system from Claude's side. Fixed stale memory paths in 3 agent files (kakvl → Kak Vlek). Re-synced Codex mirror; all 7 SHA-256 hashes verified. All 5 handoff-check gates passing. |
 | A-020 | **UI clarity pass — Relative Valuation tab** | `frontend/src/tabs/RelativeValuationTab.jsx`, `frontend/src/styles.css` | Fixed `rv-table__col-hdr` misuse on data cells → `rv-cell--text`; gold subject badge; 2px gold row separator; subtitles under all 4 section titles; renamed section 3 to "Implied Share Price Analysis"; scenario percentile hints (75th/Median/25th); current price footnote; removed 35 inline `style` overrides; bumped group header font 10→11px. |
+| A-022 | **AUDIT — Final Valuation tab accuracy + data flow** | `CompanyPage.jsx`, `FinalValuationTab.jsx`, `DcfTab.jsx` | 5 issues fixed: (1) tab-visit dependency — DcfTab/RVTab moved outside keyed div, always mounted; (2) dcfWeight lifted to CompanyPage; (3) currentPrice unified to technicals-first; (4) P/E terminal path guarded against negative earnings; (5) evRevNeutral surfaced as reference panel. |
 | A-021 | **UI clarity pass — Final Valuation tab** | `frontend/src/tabs/FinalValuationTab.jsx`, `frontend/src/styles.css` | Fixed undefined `var(--color-text)` token (4×) → `text-primary`; replaced hardcoded `rgba` border/tint with CSS variables; aligned section title 14→13px and subtitle 12→11px; removed `padding: 20px` from `fv-wrap`; removed built-in `margin-top` from `.fv-table`; added `fv-table-scroll` wrapper + overflow safety; added `th` background + hover row; added `subtitle` prop to WeightingTable; added subtitles to all 4 sections; total row border-top separator. |
 
 ---

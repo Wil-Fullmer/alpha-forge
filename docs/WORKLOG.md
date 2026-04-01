@@ -16,6 +16,16 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-01 — claude
+- Branch: feature/valuation-workbench
+- Objective: full accuracy audit of Final Valuation tab; ensure calculations flow from previous tabs and the tab is ready for full functionality once the starter screen is implemented
+- Decisions: (1) always mount DcfTab and RelativeValuationTab (outside keyed div) so prices emit on data load, no tab-visit prerequisite; (2) lift dcfWeight state to CompanyPage so it survives tab navigation; (3) unify currentPrice source to technicals-first across DCF and Final Valuation; (4) guard P/E terminal path against negative projected earnings
+- Open Questions: none — all 5 audit findings resolved
+- Next Step: implement Assumptions tab (last stub tab)
+- Owns Next: frontend/src/tabs/AssumptionsTab.jsx, frontend/src/pages/CompanyPage.jsx
+- Do Not Touch: src/services/**, data/fixtures/**, .claude/agents/**
+- Files Touched: frontend/src/pages/CompanyPage.jsx, frontend/src/tabs/FinalValuationTab.jsx, frontend/src/tabs/DcfTab.jsx, TODO.md
+
 ## 2026-03-31 11:35 (America/Denver) - codex
 - Branch: feature/valuation-workbench
 - Objective: establish cross-tool continuity guardrails, then audit DCF tab math and sensitivity shading before implementing fixes

@@ -177,10 +177,10 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
   const impliedFCFF  = shares > 0 ? equityFCFF / shares : null;
   const upsideFCFF   = safeDiv(impliedFCFF != null ? impliedFCFF - currentPrice : null, currentPrice);
 
-  const tvPE         = lastEarnings * s.terminalPE;
-  const pvTvPE       = tvPE / Math.pow(1 + costOfEquity, lastPeriod);
-  const equityFCFE   = sumPvLFCF + pvTvPE;
-  const impliedFCFE  = shares > 0 ? equityFCFE / shares : null;
+  const tvPE         = lastEarnings != null && lastEarnings > 0 ? lastEarnings * s.terminalPE : null;
+  const pvTvPE       = tvPE != null ? tvPE / Math.pow(1 + costOfEquity, lastPeriod) : null;
+  const equityFCFE   = tvPE != null ? sumPvLFCF + pvTvPE : null;
+  const impliedFCFE  = equityFCFE != null && shares > 0 ? equityFCFE / shares : null;
   const upsideFCFE   = safeDiv(impliedFCFE != null ? impliedFCFE - currentPrice : null, currentPrice);
 
   // Emit implied prices to parent (FinalValuationTab via CompanyPage)
@@ -190,8 +190,8 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
 
   const pctFirstFCFF = safeDiv(sumPvUFCF, ev);
   const pctTermFCFF  = safeDiv(pvTvEVEBITDA, ev);
-  const pctFirstFCFE = safeDiv(sumPvLFCF, equityFCFE);
-  const pctTermFCFE  = safeDiv(pvTvPE, equityFCFE);
+  const pctFirstFCFE = equityFCFE != null ? safeDiv(sumPvLFCF, equityFCFE) : null;
+  const pctTermFCFE  = equityFCFE != null ? safeDiv(pvTvPE, equityFCFE) : null;
 
   const perShare = v => shares > 0 ? v / shares : null;
   const revCAGR  = lastRevenue && projRevenue[PROJ_COUNT - 1]
