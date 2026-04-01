@@ -64,9 +64,7 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
   const balanceSheet = analysis?.historicalFinancials?.balanceSheets?.[0];
 
   const revenue = incomeStmt?.revenue ? incomeStmt.revenue / 1e6 : null;
-  const ebitda = (incomeStmt?.operatingIncome != null && incomeStmt?.depreciationAmort != null)
-    ? (incomeStmt.operatingIncome + incomeStmt.depreciationAmort) / 1e6
-    : null;
+  const ebitda = incomeStmt?.ebitda != null ? incomeStmt.ebitda / 1e6 : null;
   const netIncome = incomeStmt?.netIncome ? incomeStmt.netIncome / 1e6 : null;
   const netDebtM = balanceSheet?.netDebt ? balanceSheet.netDebt / 1e6 : null;
   const enterpriseValueM = equityValueM != null && netDebtM != null
@@ -342,9 +340,9 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
                 const peerNI = peer.netIncome ? peer.netIncome / 1e6 : null;
                 const peerNetDebt = peerEV != null && peerEqVal != null ? peerEV - peerEqVal : null;
 
-                const peerEVRev = peer.evRevenue ?? (peerEV && peerRev ? peerEV / peerRev : null);
-                const peerEVEbitda = peer.evEbitda ?? (peerEV && peerEbitda ? peerEV / peerEbitda : null);
-                const peerPE = peer.pe ?? (peerEqVal && peerNI ? peerEqVal / peerNI : null);
+                const peerEVRev = peer.evRevenue;
+                const peerEVEbitda = peer.evEbitda;
+                const peerPE = peer.pe;
 
                 const isOutlierEVRev = peerEVRev != null && outlierEVRevenue.has(peerEVRev);
                 const isOutlierEVEbitda = peerEVEbitda != null && outlierEVEbitda.has(peerEVEbitda);

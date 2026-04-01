@@ -20,6 +20,7 @@ import {
   getCashFlowStatement,
   getHistoricalPrices,
   getQuote,
+  getPeers,
 } from './financialData.js'
 import {
   normalizeProfile,
@@ -78,6 +79,7 @@ export async function assembleData(ticker, { force = false } = {}) {
     collected ? Promise.resolve(null) : getCashFlowStatement(ticker, force),
     getHistoricalPrices(ticker, 252, force),
     getQuote(ticker, force),
+    collected ? Promise.resolve(null) : getPeers(ticker, force),
   ])
 
   if (!collected) {
@@ -99,8 +101,10 @@ export async function assembleData(ticker, { force = false } = {}) {
 
   const historicalPrices = fetches[4].status === 'fulfilled' ? fetches[4].value : []
   const quote            = fetches[5].status === 'fulfilled' ? fetches[5].value : null
+  const peers            = fetches[6]?.status === 'fulfilled' ? (fetches[6].value ?? []) : []
   if (fetches[4].status === 'rejected') flags.push(`Historical prices fetch failed: ${fetches[4].reason?.message}`)
   if (fetches[5].status === 'rejected') flags.push(`Quote fetch failed: ${fetches[5].reason?.message}`)
+  if (fetches[6]?.status === 'rejected') flags.push(`Peers fetch failed: ${fetches[6].reason?.message}`)
 
   return {
     profile,
@@ -109,6 +113,7 @@ export async function assembleData(ticker, { force = false } = {}) {
     cashFlows,
     historicalPrices,
     quote,
+    peers,
     flags,
     metadata: {
       dataSource:          collected ? 'pre_collected' : 'fmp_direct',

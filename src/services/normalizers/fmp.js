@@ -112,6 +112,35 @@ export function normalizeCashFlow(raw) {
 }
 
 /**
+ * Normalize a single assembled peer object (quote + income statement + balance sheet).
+ * @param {Object} raw - Assembled peer data bundle
+ * @returns {Object} Normalized peer object with all fields needed by RelativeValuationTab
+ */
+export function normalizePeer(raw) {
+  if (!raw) return null
+  const toN = v => (v == null || v === '' || v === 'None') ? null : typeof v === 'number' ? v : parseFloat(v)
+  const opInc = toN(raw.operatingIncome)
+  const da    = toN(raw.depreciationAmort)
+  const debt  = toN(raw.totalDebt)
+  const cash  = toN(raw.cashAndCashEquivalents)
+  return {
+    ticker:                 raw.ticker ?? raw.symbol ?? null,
+    name:                   raw.name ?? raw.companyName ?? null,
+    sharePrice:             toN(raw.sharePrice ?? raw.price),
+    dilutedShares:          toN(raw.dilutedShares ?? raw.sharesOutstanding),
+    equityValue:            toN(raw.equityValue ?? raw.marketCap),
+    revenue:                toN(raw.revenue),
+    ebitda:                 toN(raw.ebitda) ?? (opInc != null && da != null ? opInc + da : null),
+    operatingIncome:        opInc,
+    depreciationAmort:      da,
+    netIncome:              toN(raw.netIncome),
+    totalDebt:              debt,
+    cashAndCashEquivalents: cash,
+    netDebt:                toN(raw.netDebt) ?? (debt != null && cash != null ? debt - cash : null),
+  }
+}
+
+/**
  * Normalize FMP /quote response (single object, already extracted from array).
  * Note: FMP /quote does not include eps, pe, or sharesOutstanding —
  * those fields will be null and sourced elsewhere in the pipeline.

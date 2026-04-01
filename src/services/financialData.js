@@ -10,6 +10,7 @@ import {
   normalizeBalanceSheet,
   normalizeCashFlow,
   normalizeQuote,
+  normalizePeer,
 } from './normalizers/fmp.js'
 
 const BASE_URL = 'https://financialmodelingprep.com/stable'
@@ -273,4 +274,79 @@ export async function getQuote(ticker, force = false) {
   const normalized = normalizeQuote(extracted)
   writeCache(key, normalized, TTL.QUOTE)
   return normalized
+}
+
+/**
+ * Get peer comparables for a ticker.
+ * Fetches peer tickers from FMP /stock_peers, then for each peer fetches
+ * quote + latest income statement + latest balance sheet in parallel.
+ * Failed individual peer fetches are skipped gracefully.
+ *
+ * @param {string} ticker
+ * @param {boolean} [force=false] - Bypass cache
+ * @returns {Promise<object[]>} Array of normalized peer objects
+ */
+export async function getPeers(ticker, force = false) {
+  const key = `${ticker}-peers`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+
+  // Step 1: fetch peer ticker list
+  let peersList = []
+  try {
+    const peersData = await fetchFromFMP(ticker, 'stock_peers')
+    const entry = Array.isArray(peersData) ? peersData[0] : peersData
+    peersList = entry?.peersList ?? []
+  } catch (err) {
+    logger.warn(`getPeers: failed to fetch peer list for ${ticker}: ${err.message}`)
+    return []
+  }
+
+  if (peersList.length === 0) {
+    logger.info(`getPeers: no peers found for ${ticker}`)
+    return []
+  }
+
+  // Step 2: for each peer, parallel-fetch quote + income statement + balance sheet
+  const peerResults = await Promise.allSettled(
+    peersList.map(async peerTicker => {
+      const [quoteRes, incomeRes, balanceRes] = await Promise.allSettled([
+        getQuote(peerTicker, force),
+        getIncomeStatement(peerTicker, force),
+        getBalanceSheet(peerTicker, force),
+      ])
+
+      const quote   = quoteRes.status   === 'fulfilled' ? quoteRes.value   : null
+      const income  = incomeRes.status  === 'fulfilled' ? (incomeRes.value?.[0]  ?? null) : null
+      const balance = balanceRes.status === 'fulfilled' ? (balanceRes.value?.[0] ?? null) : null
+
+      if (!quote && !income) {
+        logger.warn(`getPeers: insufficient data for peer ${peerTicker}, skipping`)
+        return null
+      }
+
+      return normalizePeer({
+        ticker:                 peerTicker,
+        name:                   quote?.name ?? null,
+        sharePrice:             quote?.price,
+        dilutedShares:          quote?.sharesOutstanding,
+        equityValue:            quote?.marketCap,
+        revenue:                income?.revenue,
+        ebitda:                 income?.ebitda,
+        operatingIncome:        income?.operatingIncome,
+        depreciationAmort:      income?.depreciationAmort,
+        netIncome:              income?.netIncome,
+        totalDebt:              balance?.totalDebt,
+        cashAndCashEquivalents: balance?.cashAndCashEquivalents,
+        netDebt:                balance?.netDebt,
+      })
+    })
+  )
+
+  const peers = peerResults
+    .filter(r => r.status === 'fulfilled' && r.value != null)
+    .map(r => r.value)
+
+  logger.info(`getPeers: assembled ${peers.length} peers for ${ticker}`)
+  writeCache(key, peers, TTL.STATEMENTS)
+  return peers
 }

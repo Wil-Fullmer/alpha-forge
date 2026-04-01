@@ -4,6 +4,8 @@
 > Current date: 2026-04-01
 
 
+
+
 ---
 
 ## Current Status
@@ -22,6 +24,16 @@ Final Valuation accuracy audit complete (2026-04-01): 5 issues resolved — tab-
 eliminated (DcfTab + RVTab always mounted), dcfWeight state lifted to CompanyPage (persists across
 navigation), currentPrice source unified to technicals-first, negative-earnings guard added to P/E
 terminal path, and evRevNeutral surfaced as reference panel.
+
+Relative Valuation tab data integrity audit complete (2026-04-01): 3 issues resolved — peer data
+pipeline built end-to-end (normalizePeer → getPeers → dataAssembler → enrichPeersWithMultiples →
+analysis.peers), EBITDA now flows as a pre-computed field in historicalFinancials.incomeStatements
+(single source of truth, no longer re-derived in two tabs independently), and frontend fallback
+multiple derivation removed so the display and calcStats() both trust backend values. AAPL fixture
+updated with ebitda on all 3 income statements and 6 peer comparables (MSFT, GOOGL, AMZN, META,
+NVDA, TSLA) including pre-calculated evRevenue/evEbitda/pe. TSLA intentionally extreme to exercise
+outlier detection. Tab is now fully functional in fixture mode and ready for live data once the
+starter screen is implemented.
 
 Data accuracy audit complete (2026-03-30): 4 bugs fixed across ProjectionsTab, DcfTab, WaccTab,
 CompanyPage, and analysis.js. WACC tab is now live-wired to the DCF tab. Sharpe ratio

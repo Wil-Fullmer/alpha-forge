@@ -16,6 +16,16 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-01 (session 2) — claude
+- Branch: feature/valuation-workbench
+- Objective: full data integrity audit of Relative Valuation tab — ensure calculations are accurate, flow from previous data (not re-derived), and the tab is ready for full functionality once the starter screen is implemented
+- Decisions: (1) build a complete peer data pipeline (FMP /stock_peers → per-peer quote+income+balance → normalizePeer → enrichPeersWithMultiples) rather than seeding fixture manually and leaving backend empty; (2) centralize EBITDA in the backend income statement pass-through so neither RV nor DCF tab recomputes it independently — uses FMP value, falls back to operatingIncome+D&A; (3) remove frontend fallback multiple derivation (??-chained raw computation) since calcStats() was already reading p.evRevenue directly — the fallback only existed in the display path creating a silent mismatch; (4) TSLA added to fixture peers deliberately at extreme multiples (P/E 171×, EV/EBITDA 84×) to exercise outlier detection and the *excl badge
+- Open Questions: none — all 3 audit findings resolved; tab fully functional in fixture mode
+- Next Step: implement Assumptions tab (last stub tab), or implement starter screen (company selector)
+- Owns Next: frontend/src/tabs/AssumptionsTab.jsx OR new starter/home screen component
+- Do Not Touch: src/services/normalizers/fmp.js, src/services/financialData.js, src/services/dataAssembler.js, src/services/analysisRunner.js (peer pipeline is complete — do not re-touch unless FMP endpoint changes)
+- Files Touched: src/services/normalizers/fmp.js, src/services/financialData.js, src/services/dataAssembler.js, src/services/analysisRunner.js, frontend/src/tabs/RelativeValuationTab.jsx, data/fixtures/AAPL/analysis.json, TODO.md
+
 ## 2026-04-01 — claude
 - Branch: feature/valuation-workbench
 - Objective: full accuracy audit of Final Valuation tab; ensure calculations flow from previous tabs and the tab is ready for full functionality once the starter screen is implemented

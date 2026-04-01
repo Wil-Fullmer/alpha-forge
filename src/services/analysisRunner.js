@@ -125,7 +125,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
 
   // ── 1. Assemble normalized data ────────────────────────────────────────────
   const bundle = await assembleData(ticker, { force })
-  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote } = bundle
+  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers } = bundle
   const flags = [...bundle.flags]  // copy so calculation flags can be appended
   const metadata = bundle.metadata
 
@@ -238,6 +238,22 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   }
 
   // ── 5. Assemble result ─────────────────────────────────────────────────────
+  function enrichPeersWithMultiples(peers) {
+    const safeDiv = (a, b) => (a != null && b != null && b !== 0) ? a / b : null
+    return (peers ?? []).map(p => {
+      const ev = p.equityValue != null && p.netDebt != null
+        ? p.equityValue + p.netDebt
+        : null
+      return {
+        ...p,
+        enterpriseValue: ev,
+        evRevenue: safeDiv(ev, p.revenue),
+        evEbitda:  safeDiv(ev, p.ebitda),
+        pe:        safeDiv(p.equityValue, p.netIncome),
+      }
+    })
+  }
+
   const result = {
     ticker,
     analysisDate: date,
@@ -257,6 +273,11 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         sgaExpense:         s.sgaExpense,
         depreciationAmort:  s.depreciationAmort,
         operatingIncome:    s.operatingIncome,
+        ebitda:             s.ebitda ?? (
+          s.operatingIncome != null && s.depreciationAmort != null
+            ? s.operatingIncome + s.depreciationAmort
+            : null
+        ),
         netInterestIncome:  s.netInterestIncome ?? (
           (s.interestIncome != null && s.interestExpense != null)
             ? s.interestIncome - s.interestExpense : null
@@ -280,6 +301,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         changeInWorkingCap: s.changeInWorkingCap,
       })),
     },
+    peers: enrichPeersWithMultiples(rawPeers),
     flags,
     metadata
   }
