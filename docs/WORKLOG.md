@@ -78,6 +78,16 @@ Purpose: high-signal session handoff between Codex and Claude.
 
 ## 2026-03-31 - claude
 - Branch: feature/valuation-workbench
+- Objective: UI clarity pass on Final Valuation tab — token fixes, style alignment, readability improvements
+- Decisions: (1) removed undefined `var(--color-text)` token (4 instances) → `var(--color-text-primary)`; (2) replaced hardcoded `rgba(30,45,64,0.5)` border → `var(--color-border)` and hardcoded gold tint → `rgba(212,168,83,0.07)`; (3) aligned section title 14px→13px and subtitle 12px→11px with RV tab; (4) removed `padding: 20px` from `fv-wrap` (double-padding with tab container); (5) removed built-in `margin-top: 12px` from `.fv-table` (section padding handles spacing); (6) added `fv-table-scroll` wrapper class for overflow safety on both weighting tables and analyst table; (7) added `background: var(--color-surface-alt)` to `fv-table th` for consistent header treatment; (8) added `subtitle` prop to WeightingTable component; (9) added subtitles to FCFE, FCFF, Valuation Summary, and Analyst Targets sections; (10) added `fv-table tr:hover` row highlight; (11) added `border-top` to total row for cleaner separation; (12) added `white-space: nowrap` to th for narrow viewports
+- Open Questions: none
+- Next Step: Assumptions tab (last remaining stub)
+- Owns Next: frontend/src/tabs/AssumptionsTab.jsx, frontend/src/pages/CompanyPage.jsx
+- Do Not Touch: src/services/**, data/fixtures/**, .claude/agents/**
+- Files Touched: frontend/src/tabs/FinalValuationTab.jsx, frontend/src/styles.css, TODO.md, docs/WORKLOG.md
+
+## 2026-03-31 - claude
+- Branch: feature/valuation-workbench
 - Objective: UI clarity pass on Relative Valuation tab — full audit and targeted fixes for readability, semantic correctness, and style consistency
 - Decisions: (1) replaced misused `rv-table__col-hdr` on `<td>` elements with new `rv-cell--text` class so company names render in text-primary not muted secondary; (2) extracted "← Your company" into a styled gold `rv-subject-badge` span; (3) added 2px gold border-bottom to `.rv-row--subject` as a hard separator from peers; (4) added descriptive subtitles under all 4 section titles; (5) renamed "Statistical Analysis of Multiple Valuation" → "Implied Share Price Analysis" to disambiguate from Statistics section; (6) removed all 35 `style={{ textAlign: 'left' }}` inline overrides (CSS `th/td:first-child` rules already cover this); (7) added `rv-scenario-hint` spans to Bull/Neutral/Bear rows showing percentile used; (8) added current price footnote under implied prices table; bumped group header font 10px → 11px
 - Open Questions: none

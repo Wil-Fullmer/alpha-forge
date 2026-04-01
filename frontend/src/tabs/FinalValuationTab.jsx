@@ -19,7 +19,7 @@ function fmtDate(dateStr) {
   return dateStr.split('T')[0];
 }
 
-function WeightingTable({ title, dcfLabel, dcfPrice, rvLabel, rvPrice, dcfWeight, rvWeight }) {
+function WeightingTable({ title, subtitle, dcfLabel, dcfPrice, rvLabel, rvPrice, dcfWeight, rvWeight }) {
   const dcfVal = dcfPrice != null ? dcfPrice * dcfWeight : null;
   const rvVal  = rvPrice  != null ? rvPrice  * rvWeight  : null;
   const total  = dcfVal != null && rvVal != null ? dcfVal + rvVal : null;
@@ -27,36 +27,39 @@ function WeightingTable({ title, dcfLabel, dcfPrice, rvLabel, rvPrice, dcfWeight
   return (
     <div className="fv-section">
       <h2 className="fv-section__title">{title}</h2>
-      <table className="fv-table">
-        <thead>
-          <tr>
-            <th>Method</th>
-            <th className="fv-cell--num">Implied Price</th>
-            <th className="fv-cell--num">Weight</th>
-            <th className="fv-cell--num">Weighted Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{dcfLabel}</td>
-            <td className="fv-cell--num">{fmtPrice(dcfPrice)}</td>
-            <td className="fv-cell--num">{(dcfWeight * 100).toFixed(0)}%</td>
-            <td className="fv-cell--num">{fmtPrice(dcfVal)}</td>
-          </tr>
-          <tr>
-            <td>{rvLabel}</td>
-            <td className="fv-cell--num">{fmtPrice(rvPrice)}</td>
-            <td className="fv-cell--num">{(rvWeight * 100).toFixed(0)}%</td>
-            <td className="fv-cell--num">{fmtPrice(rvVal)}</td>
-          </tr>
-          <tr className="fv-row--total">
-            <td>Weighted Average</td>
-            <td className="fv-cell--num">—</td>
-            <td className="fv-cell--num">100%</td>
-            <td className="fv-cell--num fv-cell--total">{fmtPrice(total)}</td>
-          </tr>
-        </tbody>
-      </table>
+      {subtitle && <p className="fv-section__subtitle">{subtitle}</p>}
+      <div className="fv-table-scroll">
+        <table className="fv-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th className="fv-cell--num">Implied Price</th>
+              <th className="fv-cell--num">Weight</th>
+              <th className="fv-cell--num">Weighted Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{dcfLabel}</td>
+              <td className="fv-cell--num">{fmtPrice(dcfPrice)}</td>
+              <td className="fv-cell--num">{(dcfWeight * 100).toFixed(0)}%</td>
+              <td className="fv-cell--num">{fmtPrice(dcfVal)}</td>
+            </tr>
+            <tr>
+              <td>{rvLabel}</td>
+              <td className="fv-cell--num">{fmtPrice(rvPrice)}</td>
+              <td className="fv-cell--num">{(rvWeight * 100).toFixed(0)}%</td>
+              <td className="fv-cell--num">{fmtPrice(rvVal)}</td>
+            </tr>
+            <tr className="fv-row--total">
+              <td>Weighted Average</td>
+              <td className="fv-cell--num">—</td>
+              <td className="fv-cell--num">100%</td>
+              <td className="fv-cell--num fv-cell--total">{fmtPrice(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -143,6 +146,7 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
       {/* FCFE Weighting Table */}
       <WeightingTable
         title="FCFE Valuation (Equity-Based)"
+        subtitle="Blends DCF equity-side implied price with RV P/E median implied price"
         dcfLabel="DCF — FCFE"
         dcfPrice={dcfPrices?.fcfe ?? null}
         rvLabel="RV — P/E Median"
@@ -154,6 +158,7 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
       {/* FCFF Weighting Table */}
       <WeightingTable
         title="FCFF Valuation (Enterprise-Based)"
+        subtitle="Blends DCF enterprise-side implied price with RV EV/EBITDA median implied price"
         dcfLabel="DCF — FCFF"
         dcfPrice={dcfPrices?.fcff ?? null}
         rvLabel="RV — EV/EBITDA Median"
@@ -165,6 +170,7 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
       {/* Summary Metrics */}
       <div className="fv-section">
         <h2 className="fv-section__title">Valuation Summary</h2>
+        <p className="fv-section__subtitle">Average of FCFE and FCFF weighted outputs vs. current market price</p>
         <div className="fv-summary-grid">
           <div className="fv-summary-card">
             <span className="fv-summary-card__label">Average Implied Price</span>
@@ -191,27 +197,30 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
       {/* Analyst Price Targets */}
       <div className="fv-section">
         <h2 className="fv-section__title">Analyst Price Targets</h2>
+        <p className="fv-section__subtitle">Third-party consensus targets sorted by most recent publication date</p>
         {sortedTargets && sortedTargets.length > 0 ? (
-          <table className="fv-table">
-            <thead>
-              <tr>
-                <th>Analyst / Firm</th>
-                <th className="fv-cell--num">Target Price</th>
-                <th>Rating</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTargets.map((t, i) => (
-                <tr key={i}>
-                  <td>{[t.analystName, t.firm].filter(Boolean).join(' / ') || '—'}</td>
-                  <td className="fv-cell--num">{t.priceTarget != null ? `$${Number(t.priceTarget).toFixed(2)}` : '—'}</td>
-                  <td>{t.rating || '—'}</td>
-                  <td>{fmtDate(t.publishedDate)}</td>
+          <div className="fv-table-scroll">
+            <table className="fv-table">
+              <thead>
+                <tr>
+                  <th>Analyst / Firm</th>
+                  <th className="fv-cell--num">Target Price</th>
+                  <th>Rating</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sortedTargets.map((t, i) => (
+                  <tr key={i}>
+                    <td>{[t.analystName, t.firm].filter(Boolean).join(' / ') || '—'}</td>
+                    <td className="fv-cell--num">{t.priceTarget != null ? `$${Number(t.priceTarget).toFixed(2)}` : '—'}</td>
+                    <td>{t.rating || '—'}</td>
+                    <td>{fmtDate(t.publishedDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="fv-placeholder-note">No analyst targets available for this ticker.</p>
         )}
