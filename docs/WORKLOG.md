@@ -75,3 +75,13 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Owns Next: .claude/hooks/session-start.sh, CLAUDE.md, docs/AGENT_SYNC.md, docs/WORKFLOW_CHECKPOINT_SKILL.md, frontend/src/pages/CompanyPage.jsx, frontend/src/styles.css, frontend/src/tabs/DcfTab.jsx, frontend/src/tabs/WaccTab.jsx, .githooks/, docs/USAGE_FAILOVER_SKILL.md, docs/WORKLOG.md, scripts/codex-auto.ps1, scripts/handoff-check.ps1, scripts/prepare-handoff.ps1, scripts/session-end.ps1, scripts/session-start.ps1
 - Do Not Touch: files outside Owns Next, unless explicitly required for dependency fixes
 - Files Touched: .claude/hooks/session-start.sh, CLAUDE.md, docs/AGENT_SYNC.md, docs/WORKFLOW_CHECKPOINT_SKILL.md, frontend/src/pages/CompanyPage.jsx, frontend/src/styles.css, frontend/src/tabs/DcfTab.jsx, frontend/src/tabs/WaccTab.jsx, .githooks/, docs/USAGE_FAILOVER_SKILL.md, docs/WORKLOG.md, scripts/codex-auto.ps1, scripts/handoff-check.ps1, scripts/prepare-handoff.ps1, scripts/session-end.ps1, scripts/session-start.ps1
+
+## 2026-03-31 - claude
+- Branch: feature/valuation-workbench
+- Objective: implement Relative Valuation tab (comps table, statistics, implied prices, Bull/Neutral/Bear model)
+- Decisions: peers flow via analysis.peers array (generic schema); stats use all values for High/Low, positive-only for 75th/Avg/Median/25th; outlier detection via Q3+3×IQR; implied prices use EV bridge for EV-based multiples and EPS for P/E; MSFT fixture seeded with 5 peers from data/MSFT-collected.json as first live example; no example data hardcoded — fully data-driven
+- Open Questions: data pipeline does not yet populate analysis.peers for live tickers (only MSFT fixture has peers); EBITDA derived from operatingIncome + depreciationAmort where available, otherwise shown as —
+- Next Step: implement Final Valuation tab — weighted rollup of DCF + RV implied prices, football field chart, editable model weights
+- Owns Next: frontend/src/tabs/FinalValuationTab.jsx, frontend/src/pages/CompanyPage.jsx
+- Do Not Touch: src/services/**, data/fixtures/AAPL/**, data/fixtures/MSFT/**, .claude/agents/**
+- Files Touched: frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/pages/CompanyPage.jsx, frontend/src/styles.css, data/fixtures/MSFT/analysis.json, TODO.md, docs/WORKLOG.md

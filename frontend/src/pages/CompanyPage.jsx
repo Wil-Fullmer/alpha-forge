@@ -69,7 +69,7 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
         {activeTab === 'revenue'            && <RevenueTab analysis={analysis} />}
         {activeTab === 'projections'        && <ProjectionsTab analysis={analysis} />}
         {activeTab === 'wacc'               && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
-        {activeTab === 'relative-valuation' && <RelativeValuationTab />}
+        {activeTab === 'relative-valuation' && <RelativeValuationTab company={company} analysis={analysis} />}
         {activeTab === 'dcf'                && <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} />}
         {activeTab === 'final-valuation'    && <FinalValuationTab analysis={analysis} />}
       </div>

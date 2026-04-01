@@ -1857,3 +1857,167 @@ code {
 .company-overview__description-toggle:hover {
   color: var(--color-accent-hover);
 }
+
+/* ============================================================
+   Relative Valuation Tab — Comps & Analysis
+   ============================================================ */
+.rv-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rv-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.rv-section__title {
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+}
+
+.rv-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rv-table {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rv-table__group-hdr {
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-accent);
+  text-align: center;
+}
+
+.rv-table__col-hdr {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  padding: 6px 8px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rv-table__col-hdr:nth-child(1),
+.rv-table__col-hdr:nth-child(2),
+.rv-table__col-hdr:nth-child(3) {
+  text-align: left;
+}
+
+.rv-table tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rv-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rv-table td {
+  padding: 6px 8px;
+  color: var(--color-text-primary);
+}
+
+.rv-row--subject td {
+  background: rgba(212, 168, 83, 0.06);
+}
+
+.rv-row--subject td:first-child {
+  border-left: 2px solid var(--color-accent);
+}
+
+.rv-cell--neg {
+  color: var(--color-negative);
+}
+
+.rv-cell--excl {
+  color: var(--color-negative);
+  opacity: 0.7;
+}
+
+.rv-cell--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-outlier-badge {
+  display: inline-block;
+  font-size: 9px;
+  color: var(--color-negative);
+  margin-left: 2px;
+  vertical-align: super;
+}
+
+.rv-footnote {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.rv-stats-table {
+  width: 100%;
+  min-width: 500px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rv-stats-table thead tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rv-stats-table th {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  padding: 6px 8px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+}
+
+.rv-stats-table th:first-child {
+  text-align: left;
+}
+
+.rv-stats-table td {
+  padding: 6px 8px;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rv-stats-table td:first-child {
+  text-align: left;
+}
+
+.rv-stats-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rv-stats-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rv-placeholder-note {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 12px;
+}
