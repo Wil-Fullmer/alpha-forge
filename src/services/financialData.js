@@ -350,3 +350,30 @@ export async function getPeers(ticker, force = false) {
   writeCache(key, peers, TTL.STATEMENTS)
   return peers
 }
+
+/**
+ * Get analyst price targets from FMP /price-target endpoint.
+ * Returns up to 5 most recent targets, normalized to a consistent shape.
+ * Returns [] gracefully if the endpoint is unavailable or plan-restricted.
+ */
+export async function getAnalystTargets(ticker, force = false) {
+  const key = `${ticker}-analyst-targets`
+  if (!force) { const cached = readCache(key); if (cached) return cached }
+
+  try {
+    const data = await fetchFromFMP(ticker, 'price-target', { limit: 5 })
+    const raw = Array.isArray(data) ? data : []
+    const normalized = raw.map(t => ({
+      analystName:    t.analystName    ?? null,
+      analystCompany: t.analystCompany ?? null,
+      targetPrice:    t.priceTarget    ?? null,
+      rating:         t.rating         ?? null,
+      publishedDate:  t.publishedDate  ?? null,
+    }))
+    writeCache(key, normalized, TTL.STATEMENTS)
+    return normalized
+  } catch (err) {
+    logger.warn(`getAnalystTargets: could not fetch for ${ticker}: ${err.message}`)
+    return []
+  }
+}

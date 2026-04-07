@@ -19,6 +19,7 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
 import { assembleData } from './dataAssembler.js'
+import { getAnalystTargets } from './financialData.js'
 import {
   calculateSharpeRatio,
   calculateROE,
@@ -110,6 +111,65 @@ function printSummary(ticker, date, result) {
   console.log(line + '\n')
 }
 
+// ── Derived ratio helpers ─────────────────────────────────────────────────────
+
+function computeMedian(arr) {
+  const sorted = arr.filter(v => v != null && isFinite(v)).sort((a, b) => a - b)
+  if (sorted.length === 0) return null
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+}
+
+function computeDerivedRatios(incomeStatements, balanceSheets, cashFlows) {
+  const stmts = incomeStatements.slice(0, 3)
+  const bss   = balanceSheets.slice(0, 3)
+  const cfs   = cashFlows.slice(0, 3)
+  const sd = (a, b) => (a != null && b != null && b !== 0) ? a / b : null
+
+  return {
+    grossMarginPct: computeMedian(stmts.map(s => sd(s.grossProfit,       s.revenue))),
+    rdPct:          computeMedian(stmts.map(s => sd(s.researchAndDev,    s.revenue))),
+    sgaPct:         computeMedian(stmts.map(s => sd(s.sgaExpense,        s.revenue))),
+    daPct:          computeMedian(stmts.map(s => sd(s.depreciationAmort, s.revenue))),
+    capexPct:       computeMedian(cfs.map((cf, i) =>
+                      sd(Math.abs(cf.capitalExpenditure ?? 0), stmts[i]?.revenue))),
+    nwcPct:         computeMedian(bss.map((bs, i) => {
+                      const nwc = (bs.totalCurrentAssets ?? 0) - (bs.totalCurrentLiabilities ?? 0)
+                      return sd(nwc, stmts[i]?.revenue)
+                    })),
+    taxRate:        computeMedian(stmts.map(s => {
+                      if (!s.incomeBeforeTax || s.taxExpense == null) return null
+                      const r = s.taxExpense / s.incomeBeforeTax
+                      return (r >= 0 && r <= 0.5) ? r : null
+                    })),
+  }
+}
+
+function estimateWACC(profile, balanceSheets, incomeStatements, currentPrice, sharesOutstanding, derivedRatios) {
+  const rf = 0.0438, mrp = 0.05
+  const beta = profile?.beta ?? 1.0
+  const costOfEquity = rf + beta * mrp
+
+  const latestBS = balanceSheets[0] ?? {}
+  const latestIS = incomeStatements[0] ?? {}
+  const totalDebt = latestBS.totalDebt ?? 0
+
+  let costOfDebt = 0.045
+  if (latestIS.netInterestIncome != null && totalDebt > 0) {
+    const implied = Math.abs(latestIS.netInterestIncome) / totalDebt
+    if (implied > 0) costOfDebt = Math.min(0.12, Math.max(0.02, implied))
+  }
+
+  const taxRate = derivedRatios?.taxRate ?? 0.21
+  const mve = (sharesOutstanding && currentPrice) ? sharesOutstanding * currentPrice : null
+  if (!mve) return { wacc: 0.09, source: 'default_no_market_cap', beta, costOfEquity, costOfDebt, taxRate }
+
+  const totalV = totalDebt + mve
+  const wd = totalV > 0 ? totalDebt / totalV : 0
+  const wacc = Math.max(0.05, Math.min(0.20, (1 - wd) * costOfEquity + wd * costOfDebt * (1 - taxRate)))
+  return { wacc, source: 'derived_capm', beta, costOfEquity, costOfDebt, taxRate }
+}
+
 /**
  * Run full financial analysis for a ticker
  * @param {string} ticker
@@ -124,7 +184,10 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   logger.info(`Starting full analysis for ${ticker}${force ? ' (force refresh)' : ''}`)
 
   // ── 1. Assemble normalized data ────────────────────────────────────────────
-  const bundle = await assembleData(ticker, { force })
+  const [bundle, analystTargets] = await Promise.all([
+    assembleData(ticker, { force }),
+    getAnalystTargets(ticker, force),
+  ])
   const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers } = bundle
   const flags = [...bundle.flags]  // copy so calculation flags can be appended
   const metadata = bundle.metadata
@@ -172,6 +235,17 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
 
   const { growthRate, source: growthRateSource } = deriveGrowthRate(incomeStatements)
 
+  // ── 3a. Derived ratios & WACC estimate ────────────────────────────────────
+  const derivedRatios = {
+    ...computeDerivedRatios(incomeStatements, balanceSheets, cashFlows),
+    revenueCAGR:      growthRate,
+    netDebt,
+    sharesOutstanding,
+    currentPrice,
+  }
+
+  const waccEst = estimateWACC(profile, balanceSheets, incomeStatements, currentPrice, sharesOutstanding, derivedRatios)
+
   let dcfResult = { intrinsicValuePerShare: null, projectedFCFs: [], terminalValue: null, enterpriseValue: null }
   if (freeCashFlow !== null && freeCashFlow < 0) {
     flags.push(`DCF skipped: negative free cash flow ($${(freeCashFlow / 1e9).toFixed(2)}B) — model requires positive FCF`)
@@ -179,7 +253,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     const r = safeRun('DCF', () => calculateDCF({
       freeCashFlow,
       growthRate,
-      wacc: DCF_DEFAULTS.wacc,
+      wacc: waccEst.wacc,
       terminalGrowthRate: DCF_DEFAULTS.terminalGrowthRate,
       sharesOutstanding,
       netDebt,
@@ -199,7 +273,14 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     currentPrice,
     upDownside,
     assumedGrowthRate: growthRate,
-    assumedWACC: DCF_DEFAULTS.wacc,
+    assumedWACC: parseFloat(waccEst.wacc.toFixed(4)),
+    waccSource:  waccEst.source,
+    waccDetails: {
+      beta:         parseFloat(waccEst.beta.toFixed(4)),
+      costOfEquity: parseFloat(waccEst.costOfEquity.toFixed(4)),
+      costOfDebt:   parseFloat(waccEst.costOfDebt.toFixed(4)),
+      taxRate:      parseFloat(waccEst.taxRate.toFixed(4)),
+    },
     terminalGrowthRate: DCF_DEFAULTS.terminalGrowthRate,
     growthRateSource,
     projectedFreeCashFlows: dcfResult.projectedFCFs.map(v => Math.round(v)),
@@ -256,6 +337,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
 
   const result = {
     ticker,
+    derivedRatios,
     analysisDate: date,
     coreMetrics,
     dcf,
@@ -301,7 +383,9 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         changeInWorkingCap: s.changeInWorkingCap,
       })),
     },
+    lastFilingDate: incomeStatements[0]?.date ?? null,
     peers: enrichPeersWithMultiples(rawPeers),
+    analystTargets,
     flags,
     metadata
   }

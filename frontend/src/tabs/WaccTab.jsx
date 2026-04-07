@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EM_DASH, formatPct, formatLargeNumber } from '../utils/format.js';
+import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
+import { getSharesOutstanding } from '../utils/sharesOutstanding.js';
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
@@ -7,59 +9,41 @@ function safeDiv(a, b) {
 }
 
 export default function WaccTab({ company, analysis, onWaccChange, onModelChange }) {
-  const [inputs, setInputs] = useState({
-    riskFreeRate: 0.0438,
-    beta: 1.0,
-    mrp: 0.05,
-    costOfDebt: 0.045,
-    taxRate: 0.21,
-    shares: null,
-    price: null,
-  });
+  const assumptions = useAssumptions();
 
+  // Local UI state for shares and price (capital structure inputs not in AssumptionsContext)
+  const [shares, setShares] = useState(() => getSharesOutstanding(company, analysis));
+  const [price,  setPrice]  = useState(() => analysis?.technicals?.currentPrice ?? null);
+
+  // Re-seed capital structure when ticker changes
   useEffect(() => {
-    const mostRecentIS = analysis?.historicalFinancials?.incomeStatements?.at(0);
-    let derivedTaxRate = 0.21;
-    if (mostRecentIS != null) {
-      const expense = mostRecentIS.taxExpense;
-      const beforeTax = mostRecentIS.incomeBeforeTax;
-      if (expense != null && beforeTax != null && beforeTax !== 0) {
-        const raw = expense / beforeTax;
-        derivedTaxRate = Math.min(0.5, Math.max(0, raw));
-      }
-    }
-
-    setInputs(prev => ({
-      ...prev,
-      shares: company?.sharesOutstanding ?? null,
-      price:  analysis?.technicals?.currentPrice ?? null,
-      beta:   company?.beta ?? 1.0,
-      taxRate: derivedTaxRate,
-    }));
+    setShares(getSharesOutstanding(company, analysis));
+    setPrice(analysis?.technicals?.currentPrice ?? null);
   }, [analysis, company]);
 
   function updateInput(key, pctStr) {
     const parsed = parseFloat(pctStr);
     if (!isNaN(parsed)) {
-      setInputs(prev => ({ ...prev, [key]: parsed / 100 }));
+      assumptions.updateWaccInputs({ [key]: parsed / 100 });
     }
   }
 
   function updateRaw(key, str) {
     const parsed = parseFloat(str);
     if (!isNaN(parsed)) {
-      setInputs(prev => ({ ...prev, [key]: parsed }));
+      assumptions.updateWaccInputs({ [key]: parsed });
     }
   }
 
-  // Derived calculations
+  // Derived calculations — read WACC inputs from shared context
+  const { riskFreeRate, beta, mrp, costOfDebt, taxRate } = assumptions;
   const debt         = analysis?.historicalFinancials?.balanceSheets?.at(0)?.totalDebt ?? null;
-  const mve          = (inputs.shares != null && inputs.price != null) ? inputs.shares * inputs.price : null;
+  const mve          = (shares != null && price != null) ? shares * price : null;
   const total        = (debt != null && mve != null) ? debt + mve : null;
   const weightDebt   = safeDiv(debt, total);
   const weightEquity = safeDiv(mve, total);
-  const capm         = inputs.riskFreeRate + inputs.beta * inputs.mrp;
-  const afterTaxCOD  = inputs.costOfDebt * (1 - inputs.taxRate);
+  const capm         = riskFreeRate + beta * mrp;
+  const afterTaxCOD  = costOfDebt * (1 - taxRate);
   const wacc         = (weightEquity != null && weightDebt != null)
     ? weightEquity * capm + weightDebt * afterTaxCOD
     : null;
@@ -70,11 +54,11 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
 
   useEffect(() => {
     onModelChange?.({
-      riskFreeRate: inputs.riskFreeRate,
-      beta: inputs.beta,
-      mrp: inputs.mrp,
-      costOfDebt: inputs.costOfDebt,
-      taxRate: inputs.taxRate,
+      riskFreeRate,
+      beta,
+      mrp,
+      costOfDebt,
+      taxRate,
       capm,
       afterTaxCOD,
       wacc,
@@ -83,7 +67,7 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
       weightDebt,
       weightEquity,
     });
-  }, [inputs, capm, afterTaxCOD, wacc, debt, mve, weightDebt, weightEquity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [riskFreeRate, beta, mrp, costOfDebt, taxRate, capm, afterTaxCOD, wacc, debt, mve, weightDebt, weightEquity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="tab-panel tab-panel--wacc" id="tabpanel-wacc" role="tabpanel">
@@ -107,9 +91,9 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                     <input
                       type="number"
                       className="revenue-input revenue-input--wide"
-                      value={inputs.shares != null ? inputs.shares.toFixed(0) : ''}
+                      value={shares != null ? shares.toFixed(0) : ''}
                       step="1000000"
-                      onChange={e => updateRaw('shares', e.target.value)}
+                      onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setShares(v); }}
                       aria-label="Diluted Shares Outstanding"
                     />
                   </td>
@@ -122,9 +106,9 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                     <input
                       type="number"
                       className="revenue-input"
-                      value={inputs.price != null ? inputs.price.toFixed(2) : ''}
+                      value={price != null ? price.toFixed(2) : ''}
                       step="0.01"
-                      onChange={e => updateRaw('price', e.target.value)}
+                      onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setPrice(v); }}
                       aria-label="Price"
                     />
                   </td>
@@ -168,7 +152,7 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                       <input
                         type="number"
                         className="revenue-input"
-                        value={(inputs.riskFreeRate * 100).toFixed(2)}
+                        value={(riskFreeRate * 100).toFixed(2)}
                         step="0.01"
                         onChange={e => updateInput('riskFreeRate', e.target.value)}
                         aria-label="Risk Free Rate"
@@ -183,7 +167,7 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                       <input
                         type="number"
                         className="revenue-input"
-                        value={inputs.beta.toFixed(3)}
+                        value={beta.toFixed(3)}
                         step="0.001"
                         onChange={e => updateRaw('beta', e.target.value)}
                         aria-label="Beta"
@@ -197,7 +181,7 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                       <input
                         type="number"
                         className="revenue-input"
-                        value={(inputs.mrp * 100).toFixed(2)}
+                        value={(mrp * 100).toFixed(2)}
                         step="0.01"
                         onChange={e => updateInput('mrp', e.target.value)}
                         aria-label="Market Risk Premium"
@@ -227,7 +211,7 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                       <input
                         type="number"
                         className="revenue-input"
-                        value={(inputs.costOfDebt * 100).toFixed(2)}
+                        value={(costOfDebt * 100).toFixed(2)}
                         step="0.01"
                         onChange={e => updateInput('costOfDebt', e.target.value)}
                         aria-label="Cost of Debt"
@@ -242,7 +226,7 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                       <input
                         type="number"
                         className="revenue-input"
-                        value={(inputs.taxRate * 100).toFixed(2)}
+                        value={(taxRate * 100).toFixed(2)}
                         step="0.01"
                         onChange={e => updateInput('taxRate', e.target.value)}
                         aria-label="Expected Marginal Tax Rate"

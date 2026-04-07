@@ -10,8 +10,10 @@
 
 ## Current Status
 
-Backend is stable. Frontend valuation workbench is 6/7 tabs complete: Revenue, Projections,
-WACC, DCF, Relative Valuation, and Final Valuation. DCF tab has a full 5-year FCFF/FCFE model,
+Backend is stable. WACC is now data-derived (CAPM from beta + implied cost of debt) rather than
+hardcoded; `derivedRatios` (3-year median margins, capex %, NWC %) and `analystTargets` are
+now part of every analysis output. Frontend valuation workbench is 6/7 tabs complete: Revenue,
+Projections, WACC, DCF, Relative Valuation, and Final Valuation. DCF tab has a full 5-year FCFF/FCFE model,
 EV/EBITDA and P/E terminal values, valuation summary with implied prices, and two color-coded 7×7
 sensitivity grids. Relative Valuation tab has a full comps table (14-column with column-group headers),
 statistics section, implied-price derivation, and Bull/Neutral/Bear team model. Peers flow via

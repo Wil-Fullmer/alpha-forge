@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { getSharesOutstanding } from '../utils/sharesOutstanding.js';
 
 // Formatting helpers
 function fmtDollarsM(v) {
@@ -57,7 +58,8 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
   const exchange = company?.exchange;
   const price = company?.price;
   const marketCap = company?.marketCap;
-  const dilutedSharesM = (marketCap && price) ? marketCap / price / 1e6 : null;
+  const sharesRaw = getSharesOutstanding(company, analysis);
+  const dilutedSharesM = sharesRaw != null ? sharesRaw / 1e6 : null;
   const equityValueM = marketCap ? marketCap / 1e6 : null;
 
   const incomeStmt = analysis?.historicalFinancials?.incomeStatements?.[0];

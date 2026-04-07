@@ -16,6 +16,21 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-07 — claude (session 2)
+- Branch: feature/valuation-workbench
+- Objective: commit previously uncommitted work from the 2026-04-06 session that was left staged but never pushed
+- Decisions:
+  - **sharesOutstanding utility:** new `frontend/src/utils/sharesOutstanding.js` — unified resolution chain: `company.sharesOutstanding` → `marketCap/price` → null; both `RelativeValuationTab` and `WaccTab` updated to use it
+  - **WaccTab → AssumptionsContext:** WACC rate inputs (risk-free rate, beta, MRP, cost of debt, tax rate) migrated from local `useState` to shared `AssumptionsContext` so they persist across tab switches; shares/price remain local capital structure inputs
+  - **analysisRunner derived ratios:** `computeDerivedRatios()` computes 3-year median grossMarginPct, rdPct, sgaPct, daPct, capexPct, nwcPct, taxRate; `estimateWACC()` derives CAPM WACC from beta + implied cost of debt; DCF now uses derived WACC instead of `DCF_DEFAULTS.wacc`; `derivedRatios` block added to analysis output
+  - **Analyst targets:** `getAnalystTargets()` added to `financialData.js`; fetched in parallel with `assembleData()` in `analysisRunner`; `analystTargets` array added to result payload
+  - **ErrorBoundary:** added to `main.jsx` to surface render crashes (previously swallowed by React 18)
+- Open Questions: ErrorBoundary should be removed once blank-page regression is confirmed resolved
+- Next Step: verify ErrorBoundary is no longer needed and remove; then implement Assumptions tab
+- Owns Next: frontend/src/main.jsx (ErrorBoundary cleanup), frontend/src/tabs/AssumptionsTab.jsx
+- Do Not Touch: data/fixtures/**, src/services/dataAssembler.js
+- Files Touched: frontend/src/utils/sharesOutstanding.js (new), frontend/src/main.jsx, frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/tabs/WaccTab.jsx, src/services/analysisRunner.js, src/services/financialData.js
+
 ## 2026-04-07 — claude
 - Branch: feature/valuation-workbench
 - Objective: resolve two DCF tab render crashes, then restructure Projections tab so the income statement is dollar-values-only with % assumptions living in the Common Size section; wire Revenue tab projections into Projections tab via shared context; fix Net Debt calculation in Other Forecasted Terms
