@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
+import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
@@ -28,6 +29,7 @@ function yoyGrowth(arr, i) {
 
 export default function RevenueTab({ analysis }) {
   const seedRate = analysis?.dcf?.assumedGrowthRate ?? FALLBACK_RATE;
+  const { publishRevenue } = useRevenue();
 
   const [growthRates, setGrowthRates] = useState(
     () => Array(PROJ_COUNT).fill(seedRate)
@@ -56,6 +58,13 @@ export default function RevenueTab({ analysis }) {
     acc.push(prev != null ? prev * (1 + rate) : null);
     return acc;
   }, []);
+
+  // Publish to RevenueContext so ProjectionsTab can consume
+  useEffect(() => {
+    if (projectedRevenue.some(v => v != null)) {
+      publishRevenue({ projectedRevenue, growthRates });
+    }
+  }, [projectedRevenue, growthRates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleGrowthChange(i, raw) {
     const parsed = parseFloat(raw);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
+import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
+import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
@@ -43,34 +45,42 @@ function makeSeedAssumptions(analysis) {
 
   const rev = last.revenue ?? 1;
 
-  const seedRevGrowth = analysis?.dcf?.assumedGrowthRate ?? 0.05;
-  const seedGM    = safeDiv(last.grossProfit, rev) ?? 0.45;
-  const seedRD    = safeDiv(last.researchAndDev, rev) ?? 0.08;
-  const seedSGA   = safeDiv(last.sgaExpense, rev) ?? 0.06;
-  const seedDA    = safeDiv(last.depreciationAmort, rev) ?? 0.03;
-  const seedNI    = last.netInterestIncome ?? 0;
-  const seedOther = last.otherIncomeExpense ?? 0;
-  const seedTax   = (last.taxExpense != null && last.incomeBeforeTax > 0)
-                    ? safeDiv(last.taxExpense, last.incomeBeforeTax) ?? 0.20
-                    : 0.20;
-  const seedCapex = lastCF.capitalExpenditure != null
-                    ? Math.abs(lastCF.capitalExpenditure) / rev
-                    : 0.03;
+  const dr = analysis?.derivedRatios ?? {};
+
+  const seedGM    = dr.grossMarginPct ?? safeDiv(last.grossProfit,       rev) ?? 0.45;
+  const seedRD    = dr.rdPct          ?? safeDiv(last.researchAndDev,    rev) ?? 0.08;
+  const seedSGA   = dr.sgaPct         ?? safeDiv(last.sgaExpense,        rev) ?? 0.06;
+  const seedDA    = dr.daPct          ?? safeDiv(last.depreciationAmort, rev) ?? 0.03;
+  const seedTax   = dr.taxRate ?? ((last.taxExpense != null && last.incomeBeforeTax > 0)
+                    ? safeDiv(last.taxExpense, last.incomeBeforeTax) ?? 0.20 : 0.20);
+  const seedCapex = dr.capexPct ?? (lastCF.capitalExpenditure != null
+                    ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03);
   const nwcLast   = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
-  const seedNWC   = last.revenue ? nwcLast / last.revenue : 0.05;
+  const seedNWC   = dr.nwcPct ?? (last.revenue ? nwcLast / last.revenue : 0.05);
+
+  // Net interest and other income now as % of revenue
+  const seedNetInterestPct = safeDiv(last.netInterestIncome ?? 0, rev) ?? 0;
+  const seedOtherIncomePct = safeDiv(last.otherIncomeExpense ?? 0, rev) ?? 0;
+
+  // Net Debt as % of (EBIT − D&A)
+  const lastNetDebt    = lastBS.netDebt ?? 0;
+  const lastEBIT       = last.operatingIncome ?? 0;
+  const lastDA         = last.depreciationAmort ?? 0;
+  const lastBase       = lastEBIT - lastDA;
+  const seedNetDebtPct = lastBase !== 0 ? lastNetDebt / lastBase : 1.0;
 
   const fill = v => Array(PROJ_COUNT).fill(v);
   return {
-    revenueGrowth: fill(seedRevGrowth),
-    grossMargin:   fill(seedGM),
-    rdPct:         fill(seedRD),
-    sgaPct:        fill(seedSGA),
-    daPct:         fill(seedDA),
-    netInterest:   fill(seedNI),
-    otherIncome:   fill(seedOther),
-    taxRate:       fill(seedTax),
-    capexPct:      fill(seedCapex),
-    nwcPct:        fill(seedNWC),
+    cogsPct:        fill(1 - seedGM),
+    rdPct:          fill(seedRD),
+    sgaPct:         fill(seedSGA),
+    daPct:          fill(seedDA),
+    netInterestPct: fill(seedNetInterestPct),
+    otherIncomePct: fill(seedOtherIncomePct),
+    taxRate:        fill(seedTax),
+    capexPct:       fill(seedCapex),
+    nwcPct:         fill(seedNWC),
+    netDebtPct:     fill(seedNetDebtPct),
   };
 }
 
@@ -78,24 +88,14 @@ function makeSeedAssumptions(analysis) {
 
 export default function ProjectionsTab({ analysis }) {
   const [assumptions, setAssumptions] = useState(() => makeSeedAssumptions(analysis));
+  const { publishProjections } = useProjectedValues();
+  const { revenueData } = useRevenue();
 
   useEffect(() => {
     setAssumptions(makeSeedAssumptions(analysis));
   }, [analysis]);
 
-  const updateAssumption = useCallback((key, i, rawStr) => {
-    const parsed = parseFloat(rawStr);
-    if (isNaN(parsed)) return;
-    setAssumptions(prev => {
-      const next = { ...prev, [key]: [...prev[key]] };
-      // % inputs: user types "46.8" → store 0.468; absolute inputs: store raw × 1e9
-      next[key][i] = parsed;
-      return next;
-    });
-  }, []);
-
-  // Inputs stored as decimals for % keys, as raw $ for absolute keys
-  const updatePct = (key, i, rawStr) => {
+  const updatePct = useCallback((key, i, rawStr) => {
     const parsed = parseFloat(rawStr);
     if (isNaN(parsed)) return;
     setAssumptions(prev => {
@@ -103,17 +103,7 @@ export default function ProjectionsTab({ analysis }) {
       next[key][i] = parsed / 100;
       return next;
     });
-  };
-
-  const updateAbs = (key, i, rawStr) => {
-    const parsed = parseFloat(rawStr);
-    if (isNaN(parsed)) return;
-    setAssumptions(prev => {
-      const next = { ...prev, [key]: [...prev[key]] };
-      next[key][i] = parsed * 1e9; // user types $B
-      return next;
-    });
-  };
+  }, []);
 
   const stmts = [...(analysis?.historicalFinancials?.incomeStatements ?? [])].reverse();
   const bss   = [...(analysis?.historicalFinancials?.balanceSheets ?? [])].reverse();
@@ -131,51 +121,78 @@ export default function ProjectionsTab({ analysis }) {
     );
   }
 
-  const lastHistYear = stmts.at(-1)?.date?.slice(0, 4)
-    ? parseInt(stmts.at(-1).date.slice(0, 4), 10)
-    : new Date().getFullYear();
-  const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastHistYear + i + 1}`);
+  const lastHistYear = analysis?.lastFilingDate
+    ? parseInt(analysis.lastFilingDate.slice(0, 4), 10)
+    : (stmts.at(-1)?.date?.slice(0, 4) ? parseInt(stmts.at(-1).date.slice(0, 4), 10) : new Date().getFullYear());
+  const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastHistYear + i + 1}E`);
 
-  // ── Projections (rolling) ─────────────────────────────────────────────────
+  // ── Revenue: from RevenueContext with fallback ────────────────────────────
+  const seedGrowthRate = analysis?.dcf?.assumedGrowthRate ?? 0.05;
   const baseRevenue = stmts.at(-1)?.revenue ?? null;
-  const projRevenue = assumptions.revenueGrowth.reduce((acc, r) => {
-    const prev = acc.at(-1) ?? baseRevenue;
-    acc.push(prev != null ? prev * (1 + r) : null);
-    return acc;
-  }, []);
+  const fallbackRevenue = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    baseRevenue != null ? baseRevenue * Math.pow(1 + seedGrowthRate, i + 1) : null);
+  const projRevenue = revenueData?.projectedRevenue ?? fallbackRevenue;
+  const projGrowthRates = revenueData?.growthRates ?? Array(PROJ_COUNT).fill(seedGrowthRate);
 
-  const projGrossProfit = projRevenue.map((rev, i) =>
-    rev != null ? rev * assumptions.grossMargin[i] : null);
-  const projCOGS = projRevenue.map((rev, i) =>
-    projGrossProfit[i] != null ? rev - projGrossProfit[i] : null);
-  const projRD  = projRevenue.map((rev, i) =>
-    rev != null ? rev * assumptions.rdPct[i] : null);
-  const projSGA = projRevenue.map((rev, i) =>
-    rev != null ? rev * assumptions.sgaPct[i] : null);
-  const projDA  = projRevenue.map((rev, i) =>
-    rev != null ? rev * assumptions.daPct[i] : null);
-  // Operating income matches FMP definition: GP − R&D − SG&A
-  // D&A is embedded in COGS (informational field, not a separate P&L deduction)
-  const projOpIncome = projGrossProfit.map((gp, i) =>
-    gp != null ? gp - (projRD[i] ?? 0) - (projSGA[i] ?? 0) : null);
-  const projEBT = projOpIncome.map((op, i) =>
-    op != null ? op + (assumptions.netInterest[i] ?? 0) + (assumptions.otherIncome[i] ?? 0) : null);
+  // ── Projections ───────────────────────────────────────────────────────────
+  const projCOGS = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.cogsPct[i] : null);
+  const projGrossProfit = projRevenue.map((r, i) =>
+    r != null ? r - projCOGS[i] : null);
+  const projRD  = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.rdPct[i] : null);
+  const projSGA = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.sgaPct[i] : null);
+  const projDA  = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.daPct[i] : null);
+  const projEBIT = projGrossProfit.map((gp, i) =>
+    gp != null ? gp - (projRD[i] ?? 0) - (projSGA[i] ?? 0) - (projDA[i] ?? 0) : null);
+  const projNetInterest = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.netInterestPct[i] : null);
+  const projOtherIncome = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.otherIncomePct[i] : null);
+  const projEBT = projEBIT.map((op, i) =>
+    op != null ? op + (projNetInterest[i] ?? 0) + (projOtherIncome[i] ?? 0) : null);
   const projTax = projEBT.map((ebt, i) =>
     ebt != null ? Math.max(0, ebt * assumptions.taxRate[i]) : null);
   const projNetIncome = projEBT.map((ebt, i) =>
     ebt != null && projTax[i] != null ? ebt - projTax[i] : null);
 
-  const projCapex = projRevenue.map((rev, i) =>
-    rev != null ? rev * assumptions.capexPct[i] : null);
+  const projCapex = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.capexPct[i] : null);
 
   const lastBS  = bss.at(-1) ?? {};
   const nwcLast = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
-  const projNWC = projRevenue.map((rev, i) =>
-    rev != null ? rev * assumptions.nwcPct[i] : null);
+  const projNWC = projRevenue.map((r, i) =>
+    r != null ? r * assumptions.nwcPct[i] : null);
   const projChangeNWC = projNWC.map((nwc, i) => {
     const prev = i === 0 ? nwcLast : (projNWC[i - 1] ?? nwcLast);
     return nwc != null && prev != null ? nwc - prev : null;
   });
+
+  const projNetDebt = projEBIT.map((ebit, i) =>
+    ebit != null ? (ebit - (projDA[i] ?? 0)) * assumptions.netDebtPct[i] : null);
+
+  // ── Publish to ProjectedValuesContext ─────────────────────────────────────
+  useEffect(() => {
+    if (projRevenue.some(v => v != null)) {
+      publishProjections({
+        years:       projYears,
+        revenue:     projRevenue,
+        cogs:        projCOGS,
+        grossProfit: projGrossProfit,
+        rd:          projRD,
+        sga:         projSGA,
+        da:          projDA,
+        ebit:        projEBIT,
+        ebt:         projEBT,
+        netIncome:   projNetIncome,
+        capex:       projCapex,
+        nwc:         projNWC,
+        changeNwc:   projChangeNWC,
+      });
+    }
+  }, [projRevenue, projCOGS, projGrossProfit, projRD, projSGA, projDA, projEBIT, projEBT, projNetIncome, projCapex, projNWC, projChangeNWC]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Chart data ────────────────────────────────────────────────────────────
   const csChartData = [
@@ -195,7 +212,7 @@ export default function ProjectionsTab({ analysis }) {
       return {
         year: yr,
         isProjected: true,
-        cogs:   rev ? +((rev - (projGrossProfit[i] ?? rev)) / rev * 100).toFixed(1) : null,
+        cogs:   rev ? +((projCOGS[i] ?? 0) / rev * 100).toFixed(1) : null,
         gross:  rev ? +((projGrossProfit[i] ?? 0) / rev * 100).toFixed(1) : null,
         opex:   rev ? +(((projRD[i] ?? 0) + (projSGA[i] ?? 0) + (projDA[i] ?? 0)) / rev * 100).toFixed(1) : null,
         netInc: rev ? +((projNetIncome[i] ?? 0) / rev * 100).toFixed(1) : null,
@@ -252,28 +269,60 @@ export default function ProjectionsTab({ analysis }) {
     ));
   }
 
-  function absInputCells(key, inputLabel) {
-    return assumptions[key].map((val, i) => (
-      <td key={projYears[i]} className="revenue-cell revenue-cell--projected revenue-cell--input">
-        <input
-          type="number"
-          className="revenue-input revenue-input--wide"
-          value={(val / 1e9).toFixed(1)}
-          step="0.1"
-          onChange={e => updateAbs(key, i, e.target.value)}
-          aria-label={`${projYears[i]} ${inputLabel}`}
-        />
-        <span className="revenue-input__suffix">B</span>
-      </td>
-    ));
-  }
-
   function nullProjCells() {
     return projYears.map(yr => (
       <td key={yr} className="revenue-cell revenue-cell--projected revenue-cell--null">
         {EM_DASH}
       </td>
     ));
+  }
+
+  // Common size row: historical cells read-only, projected cells editable inputs
+  function csInputRow(label, histNumGetter, histDenomGetter, key, labelSuffix = '') {
+    return (
+      <tr key={label} className="revenue-row revenue-row--value">
+        <td className="revenue-table__row-label">
+          {label}{labelSuffix ? <span className="revenue-table__row-label--sub"> {labelSuffix}</span> : null}
+        </td>
+        {stmts.map((s, si) => (
+          <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
+            {fmtPctAbs(safeDiv(histNumGetter(s), histDenomGetter(s)))}
+          </td>
+        ))}
+        {assumptions[key].map((rate, pi) => (
+          <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--input">
+            <input
+              type="number"
+              className="revenue-input"
+              value={(rate * 100).toFixed(2)}
+              step="0.1"
+              onChange={e => updatePct(key, pi, e.target.value)}
+              aria-label={`${projYears[pi]} ${label}`}
+            />
+            <span className="revenue-input__suffix">%</span>
+          </td>
+        ))}
+      </tr>
+    );
+  }
+
+  // Common size row: both historical and projected are display-only
+  function csCalcRow(label, histNumGetter, histDenomGetter, projArr, projDenomArr = projRevenue) {
+    return (
+      <tr key={label} className="revenue-row revenue-row--value">
+        <td className="revenue-table__row-label">{label}</td>
+        {stmts.map((s, si) => (
+          <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
+            {fmtPctAbs(safeDiv(histNumGetter(s), histDenomGetter(s)))}
+          </td>
+        ))}
+        {projArr.map((v, pi) => (
+          <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--growth">
+            {fmtPctAbs(safeDiv(v, projDenomArr[pi]))}
+          </td>
+        ))}
+      </tr>
+    );
   }
 
   const colHeaders = (
@@ -310,11 +359,6 @@ export default function ProjectionsTab({ analysis }) {
                 {histCells(s => s.revenue)}
                 {projCells(projRevenue)}
               </tr>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Rev Growth %</td>
-                {dashCells()}
-                {pctInputCells('revenueGrowth', 'revenue growth')}
-              </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">COGS</td>
@@ -327,21 +371,11 @@ export default function ProjectionsTab({ analysis }) {
                 {histCells(s => s.grossProfit)}
                 {projCells(projGrossProfit)}
               </tr>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Gross Margin %</td>
-                {histPctCells(s => s.grossProfit, s => s.revenue)}
-                {pctInputCells('grossMargin', 'gross margin')}
-              </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">R&amp;D</td>
                 {histCells(s => s.researchAndDev)}
                 {projCells(projRD)}
-              </tr>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">R&amp;D % Rev</td>
-                {histPctCells(s => s.researchAndDev, s => s.revenue)}
-                {pctInputCells('rdPct', 'R&D % of revenue')}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
@@ -349,39 +383,29 @@ export default function ProjectionsTab({ analysis }) {
                 {histCells(s => s.sgaExpense)}
                 {projCells(projSGA)}
               </tr>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">SG&amp;A % Rev</td>
-                {histPctCells(s => s.sgaExpense, s => s.revenue)}
-                {pctInputCells('sgaPct', 'SG&A % of revenue')}
-              </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">D&amp;A</td>
                 {histCells(s => s.depreciationAmort)}
                 {projCells(projDA)}
               </tr>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">D&amp;A % Rev</td>
-                {histPctCells(s => s.depreciationAmort, s => s.revenue)}
-                {pctInputCells('daPct', 'D&A % of revenue')}
-              </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--subtotal">
                 <td className="revenue-table__row-label">Operating Profit (Loss)</td>
                 {histCells(s => s.operatingIncome)}
-                {projCells(projOpIncome)}
+                {projCells(projEBIT)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Net Interest Inc (Exp)</td>
                 {histCells(s => s.netInterestIncome)}
-                {absInputCells('netInterest', 'net interest income/expense')}
+                {projCells(projNetInterest)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Other Inc (Exp)</td>
                 {histCells(s => s.otherIncomeExpense)}
-                {absInputCells('otherIncome', 'other income/expense')}
+                {projCells(projOtherIncome)}
               </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--subtotal">
@@ -394,11 +418,6 @@ export default function ProjectionsTab({ analysis }) {
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Tax Provision</td>
                 {histCells(s => s.taxExpense)}
                 {projCells(projTax)}
-              </tr>
-              <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Tax Rate %</td>
-                {histPctCells(s => s.taxExpense, s => s.incomeBeforeTax)}
-                {pctInputCells('taxRate', 'effective tax rate')}
               </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--total">
@@ -417,53 +436,76 @@ export default function ProjectionsTab({ analysis }) {
           <table className="revenue-table">
             <thead>{colHeaders}</thead>
             <tbody>
-              {/* Revenue row: show YoY growth %, not revenue/revenue */}
+              {/* Revenue: YoY growth % — read-only, sourced from RevenueTab */}
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label">Revenue</td>
                 {stmts.map((s, si) => (
                   <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
-                    {si === 0 ? EM_DASH : fmtPct(safeDiv(s.revenue, stmts[si - 1].revenue) != null ? (s.revenue / stmts[si - 1].revenue) - 1 : null)}
+                    {si === 0 ? EM_DASH : fmtPct(safeDiv(s.revenue, stmts[si - 1].revenue) != null
+                      ? (s.revenue / stmts[si - 1].revenue) - 1 : null)}
                   </td>
                 ))}
-                {assumptions.revenueGrowth.map((rate, pi) => (
+                {projGrowthRates.map((rate, pi) => (
                   <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--growth">
                     {fmtPct(rate)}
                   </td>
                 ))}
               </tr>
 
-              {[
-                ['COGS',                     s => s.costOfRevenue,     projCOGS],
-                ['Gross Profit',             s => s.grossProfit,       projGrossProfit],
-                ['R&D',                      s => s.researchAndDev,    projRD],
-                ['SG&A',                     s => s.sgaExpense,        projSGA],
-                ['D&A',                      s => s.depreciationAmort, projDA],
-                ['Operating Profit (Loss)',  s => s.operatingIncome,   projOpIncome],
-                ['EBT',                      s => s.incomeBeforeTax,   projEBT],
-                ['Tax Provision',            s => s.taxExpense,        projTax],
-                ['Net Income',               s => s.netIncome,         projNetIncome],
-              ].map(([label, getter, projArr]) => (
-                <tr key={label} className="revenue-row revenue-row--value">
-                  <td className="revenue-table__row-label">{label}</td>
-                  {stmts.map((s, si) => {
-                    const val = getter(s);
-                    const rev = s.revenue;
-                    return (
-                      <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
-                        {fmtPctAbs(safeDiv(val, rev))}
-                      </td>
-                    );
-                  })}
-                  {projArr.map((v, pi) => {
-                    const rev = projRevenue[pi];
-                    return (
-                      <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--growth">
-                        {fmtPctAbs(safeDiv(v, rev))}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+              {/* COGS % — editable */}
+              {csInputRow('COGS', s => s.costOfRevenue, s => s.revenue, 'cogsPct')}
+
+              {/* Gross Profit % — calculated */}
+              {csCalcRow('Gross Profit', s => s.grossProfit, s => s.revenue, projGrossProfit)}
+
+              {/* R&D % — editable */}
+              {csInputRow('R&D', s => s.researchAndDev, s => s.revenue, 'rdPct')}
+
+              {/* SG&A % — editable */}
+              {csInputRow('SG&A', s => s.sgaExpense, s => s.revenue, 'sgaPct')}
+
+              {/* D&A % — editable */}
+              {csInputRow('D&A', s => s.depreciationAmort, s => s.revenue, 'daPct')}
+
+              {/* Operating Profit % — calculated */}
+              {csCalcRow('Operating Profit (Loss)', s => s.operatingIncome, s => s.revenue, projEBIT)}
+
+              {/* Net Interest % — editable */}
+              {csInputRow('Net Interest Inc (Exp)', s => s.netInterestIncome, s => s.revenue, 'netInterestPct')}
+
+              {/* Other Income % — editable */}
+              {csInputRow('Other Inc (Exp)', s => s.otherIncomeExpense, s => s.revenue, 'otherIncomePct')}
+
+              {/* EBT % — calculated */}
+              {csCalcRow('EBT', s => s.incomeBeforeTax, s => s.revenue, projEBT)}
+
+              {/* Tax Rate % of EBT — editable (different denominator) */}
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label">
+                  Tax Rate <span style={{ fontSize: '0.75em', opacity: 0.65 }}>(% of EBT)</span>
+                </td>
+                {stmts.map((s, si) => (
+                  <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
+                    {fmtPctAbs(safeDiv(s.taxExpense, s.incomeBeforeTax))}
+                  </td>
+                ))}
+                {assumptions.taxRate.map((rate, pi) => (
+                  <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--input">
+                    <input
+                      type="number"
+                      className="revenue-input"
+                      value={(rate * 100).toFixed(2)}
+                      step="0.1"
+                      onChange={e => updatePct('taxRate', pi, e.target.value)}
+                      aria-label={`${projYears[pi]} tax rate`}
+                    />
+                    <span className="revenue-input__suffix">%</span>
+                  </td>
+                ))}
+              </tr>
+
+              {/* Net Income % — calculated */}
+              {csCalcRow('Net Income', s => s.netIncome, s => s.revenue, projNetIncome)}
             </tbody>
           </table>
         </div>
@@ -530,21 +572,24 @@ export default function ProjectionsTab({ analysis }) {
                     {formatLargeNumber(s.netDebt)}
                   </td>
                 ))}
-                {nullProjCells()}
+                {projNetDebt.map((v, i) => (
+                  <td key={projYears[i]} className="revenue-cell revenue-cell--projected">
+                    {formatLargeNumber(v)}
+                  </td>
+                ))}
               </tr>
               <tr className="revenue-row revenue-row--growth">
-                <td className="revenue-table__row-label revenue-table__row-label--sub">Net Debt / EBITDA</td>
+                <td className="revenue-table__row-label revenue-table__row-label--sub">Net Debt % (EBIT − D&amp;A)</td>
                 {bss.map((s, i) => {
                   const inc = stmts[i];
-                  const ebitda = inc ? (inc.operatingIncome ?? 0) + (inc.depreciationAmort ?? 0) : null;
-                  const ratio = safeDiv(s.netDebt, ebitda);
+                  const base = inc ? (inc.operatingIncome ?? 0) - (inc.depreciationAmort ?? 0) : null;
                   return (
                     <td key={s.date ?? i} className="revenue-cell revenue-cell--historical revenue-cell--growth">
-                      {ratio != null ? ratio.toFixed(1) + 'x' : EM_DASH}
+                      {fmtPctAbs(safeDiv(s.netDebt, base))}
                     </td>
                   );
                 })}
-                {nullProjCells()}
+                {pctInputCells('netDebtPct', 'Net Debt % of (EBIT − D&A)')}
               </tr>
 
               <tr className="revenue-row revenue-row--value">

@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-01
+> Current date: 2026-04-07
 
 
 
@@ -19,6 +19,13 @@ analysis.peers; MSFT fixture seeded with 5 peers from collected data. Final Valu
 a weighted rollup of DCF + RV implied prices (FCFE and FCFF paths), user-editable DCF weight with
 auto-derived RV weight, 3-card summary (avg price, current price, upside %), analyst targets table,
 and EV/Revenue reference panel. Remaining: Assumptions tab.
+
+ProjectionsTab restructure complete (2026-04-07): Income statement is now dollar-values-only
+(no % inputs). Revenue row sourced from RevenueTab via new RevenueContext (with fallback). All
+user-editable % assumptions moved to Common Size section. Net Interest and Other Income now driven
+by % of revenue. Net Debt in Other Forecasted Terms replaced multiplier with editable % of
+(EBIT − D&A) driving a projected hard value. Two DcfTab render crashes fixed (projCOGS,
+projNetBorrowing undefined references).
 
 Final Valuation accuracy audit complete (2026-04-01): 5 issues resolved — tab-visit dependency
 eliminated (DcfTab + RVTab always mounted), dcfWeight state lifted to CompanyPage (persists across

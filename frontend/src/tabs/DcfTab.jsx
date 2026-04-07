@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { EM_DASH, formatLargeNumber, formatPct } from '../utils/format.js';
+import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
+import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
+import { getSharesOutstanding } from '../utils/sharesOutstanding.js';
 
 const PROJ_COUNT = 5;
 const GRID_SIZE = 7;
 const HALF = 3;
-const RFR = 0.0438;
-const MRP = 0.05;
-const DEFAULT_TAX = 0.21;
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
@@ -56,36 +56,49 @@ function sensitivityStyle(value, min, max) {
 }
 
 // Only user-editable values live in state. Everything else is derived inline.
-function buildState(analysis, company, waccOverride) {
+function buildState(analysis, company, waccOverride, ctxBeta, ctxRfr, ctxMrp) {
   const peRatio    = analysis?.coreMetrics?.peRatio ?? 20;
   const assumedWACC = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
   const debtSeries = analysis?.historicalFinancials?.balanceSheets ?? [];
   const latestDebt = debtSeries[0]?.totalDebt;
   const priorDebt = debtSeries[1]?.totalDebt;
   const impliedNetBorrowing = (latestDebt != null && priorDebt != null) ? latestDebt - priorDebt : 0;
-  const coe        = RFR + (company?.beta ?? 1.0) * MRP;
+  const beta = ctxBeta ?? company?.beta ?? 1.0;
+  const rfr  = ctxRfr  ?? 0.0438;
+  const mrp  = ctxMrp  ?? 0.05;
+  const coe  = rfr + beta * mrp;
   return {
-    terminalPE:       peRatio,
-    terminalEVEBITDA: 15,
-    netBorrowingAnnual: impliedNetBorrowing,
-    waccCenter:       assumedWACC,
-    evEbitdaCenter:   15,
-    coeCenter:        coe,
-    peCenter:         peRatio,
+    terminalPE:          peRatio,
+    terminalEVEBITDA:    15,
+    netBorrowingPerYear: Array(PROJ_COUNT).fill(impliedNetBorrowing),
+    waccCenter:          assumedWACC,
+    evEbitdaCenter:      15,
+    coeCenter:           coe,
+    peCenter:            peRatio,
   };
 }
 
 export default function DcfTab({ company, analysis, waccOverride, waccModel, onPricesChange }) {
-  const [s, setS] = useState(() => buildState(analysis, company, waccOverride));
+  const ctx = useAssumptions();
+  const { projections: ctxProj } = useProjectedValues();
+
+  const [s, setS] = useState(() => buildState(analysis, company, waccOverride, ctx.beta, ctx.riskFreeRate, ctx.mrp));
 
   useEffect(() => {
-    setS(buildState(analysis, company, waccOverride));
-  }, [analysis, company, waccOverride]);
+    setS(buildState(analysis, company, waccOverride, ctx.beta, ctx.riskFreeRate, ctx.mrp));
+  }, [analysis, company, waccOverride, ctx.beta, ctx.riskFreeRate, ctx.mrp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Terminal multiple handlers (only editable fields in assumptions panel)
   const updTermPE = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalPE: v })); };
   const updTermEV = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalEVEBITDA: v })); };
-  const updNetBorrow = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, netBorrowingAnnual: v * 1e6 })); };
+  const updNetBorrowYear = (i, str) => {
+    const v = parseFloat(str);
+    if (!isNaN(v)) setS(p => {
+      const next = [...p.netBorrowingPerYear];
+      next[i] = v * 1e6;
+      return { ...p, netBorrowingPerYear: next };
+    });
+  };
 
   // Sensitivity grid center handlers
   const updWaccCenter     = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, waccCenter: v / 100 })); };
@@ -93,70 +106,107 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
   const updCoeCenter      = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, coeCenter: v / 100 })); };
   const updPeCenter       = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, peCenter: v })); };
 
-  // ── Derived constants (read-only, from analysis + company) ────────────────
+  // ── Derived constants ──────────────────────────────────────────────────────
+  // Assumptions are read from AssumptionsContext (single source of truth).
+  // Historical financials are still used for capital structure and base values.
   const stmts      = analysis?.historicalFinancials?.incomeStatements ?? [];
   const lastIS     = stmts[0] ?? {};
   const lastBS     = (analysis?.historicalFinancials?.balanceSheets ?? [])[0] ?? {};
   const lastCF     = (analysis?.historicalFinancials?.cashFlows ?? [])[0] ?? {};
   const rev        = lastIS.revenue || 1;
 
+  // Read projection ratios from context (editable in ProjectionsTab / seeded from history)
   const cogsPct    = safeDiv(lastIS.costOfRevenue, rev) ?? 0.53;
   const opExPct    = safeDiv((lastIS.researchAndDev ?? 0) + (lastIS.sgaExpense ?? 0), rev) ?? 0.14;
-  const daPct      = safeDiv(lastIS.depreciationAmort, rev) ?? 0.03;
-  const capexPct   = lastCF.capitalExpenditure != null ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03;
-  const rawTax     = safeDiv(lastIS.taxExpense, lastIS.incomeBeforeTax);
-  const taxRateFromStatements = rawTax != null ? Math.min(0.5, Math.max(0, rawTax)) : DEFAULT_TAX;
-  const taxRate = waccModel?.taxRate ?? taxRateFromStatements;
-  const wacc       = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
-  const costOfEquity = waccModel?.capm ?? (RFR + (company?.beta ?? 1.0) * MRP);
-  const longTermDebt = lastBS.totalDebt ?? 0;
-  const shares     = company?.sharesOutstanding
-                     ?? (company?.marketCap && company?.price
-                         ? Math.round(company.marketCap / company.price)
-                         : 1e9);
-  const cash       = lastBS.cashAndCashEquivalents ?? 0;
-  const revenueGrowth = Array(PROJ_COUNT).fill(analysis?.dcf?.assumedGrowthRate ?? 0.05);
-  const nwcPct     = safeDiv((lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0), rev) ?? 0.05;
-  const netInterestIncome  = lastIS.netInterestIncome ?? 0;
+  const daPct      = ctx.daPct[0]    ?? safeDiv(lastIS.depreciationAmort, rev)           ?? 0.03;
+  const capexPct   = ctx.capexPct[0] ?? (lastCF.capitalExpenditure != null ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03);
+  const nwcPct     = ctx.nwcPct[0]   ?? safeDiv((lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0), rev) ?? 0.05;
+
+  // Tax rate and WACC — context is authoritative; waccModel is a secondary override from WaccTab
+  const taxRate       = waccModel?.taxRate ?? ctx.taxRate;
+  const wacc          = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
+  const costOfEquity  = waccModel?.capm ?? (ctx.riskFreeRate + ctx.beta * ctx.mrp);
+
+  const longTermDebt  = lastBS.totalDebt ?? 0;
+  const shares        = getSharesOutstanding(company, analysis) ?? 1e9;
+  const cash          = lastBS.cashAndCashEquivalents ?? 0;
+
+  // Revenue growth comes from context (editable in ProjectionsTab), padded/trimmed to PROJ_COUNT
+  const ctxGrowth     = ctx.revenueGrowth ?? [];
+  const revenueGrowth = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    ctxGrowth[i] ?? analysis?.dcf?.assumedGrowthRate ?? 0.05
+  );
+
+  const netInterestIncome       = lastIS.netInterestIncome ?? 0;
   const afterTaxInterestExpense = Math.max(0, -netInterestIncome) * (1 - taxRate);
   const lastRevenue  = lastIS.revenue ?? null;
-  const lastNWC    = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
-  const lastDate   = stmts[0]?.date ?? null;
+  const lastNWC      = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
+  const lastDate     = analysis?.lastFilingDate ?? stmts[0]?.date ?? null;
 
   const currentPrice = analysis?.technicals?.currentPrice ?? company?.price ?? null;
 
   // ── Fiscal year labels & scale factors ───────────────────────────────────
   const lastYear     = lastDate ? parseInt(lastDate.slice(0, 4), 10) : new Date().getFullYear();
   const lastMonthDay = lastDate ? lastDate.slice(5) : '09-30';
-  const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastYear + i + 1}`);
+  const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastYear + i + 1}E`);
   const projFYEndDates = Array.from({ length: PROJ_COUNT }, (_, i) => `${lastYear + i + 1}-${lastMonthDay}`);
 
   // Use fixed annual period indexing for discounting consistency with full-year projections.
   const discountPeriods = Array.from({ length: PROJ_COUNT }, (_, i) => i + 1);
 
   // ── Projections ──────────────────────────────────────────────────────────
+  // Use ProjectionsTab context rows (years 1–4) when available; compute year 5
+  // by extending the last context year using the same growth/ratio assumptions.
   const baseRev = lastRevenue ?? 1;
-  const projRevenue = revenueGrowth.reduce((acc, r) => {
+
+  // Local fallback projection (used when no context rows exist, or to extend to year 5)
+  const localProjRevenue = revenueGrowth.reduce((acc, r) => {
     const prev = acc.length ? acc[acc.length - 1] : baseRev;
     acc.push(prev * (1 + r));
     return acc;
   }, []);
 
-  const projCOGS      = projRevenue.map(r => r * cogsPct);
-  const projGP        = projRevenue.map((r, i) => r - projCOGS[i]);
-  const projOpEx      = projRevenue.map(r => r * opExPct);
-  const projEBIT      = projGP.map((gp, i) => gp - projOpEx[i]);
+  function extendFromCtx(ctxArr, localArr, idx) {
+    // Prefer context value; fall back to local for out-of-range indices
+    return ctxArr != null && ctxArr[idx] != null ? ctxArr[idx] : localArr[idx];
+  }
+
+  const projRevenue = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    extendFromCtx(ctxProj?.revenue, localProjRevenue, i));
+
+  const projDA        = projRevenue.map((r, i) =>
+    extendFromCtx(ctxProj?.da, localProjRevenue.map(rv => rv * daPct), i) ?? r * daPct);
+
+  // EBIT: prefer context ebit; compute locally for year 5
+  const localEBIT = localProjRevenue.map((r, i) => {
+    const gp   = r - r * cogsPct;
+    const opex = r * opExPct;
+    const da   = r * daPct;
+    return gp - opex - da;
+  });
+  const projEBIT  = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    extendFromCtx(ctxProj?.ebit, localEBIT, i));
+
+  const projCOGS  = projRevenue.map(r => r * cogsPct);
+  const projGP    = projRevenue.map((r, i) => r - projCOGS[i]);
+  const projOpEx  = projRevenue.map(r => r * opExPct);
+
+  const projEBITDA    = projEBIT.map((e, i) => e + projDA[i]);
   const projTax       = projEBIT.map(e => Math.max(0, e * taxRate));
   const projNOPAT     = projEBIT.map((e, i) => e - projTax[i]);
-  const projDA        = projRevenue.map(r => r * daPct);
-  const projEBITDA    = projEBIT.map((e, i) => e + projDA[i]);
-  const projNWC       = projRevenue.map(r => r * nwcPct);
+
+  const localNWC = localProjRevenue.map(r => r * nwcPct);
+  const projNWC  = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    extendFromCtx(ctxProj?.nwc, localNWC, i));
   const projChangeNWC = projNWC.map((nwc, i) => nwc - (i === 0 ? lastNWC : projNWC[i - 1]));
-  const projCAPEX     = projRevenue.map(r => r * capexPct);
+
+  const localCAPEX = localProjRevenue.map(r => r * capexPct);
+  const projCAPEX  = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    extendFromCtx(ctxProj?.capex, localCAPEX, i));
   const projFCFF      = projNOPAT.map((n, i) => n + projDA[i] - projChangeNWC[i] - projCAPEX[i]);
   const projAfterTaxInterestExpense = Array(PROJ_COUNT).fill(afterTaxInterestExpense);
-  const projNetBorrowing = Array(PROJ_COUNT).fill(s.netBorrowingAnnual);
-  const projFCFE      = projFCFF.map((f, i) => f - projAfterTaxInterestExpense[i] + projNetBorrowing[i]);
+  const projNetBorrowing = Array.from({ length: PROJ_COUNT }, (_, i) => s.netBorrowingPerYear[i] ?? 0);
+  const projFCFE = projFCFF.map((f, i) => f - projAfterTaxInterestExpense[i] + projNetBorrowing[i]);
 
   // ── Present values ───────────────────────────────────────────────────────
   const pvUFCF    = projFCFF.map((f, i) => f / Math.pow(1 + wacc, discountPeriods[i]));
@@ -303,20 +353,25 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
               <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>x</span>
             </span>
           </div>
-          <div className="dcf-kv">
-            <span className="dcf-kv__label">Net Borrowing (Annual)</span>
-            <span className="dcf-kv__value">
-              <input
-                type="number"
-                className="dcf-kv__input"
-                value={(s.netBorrowingAnnual / 1e6).toFixed(0)}
-                step="100"
-                onChange={e => updNetBorrow(e.target.value)}
-                aria-label="Net Borrowing Annual (millions)"
-              />
-              <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>M</span>
-            </span>
-          </div>
+          <p className="dcf-assumptions-panel__section-title dcf-assumptions-panel__section-title--editable">
+            Net Borrowing (M, per year)
+          </p>
+          {s.netBorrowingPerYear.map((val, i) => (
+            <div className="dcf-kv" key={i}>
+              <span className="dcf-kv__label">{projFYLabels[i]}</span>
+              <span className="dcf-kv__value">
+                <input
+                  type="number"
+                  className="dcf-kv__input"
+                  value={(val / 1e6).toFixed(0)}
+                  step="100"
+                  onChange={e => updNetBorrowYear(i, e.target.value)}
+                  aria-label={`Net Borrowing ${projFYLabels[i]} (millions)`}
+                />
+                <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>M</span>
+              </span>
+            </div>
+          ))}
         </div>
 
         {/* Area 2: Valuation Summary */}

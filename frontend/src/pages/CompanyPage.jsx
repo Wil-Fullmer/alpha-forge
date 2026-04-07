@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCompanyPage } from '../hooks/useCompanyPage.js';
+import { AssumptionsProvider } from '../contexts/AssumptionsContext.jsx';
+import { ProjectedValuesProvider } from '../contexts/ProjectedValuesContext.jsx';
+import { RevenueProvider } from '../contexts/RevenueContext.jsx';
 import CompanyOverview from '../components/CompanyOverview.jsx';
 import WorkbenchTabs from '../components/WorkbenchTabs.jsx';
 import AssumptionsTab from '../tabs/AssumptionsTab.jsx';
@@ -65,29 +68,35 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
   }
 
   return (
-    <div className="workbench">
-      {/* Identity band — always visible above tabs */}
-      <CompanyOverview company={company} />
+    <AssumptionsProvider analysis={analysis} company={company}>
+    <RevenueProvider>
+    <ProjectedValuesProvider>
+      <div className="workbench">
+        {/* Identity band — always visible above tabs */}
+        <CompanyOverview company={company} />
 
-      {/* Top-level tab navigation */}
-      <WorkbenchTabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+        {/* Top-level tab navigation */}
+        <WorkbenchTabs tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* DcfTab and RelativeValuationTab always mounted — emit prices as soon as data loads */}
-      <div style={{ display: activeTab === 'dcf' ? 'block' : 'none' }}>
-        <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} onPricesChange={handleDcfPricesChange} />
-      </div>
-      <div style={{ display: activeTab === 'relative-valuation' ? 'block' : 'none' }}>
-        <RelativeValuationTab company={company} analysis={analysis} onPricesChange={handleRvPricesChange} />
-      </div>
+        {/* DcfTab and RelativeValuationTab always mounted — emit prices as soon as data loads */}
+        <div style={{ display: activeTab === 'dcf' ? 'block' : 'none' }}>
+          <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} onPricesChange={handleDcfPricesChange} />
+        </div>
+        <div style={{ display: activeTab === 'relative-valuation' ? 'block' : 'none' }}>
+          <RelativeValuationTab company={company} analysis={analysis} onPricesChange={handleRvPricesChange} />
+        </div>
 
-      {/* Active tab panel — all other tabs, keyed for fade-in animation */}
-      <div className="workbench__panel tab-panel-enter" key={activeTab}>
-        {activeTab === 'assumptions'     && <AssumptionsTab company={company} analysis={analysis} />}
-        {activeTab === 'revenue'         && <RevenueTab analysis={analysis} />}
-        {activeTab === 'projections'     && <ProjectionsTab analysis={analysis} />}
-        {activeTab === 'wacc'            && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
-        {activeTab === 'final-valuation' && <FinalValuationTab analysis={analysis} company={company} dcfPrices={dcfPrices} rvPrices={rvPrices} dcfWeight={dcfWeight} onDcfWeightChange={setDcfWeight} />}
+        {/* Active tab panel — all other tabs, keyed for fade-in animation */}
+        <div className="workbench__panel tab-panel-enter" key={activeTab}>
+          {activeTab === 'assumptions'     && <AssumptionsTab company={company} analysis={analysis} />}
+          {activeTab === 'revenue'         && <RevenueTab analysis={analysis} />}
+          {activeTab === 'projections'     && <ProjectionsTab analysis={analysis} />}
+          {activeTab === 'wacc'            && <WaccTab company={company} analysis={analysis} onWaccChange={setWaccOverride} onModelChange={setWaccModel} />}
+          {activeTab === 'final-valuation' && <FinalValuationTab analysis={analysis} company={company} dcfPrices={dcfPrices} rvPrices={rvPrices} dcfWeight={dcfWeight} onDcfWeightChange={setDcfWeight} />}
+        </div>
       </div>
-    </div>
+    </ProjectedValuesProvider>
+    </RevenueProvider>
+    </AssumptionsProvider>
   );
 }

@@ -16,6 +16,40 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-07 — claude
+- Branch: feature/valuation-workbench
+- Objective: resolve two DCF tab render crashes, then restructure Projections tab so the income statement is dollar-values-only with % assumptions living in the Common Size section; wire Revenue tab projections into Projections tab via shared context; fix Net Debt calculation in Other Forecasted Terms
+- Decisions:
+  - **Render crash #1 — `projCOGS` / `projGP` / `projOpEx` not defined:** three variables were referenced in DcfTab JSX (~line 454) but never defined at component scope — they only existed as local `const` inside the `localEBIT` map callback. Fixed by adding three derived arrays after `projEBIT` using the already-in-scope `cogsPct` and `opExPct` scalars applied to `projRevenue`.
+  - **Render crash #2 — `projNetBorrowing` not defined:** same pattern — variable used in DCF cash flow bridge render but never declared. Added `projNetBorrowing = Array.from({ length: PROJ_COUNT }, (_, i) => s.netBorrowingPerYear[i] ?? 0)` and updated `projFCFE` to use it instead of the inline `s.netBorrowingPerYear[i]` reference.
+  - **RevenueContext:** created `frontend/src/contexts/RevenueContext.jsx` (mirrors `ProjectedValuesContext` pattern); `RevenueTab` now publishes `{ projectedRevenue, growthRates }` on every change; `CompanyPage` wraps with `<RevenueProvider>`.
+  - **ProjectionsTab income statement restructure:** removed all % input rows from income statement (Rev Growth %, Gross Margin %, R&D % Rev, SG&A % Rev, D&A % Rev, Tax Rate %); every projected cell is now a dollar value; `Net Interest` and `Other Income` rows changed from absolute $ inputs to display-only cells driven by their common size %.
+  - **Common Size section now owns all % inputs:** replaced static projected `fmtPctAbs` cells with editable `<input>` fields for COGS %, R&D %, SG&A %, D&A %, Net Interest %, Other Inc/Exp %, Tax Rate % (of EBT); aggregate rows (Gross Profit %, Op Profit %, EBT %, Net Income %) remain calculated/read-only.
+  - **Assumptions state changes:** `grossMargin` renamed to `cogsPct` (= 1 − GM seed); `netInterest`/`otherIncome` (absolute $) replaced by `netInterestPct`/`otherIncomePct` (% of revenue); `revenueGrowth` removed from assumptions (revenue sourced from RevenueContext, with seeded fallback).
+  - **Net Debt in Other Forecasted Terms:** replaced "Net Debt / EBITDA" multiplier row with "Net Debt % (EBIT − D&A)" — historical shows read-only %, projected columns are editable inputs; projected dollar value = `netDebtPct × (projEBIT − projDA)`; seeded from `lastBS.netDebt / (lastEBIT − lastDA)`.
+  - **Other Forecasted Terms unchanged:** CAPEX and NWC retain their existing structure (dollar row + % input row).
+  - `publishProjections` shape to `ProjectedValuesContext` is unchanged — DcfTab is unaffected.
+- Open Questions: none
+- Next Step: Assumptions tab implementation (last remaining stub tab)
+- Owns Next: frontend/src/tabs/AssumptionsTab.jsx
+- Do Not Touch: frontend/src/contexts/ProjectedValuesContext.jsx (shape unchanged), src/services/**, data/fixtures/**
+- Files Touched: frontend/src/tabs/DcfTab.jsx, frontend/src/tabs/ProjectionsTab.jsx, frontend/src/tabs/RevenueTab.jsx, frontend/src/pages/CompanyPage.jsx, frontend/src/contexts/RevenueContext.jsx (new)
+
+## 2026-04-06 — claude
+- Branch: feature/valuation-workbench
+- Objective: implement audit remediations A-008, A-009, A-006 from the workbook-fidelity audit; then debug blank-page regression introduced by those changes
+- Decisions:
+  - A-008: added `getAnalystTargets()` to `financialData.js`; wired it into `analysisRunner.js` via parallel `Promise.all([assembleData(...), getAnalystTargets(...)])`; added `analystTargets` array to result payload
+  - A-009: added `lastFilingDate` to `analysisRunner.js` result (ISO date string from `incomeStatements[0].date`); updated `DcfTab` + `ProjectionsTab` to derive fiscal year labels from `analysis.lastFilingDate` (falling back to raw statement date); changed projection year labels from `FY2025` style to `FY2025E` to signal estimates
+  - A-006 (backend as canonical seed provider): added `computeMedian()`, `computeDerivedRatios()`, `estimateWACC()` helpers to `analysisRunner.js`; `computeDerivedRatios` computes 3-year median grossMarginPct, rdPct, sgaPct, daPct, capexPct, nwcPct, taxRate; `estimateWACC` derives CAPM-based WACC from beta, market cap, implied cost of debt; added `derivedRatios` block to result payload; replaced hardcoded `wacc: 0.10` in `calculateDCF` call with derived WACC; added `assumedWACC`, `waccSource`, `waccDetails` to `dcf` result object
+  - A-006 (frontend): introduced `AssumptionsContext` as shared assumption store; `seedFromAnalysis()` now prefers `analysis.derivedRatios.*` (backend canonical) and falls back to single-period inline derivation; `ProjectionsTab.makeSeedAssumptions()` updated with the same `dr.*` pattern; `WaccTab` refactored to read WACC inputs from `AssumptionsContext` instead of local state, writes back via `updateWaccInputs()`; `DcfTab` refactored to read projection ratios (daPct, capexPct, nwcPct, taxRate, revenueGrowth) from context and projected values from `ProjectedValuesContext`; `CompanyPage` wraps everything in `AssumptionsProvider` + `ProjectedValuesProvider`
+  - Blank page debugging: build passes but app is blank at runtime — added `ErrorBoundary` to `main.jsx` to surface the actual React render error (previously swallowed by React 18 unmounting the entire tree on uncaught errors)
+- Open Questions: root cause of the blank-page render crash is not yet identified — `ErrorBoundary` was added at session end to surface the error message on next browser load
+- Next Step: check browser after adding `ErrorBoundary`; fix the specific crash it reports; remove `ErrorBoundary` once confirmed stable
+- Owns Next: frontend/src/main.jsx (error boundary — remove after debug), root crash site TBD once error is visible
+- Do Not Touch: logs/**, data/fixtures/** (fixture data is correct; crash is in component render logic)
+- Files Touched: src/services/analysisRunner.js, src/services/financialData.js, frontend/src/contexts/AssumptionsContext.jsx, frontend/src/tabs/ProjectionsTab.jsx, frontend/src/tabs/WaccTab.jsx, frontend/src/tabs/DcfTab.jsx, frontend/src/pages/CompanyPage.jsx, frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/main.jsx, docs/WORKLOG.md
+
 ## 2026-04-01 17:09 (America/Denver) - codex
 - Branch: feature/valuation-workbench
 - Objective: audit Alpha Forge against the Summit Fund HW1 workbook using the AAPL fixture path and generate a read-only lineage package for workbook-fidelity review
