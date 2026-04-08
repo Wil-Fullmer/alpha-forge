@@ -6,7 +6,7 @@ import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
-const PROJ_COUNT = 4;
+const PROJ_COUNT = 5;
 const FALLBACK_RATE = 0.05;
 
 function fiscalYear(dateStr) {
@@ -46,11 +46,9 @@ export default function RevenueTab({ analysis }) {
   const historical = [...(analysis?.historicalRevenue ?? [])].reverse();
   const hasHistory = historical.length > 0;
 
-  // Projected year labels
-  const lastHistYear = historical.at(-1)?.date
-    ? parseInt(historical.at(-1).date.slice(0, 4), 10)
-    : new Date().getFullYear();
-  const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastHistYear + i + 1}`);
+  // Projected year labels — always start at currentYear+1 regardless of data freshness
+  const projStartYear = new Date().getFullYear();
+  const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${projStartYear + i}`);
 
   // Rolling projected revenue from last historical base
   const baseRevenue = historical.at(-1)?.revenue ?? null;
@@ -164,7 +162,7 @@ export default function RevenueTab({ analysis }) {
         </table>
       </div>
 
-      <CollapsibleSection title="Revenue Trend" defaultOpen={false}>
+      <CollapsibleSection title="Revenue Trend" defaultOpen={true}>
         <div className="chart-panel">
           <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={revChartData} margin={{ top: 4, right: 48, bottom: 0, left: 8 }}>
@@ -176,9 +174,9 @@ export default function RevenueTab({ analysis }) {
                        labelStyle={{ color: '#8a9ab5', marginBottom: '4px' }} />
               <Legend wrapperStyle={{ fontSize: '11px', color: '#8a9ab5' }} />
               <ReferenceLine y={0} yAxisId="right" stroke="#1e2d40" />
-              <Bar dataKey="revenue" yAxisId="left" name="Revenue ($B)" maxBarSize={40}>
+              <Bar dataKey="revenue" yAxisId="left" name="Revenue ($B)" maxBarSize={40} fill="#d4a853">
                 {revChartData.map((entry, i) => (
-                  <Cell key={i} fill={entry.isProjected ? 'rgba(212,168,83,0.35)' : '#d4a853'} />
+                  <Cell key={i} fill={entry.isProjected ? 'rgba(212,168,83,0.5)' : '#d4a853'} />
                 ))}
               </Bar>
               <Line dataKey="growth" yAxisId="right" name="YoY Growth (%)" type="monotone"

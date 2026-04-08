@@ -139,10 +139,10 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
   const currentPrice = analysis?.technicals?.currentPrice ?? company?.price ?? null;
 
   // ── Fiscal year labels & scale factors ───────────────────────────────────
-  const lastYear     = lastDate ? parseInt(lastDate.slice(0, 4), 10) : new Date().getFullYear();
   const lastMonthDay = lastDate ? lastDate.slice(5) : '09-30';
-  const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastYear + i + 1}E`);
-  const projFYEndDates = Array.from({ length: PROJ_COUNT }, (_, i) => `${lastYear + i + 1}-${lastMonthDay}`);
+  const projStartYear  = new Date().getFullYear();
+  const projFYLabels   = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${projStartYear + i}E`);
+  const projFYEndDates = Array.from({ length: PROJ_COUNT }, (_, i) => `${projStartYear + i}-${lastMonthDay}`);
 
   // Use fixed annual period indexing for discounting consistency with full-year projections.
   const discountPeriods = Array.from({ length: PROJ_COUNT }, (_, i) => i + 1);

@@ -7,7 +7,7 @@ import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
-const PROJ_COUNT = 4;
+const PROJ_COUNT = 5;
 const EM_DASH = '—';
 
 // ── Formatting helpers ──────────────────────────────────────────────────────
@@ -130,10 +130,8 @@ export default function ProjectionsTab({ analysis }) {
     );
   }
 
-  const lastHistYear = analysis?.lastFilingDate
-    ? parseInt(analysis.lastFilingDate.slice(0, 4), 10)
-    : (stmts.at(-1)?.date?.slice(0, 4) ? parseInt(stmts.at(-1).date.slice(0, 4), 10) : new Date().getFullYear());
-  const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${lastHistYear + i + 1}E`);
+  const projStartYear = new Date().getFullYear();
+  const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => `FY${projStartYear + i}E`);
 
   // ── Revenue: from RevenueContext with fallback ────────────────────────────
   const seedGrowthRate = analysis?.dcf?.assumedGrowthRate ?? 0.05;
@@ -514,7 +512,7 @@ export default function ProjectionsTab({ analysis }) {
             </tbody>
           </table>
         </div>
-        <CollapsibleSection title="Trend Chart" defaultOpen={false}>
+        <CollapsibleSection title="Trend Chart" defaultOpen={true}>
           <div className="chart-panel">
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={csChartData} margin={{ top: 4, right: 48, bottom: 0, left: 8 }}>

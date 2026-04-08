@@ -343,10 +343,10 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     dcf,
     technicals,
     historicalRevenue: incomeStatements
-      .slice(0, 5)
+      .slice(0, 7)
       .map(s => ({ date: s.date, revenue: s.revenue })),
     historicalFinancials: {
-      incomeStatements: incomeStatements.slice(0, 5).map(s => ({
+      incomeStatements: incomeStatements.slice(0, 7).map(s => ({
         date:               s.date,
         revenue:            s.revenue,
         costOfRevenue:      s.costOfRevenue,
@@ -369,7 +369,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         taxExpense:         s.taxExpense,
         netIncome:          s.netIncome,
       })),
-      balanceSheets: balanceSheets.slice(0, 5).map(s => ({
+      balanceSheets: balanceSheets.slice(0, 7).map(s => ({
         date:                       s.date,
         totalCurrentAssets:         s.totalCurrentAssets,
         totalCurrentLiabilities:    s.totalCurrentLiabilities,
@@ -378,7 +378,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         netDebt:                    s.netDebt,
         totalStockholdersEquity:    s.totalStockholdersEquity,
       })),
-      cashFlows: cashFlows.slice(0, 5).map(s => ({
+      cashFlows: cashFlows.slice(0, 7).map(s => ({
         date:               s.date,
         capitalExpenditure: s.capitalExpenditure,
         changeInWorkingCap: s.changeInWorkingCap,

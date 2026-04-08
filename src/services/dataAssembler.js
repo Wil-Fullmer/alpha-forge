@@ -85,12 +85,14 @@ function mergeStatements(secRows, fmpRows) {
     return result
   })
 
-  // Append any FMP years that SEC didn't cover (older years)
+  // Append any FMP years that SEC didn't cover (may be newer OR older years)
   for (const row of fmpByYear.values()) {
     merged.push(row)
   }
 
-  return merged
+  // Sort newest → oldest so FMP-only recent years (e.g. FY2024/2025 not yet in EDGAR)
+  // land at the front rather than being buried past the slice boundary.
+  return merged.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
 }
 
 /**

@@ -10,28 +10,19 @@
 
 ## Current Status
 
-Backend is stable. WACC is now data-derived (CAPM from beta + implied cost of debt) rather than
-hardcoded; `derivedRatios` (3-year median margins, capex %, NWC %) and `analystTargets` are
-now part of every analysis output. Frontend valuation workbench is 6/7 tabs complete: Revenue,
-Projections, WACC, DCF, Relative Valuation, and Final Valuation. DCF tab has a full 5-year FCFF/FCFE model,
-EV/EBITDA and P/E terminal values, valuation summary with implied prices, and two color-coded 7×7
-sensitivity grids. Relative Valuation tab has a full comps table (14-column with column-group headers),
-statistics section, implied-price derivation, and Bull/Neutral/Bear team model. Peers flow via
-analysis.peers; MSFT fixture seeded with 5 peers from collected data. Final Valuation tab delivers
-a weighted rollup of DCF + RV implied prices (FCFE and FCFF paths), user-editable DCF weight with
-auto-derived RV weight, 3-card summary (avg price, current price, upside %), analyst targets table,
-and EV/Revenue reference panel. Remaining: Assumptions tab.
+Live app working end-to-end on `live-app-v1` branch. Backend serves real FMP + SEC EDGAR data
+for any ticker. Frontend workbench shows 7 years of historical actuals (FY2019–FY2025) followed
+by 5 projection years (FY2026–FY2030). PROJ_COUNT aligned at 5 across all tabs and
+AssumptionsContext. `mergeStatements` sort bug fixed — FMP-only recent years (e.g. FY2024/2025
+not yet reflected in SEC EDGAR's `endDate`) now correctly sort to the front after merge. Revenue
+Trend chart bars now visible (gold fill applied directly on Bar element).
 
-Landing screen + SEC/EDGAR integration complete (2026-04-08): full-page landing screen
-(`LandingPage.jsx`) added before the workbench — ticker text input, Load button, recent-ticker
-chips (localStorage, max 5, persists across refresh). `App.jsx` now uses `screen` state
-('landing' | 'workbench') with a "← New Search" button in the workbench header. Fixture-mode
-pre-flight fetch prevents invalid tickers from transitioning. SEC EDGAR XBRL is now the primary
-source for all financial statements; FMP fills gaps and provides everything EDGAR doesn't
-(profile, prices, quote, peers, analyst targets). `secEdgar.js` fetches the CIK mapping
-(30d cache) and company facts (7d cache). `normalizers/sec.js` maps XBRL → same internal schema
-as FMP normalizer. `dataAssembler.js` runs SEC + FMP in parallel and merges field-by-field
-(SEC wins on non-null). `metadata.dataSource` reports `'sec_fmp'` | `'fmp_only'` | `'pre_collected'`.
+Outstanding issues on `live-app-v1`: RV screen data/layout problems; chart rendering issues;
+DCF tab FCFF/FCFE calculations not correct; Final Valuation tab cascading from DCF errors.
+
+Landing screen + SEC/EDGAR integration complete (2026-04-08). Historical data pipeline now
+fetches 7 years from FMP and SEC EDGAR (limit:7 / slice(0,7)), with newest-first sort after
+SEC+FMP merge in `dataAssembler.mergeStatements`.
 
 Valuation workbench refinement pass complete (2026-04-07): reusable draft-state inputs now cover
 projected revenue growth, WACC price/beta, DCF terminal multiples, and DCF sensitivity multiple
@@ -84,29 +75,24 @@ current price footnote under implied prices, and removed 35 inline style overrid
 
 ## Current Priority
 
-**Continue valuation workbench implementation — next tab: Assumptions.**
+**Fix live app data and modeling accuracy on `live-app-v1` branch.**
 
-Revenue, Projections, WACC, DCF, Relative Valuation, and Final Valuation tabs are complete.
-Next is the Assumptions tab (editable model inputs: growth rates, margins, WACC overrides, terminal
-value assumptions). This is the last remaining stub tab.
-
-Superseded priority (2026-04-07): the next best product step is now the initial frontend starter
-screen where ticker selection happens before entering the workbench. After that, return to the
-Assumptions tab as the last remaining workbench stub.
+Historical actuals now correctly show 7 years. Next: fix RV tab, chart issues, DCF FCFF/FCFE
+model accuracy, and Final Valuation tab.
 
 ---
 
 ## Current Sprint
 
-- [x] Frontend: initial starter screen where ticker selection happens before entering the valuation workbench
-- [x] Backend: SEC EDGAR as primary financial statements source (FMP fallback); field-by-field merge with provenance metadata
-- [x] Backend: ticker input validation at route level before hitting services
-- [x] Backend: differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
-- [ ] **Fix PROJ_COUNT 4→5**: RevenueTab.jsx, ProjectionsTab.jsx, AssumptionsContext.jsx (DcfTab already correct)
-- [ ] **Fix projection start year**: change `lastHistYear + 1` to `new Date().getFullYear() + 1` in RevenueTab, ProjectionsTab, DcfTab — projections must always be FY(currentYear+1) through FY(currentYear+5)
-- [ ] **Fix Revenue Trend chart missing bars**: change `defaultOpen={false}` → `defaultOpen={true}` on the CollapsibleSection wrapping the Revenue Trend chart in RevenueTab, and the nested "Trend Chart" section in ProjectionsTab — Recharts ResponsiveContainer measures at 0-width when section is collapsed at mount
-- [ ] Frontend: verify analysis staleness indicator is fully surfaced and correct across fixture variants
-- [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
+- [x] **Fix PROJ_COUNT 4→5**: RevenueTab.jsx, ProjectionsTab.jsx, AssumptionsContext.jsx
+- [x] **Fix projection start year**: `new Date().getFullYear()` in RevenueTab, ProjectionsTab, DcfTab — projections FY2026–FY2030
+- [x] **Fix Revenue Trend chart missing bars**: `defaultOpen={true}` + `fill` on Bar element
+- [x] **Fix FY2024/FY2025 missing actuals**: FMP limit 5→7, slice(0,5)→slice(0,7) in analysisRunner + secEdgar; fixed `mergeStatements` sort to put FMP-only newer years at the front
+- [x] **Create `live-app-v1` branch**: ongoing live-app work lives here
+- [ ] **Fix RV tab**: data issues and layout problems in RelativeValuationTab
+- [ ] **Fix chart rendering**: chart display issues across tabs
+- [ ] **Fix DCF FCFF/FCFE**: calculation accuracy in DcfTab
+- [ ] **Fix Final Valuation tab**: cascading from DCF FCFF/FCFE fix
 
 ---
 

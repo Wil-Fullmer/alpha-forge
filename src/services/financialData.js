@@ -171,7 +171,7 @@ export async function getCompanyProfile(ticker, force = false) {
 export async function getIncomeStatement(ticker, force = false) {
   const key = `${ticker}-income-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
-  const data = await fetchFromFMP(ticker, 'income-statement', { limit: 5 })
+  const data = await fetchFromFMP(ticker, 'income-statement', { limit: 7 })
   const normalized = normalizeIncomeStatement(data)
   writeCache(key, normalized, TTL.STATEMENTS)
   return normalized
@@ -183,7 +183,7 @@ export async function getIncomeStatement(ticker, force = false) {
 export async function getBalanceSheet(ticker, force = false) {
   const key = `${ticker}-balance-sheet-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
-  const data = await fetchFromFMP(ticker, 'balance-sheet-statement', { limit: 5 })
+  const data = await fetchFromFMP(ticker, 'balance-sheet-statement', { limit: 7 })
   const normalized = normalizeBalanceSheet(data)
   writeCache(key, normalized, TTL.STATEMENTS)
   return normalized
@@ -195,7 +195,7 @@ export async function getBalanceSheet(ticker, force = false) {
 export async function getCashFlowStatement(ticker, force = false) {
   const key = `${ticker}-cash-flow-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
-  const data = await fetchFromFMP(ticker, 'cash-flow-statement', { limit: 5 })
+  const data = await fetchFromFMP(ticker, 'cash-flow-statement', { limit: 7 })
   const normalized = normalizeCashFlow(data)
   writeCache(key, normalized, TTL.STATEMENTS)
   return normalized

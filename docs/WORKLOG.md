@@ -16,6 +16,22 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-08 — claude (session 2)
+- Branch: feature/valuation-workbench → live-app-v1
+- Objective: fix projection year anchoring, PROJ_COUNT alignment, Revenue chart bars, and the FY2024/FY2025 gap in historical actuals
+- Decisions:
+  - **Projection year fix:** `projStartYear = new Date().getFullYear()` (2026) across RevenueTab, ProjectionsTab, DcfTab — projections always FY(currentYear) through FY(currentYear+4). Confirmed with user: FY2025 is last actual, FY2026–FY2030 are projections.
+  - **PROJ_COUNT 4→5:** RevenueTab.jsx, ProjectionsTab.jsx, AssumptionsContext.jsx all updated. DcfTab was already 5.
+  - **Revenue Trend chart bars:** Added `fill="#d4a853"` directly on `<Bar>` element as fallback (Recharts silently defaults to black when `Cell`-only fill doesn't attach); also bumped projected cell opacity 0.35→0.5.
+  - **FMP fetch depth 5→7:** `getIncomeStatement`, `getBalanceSheet`, `getCashFlowStatement` in `financialData.js` all use `limit: 7`. SEC EDGAR `extractAnnualData` slice raised to 7. `analysisRunner.js` slice raised to 7 for all historical arrays.
+  - **mergeStatements sort bug (root cause of FY2024/2025 gap):** VZ's SEC EDGAR XBRL uses `fy` labels offset +2 from calendar year (e.g. `fy:2025 → endDate: 2023-12-31`). SEC rows only reached through 2023 by endDate; FMP correctly had 2025-12-31 and 2024-12-31. `mergeStatements` appended FMP-only rows at the END of the array (comment said "older years"), putting FY2024/FY2025 at positions 8–9, past the `slice(0,7)` cut. Fix: added `.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))` before the return in `mergeStatements` — newest-first regardless of source. This is a general correctness fix for any ticker where FMP is more current than EDGAR.
+  - **New branch `live-app-v1`:** created from this session's commit; this is the branch for ongoing live-app work going forward.
+- Open Questions: none — all fixes verified by checking VZ-analysis.json output dates
+- Next Step: fix RV screen data issues, chart rendering problems, DCF FCFF/FCFE calculation correctness, and cascading Final Valuation tab fix
+- Owns Next: `frontend/src/tabs/RelativeValuationTab.jsx`, `frontend/src/tabs/DcfTab.jsx`, `frontend/src/tabs/FinalValuationTab.jsx`, chart components
+- Do Not Touch: `src/services/secEdgar.js` (working correctly now), `src/services/normalizers/sec.js`, `frontend/src/pages/LandingPage.jsx`
+- Files Touched: `frontend/src/tabs/RevenueTab.jsx`, `frontend/src/tabs/ProjectionsTab.jsx`, `frontend/src/tabs/DcfTab.jsx`, `frontend/src/contexts/AssumptionsContext.jsx`, `src/services/financialData.js`, `src/services/analysisRunner.js`, `src/services/secEdgar.js`, `src/services/dataAssembler.js`, `TODO.md`, `docs/WORKLOG.md`
+
 ## 2026-04-08 — claude
 - Branch: feature/valuation-workbench → version-1
 - Objective: implement landing screen (pre-workbench ticker selection), wire SEC EDGAR as primary financial data source, and create a Version 1 branch capturing the stable state of the workbench

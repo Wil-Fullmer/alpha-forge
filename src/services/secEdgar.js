@@ -178,7 +178,7 @@ function extractAnnualData(facts) {
 
   return [...yearMap.values()]
     .sort((a, b) => b.fy - a.fy)
-    .slice(0, 5)
+    .slice(0, 7)
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

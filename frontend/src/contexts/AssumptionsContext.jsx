@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 
-const PROJ_COUNT = 4;
+const PROJ_COUNT = 5;
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
