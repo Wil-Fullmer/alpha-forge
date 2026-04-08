@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
+import PctInput from '../components/PctInput.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
@@ -66,15 +67,12 @@ export default function RevenueTab({ analysis }) {
     }
   }, [projectedRevenue, growthRates]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleGrowthChange(i, raw) {
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed)) {
-      setGrowthRates(prev => {
-        const next = [...prev];
-        next[i] = parsed / 100;
-        return next;
-      });
-    }
+  function handleGrowthChange(i, decimal) {
+    setGrowthRates(prev => {
+      const next = [...prev];
+      next[i] = decimal;
+      return next;
+    });
   }
 
   if (!hasHistory) {
@@ -152,15 +150,13 @@ export default function RevenueTab({ analysis }) {
               ))}
               {growthRates.map((rate, i) => (
                 <td key={projYears[i]} className="revenue-cell revenue-cell--projected revenue-cell--input">
-                  <input
-                    type="number"
+                  <PctInput
+                    value={rate}
+                    onChange={v => handleGrowthChange(i, v)}
                     className="revenue-input"
-                    value={(rate * 100).toFixed(1)}
                     step="0.1"
-                    onChange={e => handleGrowthChange(i, e.target.value)}
-                    aria-label={`${projYears[i]} revenue growth rate`}
+                    ariaLabel={`${projYears[i]} revenue growth rate`}
                   />
-                  <span className="revenue-input__suffix">%</span>
                 </td>
               ))}
             </tr>

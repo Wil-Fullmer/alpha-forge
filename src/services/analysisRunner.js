@@ -343,10 +343,10 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     dcf,
     technicals,
     historicalRevenue: incomeStatements
-      .slice(0, 3)
+      .slice(0, 5)
       .map(s => ({ date: s.date, revenue: s.revenue })),
     historicalFinancials: {
-      incomeStatements: incomeStatements.slice(0, 3).map(s => ({
+      incomeStatements: incomeStatements.slice(0, 5).map(s => ({
         date:               s.date,
         revenue:            s.revenue,
         costOfRevenue:      s.costOfRevenue,
@@ -369,20 +369,22 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         taxExpense:         s.taxExpense,
         netIncome:          s.netIncome,
       })),
-      balanceSheets: balanceSheets.slice(0, 3).map(s => ({
-        date:                    s.date,
-        totalCurrentAssets:      s.totalCurrentAssets,
-        totalCurrentLiabilities: s.totalCurrentLiabilities,
-        totalDebt:               s.totalDebt,
-        cashAndCashEquivalents:  s.cashAndCashEquivalents,
-        netDebt:                 s.netDebt,
+      balanceSheets: balanceSheets.slice(0, 5).map(s => ({
+        date:                       s.date,
+        totalCurrentAssets:         s.totalCurrentAssets,
+        totalCurrentLiabilities:    s.totalCurrentLiabilities,
+        totalDebt:                  s.totalDebt,
+        cashAndCashEquivalents:     s.cashAndCashEquivalents,
+        netDebt:                    s.netDebt,
+        totalStockholdersEquity:    s.totalStockholdersEquity,
       })),
-      cashFlows: cashFlows.slice(0, 3).map(s => ({
+      cashFlows: cashFlows.slice(0, 5).map(s => ({
         date:               s.date,
         capitalExpenditure: s.capitalExpenditure,
         changeInWorkingCap: s.changeInWorkingCap,
       })),
     },
+    historicalPrices: historicalPrices.slice(0, 252).map(d => ({ date: d.date, close: d.close })),
     lastFilingDate: incomeStatements[0]?.date ?? null,
     peers: enrichPeersWithMultiples(rawPeers),
     analystTargets,

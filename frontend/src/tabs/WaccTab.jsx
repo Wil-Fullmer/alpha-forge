@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { EM_DASH, formatPct, formatLargeNumber } from '../utils/format.js';
 import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
 import { getSharesOutstanding } from '../utils/sharesOutstanding.js';
+import PctInput from '../components/PctInput.jsx';
+import MultipleInput from '../components/MultipleInput.jsx';
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
@@ -21,19 +23,6 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
     setPrice(analysis?.technicals?.currentPrice ?? null);
   }, [analysis, company]);
 
-  function updateInput(key, pctStr) {
-    const parsed = parseFloat(pctStr);
-    if (!isNaN(parsed)) {
-      assumptions.updateWaccInputs({ [key]: parsed / 100 });
-    }
-  }
-
-  function updateRaw(key, str) {
-    const parsed = parseFloat(str);
-    if (!isNaN(parsed)) {
-      assumptions.updateWaccInputs({ [key]: parsed });
-    }
-  }
 
   // Derived calculations — read WACC inputs from shared context
   const { riskFreeRate, beta, mrp, costOfDebt, taxRate } = assumptions;
@@ -103,13 +92,12 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                   <td className="revenue-table__row-label revenue-table__row-label--sub">Price</td>
                   <td className="revenue-cell revenue-cell--input">
                     <span className="revenue-input__prefix">$</span>
-                    <input
-                      type="number"
+                    <MultipleInput
+                      value={price}
+                      onChange={v => setPrice(v)}
                       className="revenue-input"
-                      value={price != null ? price.toFixed(2) : ''}
                       step="0.01"
-                      onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setPrice(v); }}
-                      aria-label="Price"
+                      ariaLabel="Price"
                     />
                   </td>
                 </tr>
@@ -149,28 +137,24 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                   <tr className="revenue-row revenue-row--growth">
                     <td className="revenue-table__row-label revenue-table__row-label--sub">Risk Free Rate</td>
                     <td className="revenue-cell revenue-cell--input">
-                      <input
-                        type="number"
+                      <PctInput
+                        value={riskFreeRate}
+                        onChange={v => assumptions.updateWaccInputs({ riskFreeRate: v })}
                         className="revenue-input"
-                        value={(riskFreeRate * 100).toFixed(2)}
-                        step="0.01"
-                        onChange={e => updateInput('riskFreeRate', e.target.value)}
-                        aria-label="Risk Free Rate"
+                        ariaLabel="Risk Free Rate"
                       />
-                      <span className="revenue-input__suffix">%</span>
                     </td>
                   </tr>
 
                   <tr className="revenue-row revenue-row--growth">
                     <td className="revenue-table__row-label revenue-table__row-label--sub">Beta</td>
                     <td className="revenue-cell revenue-cell--input">
-                      <input
-                        type="number"
+                      <MultipleInput
+                        value={beta}
+                        onChange={v => assumptions.updateWaccInputs({ beta: v })}
                         className="revenue-input"
-                        value={beta.toFixed(3)}
                         step="0.001"
-                        onChange={e => updateRaw('beta', e.target.value)}
-                        aria-label="Beta"
+                        ariaLabel="Beta"
                       />
                     </td>
                   </tr>
@@ -178,15 +162,12 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                   <tr className="revenue-row revenue-row--growth">
                     <td className="revenue-table__row-label revenue-table__row-label--sub">MRP</td>
                     <td className="revenue-cell revenue-cell--input">
-                      <input
-                        type="number"
+                      <PctInput
+                        value={mrp}
+                        onChange={v => assumptions.updateWaccInputs({ mrp: v })}
                         className="revenue-input"
-                        value={(mrp * 100).toFixed(2)}
-                        step="0.01"
-                        onChange={e => updateInput('mrp', e.target.value)}
-                        aria-label="Market Risk Premium"
+                        ariaLabel="Market Risk Premium"
                       />
-                      <span className="revenue-input__suffix">%</span>
                     </td>
                   </tr>
 
@@ -208,30 +189,24 @@ export default function WaccTab({ company, analysis, onWaccChange, onModelChange
                   <tr className="revenue-row revenue-row--growth">
                     <td className="revenue-table__row-label revenue-table__row-label--sub">Cost of Debt</td>
                     <td className="revenue-cell revenue-cell--input">
-                      <input
-                        type="number"
+                      <PctInput
+                        value={costOfDebt}
+                        onChange={v => assumptions.updateWaccInputs({ costOfDebt: v })}
                         className="revenue-input"
-                        value={(costOfDebt * 100).toFixed(2)}
-                        step="0.01"
-                        onChange={e => updateInput('costOfDebt', e.target.value)}
-                        aria-label="Cost of Debt"
+                        ariaLabel="Cost of Debt"
                       />
-                      <span className="revenue-input__suffix">%</span>
                     </td>
                   </tr>
 
                   <tr className="revenue-row revenue-row--growth">
                     <td className="revenue-table__row-label revenue-table__row-label--sub">Expected Marginal Tax Rate</td>
                     <td className="revenue-cell revenue-cell--input">
-                      <input
-                        type="number"
+                      <PctInput
+                        value={taxRate}
+                        onChange={v => assumptions.updateWaccInputs({ taxRate: v })}
                         className="revenue-input"
-                        value={(taxRate * 100).toFixed(2)}
-                        step="0.01"
-                        onChange={e => updateInput('taxRate', e.target.value)}
-                        aria-label="Expected Marginal Tax Rate"
+                        ariaLabel="Expected Marginal Tax Rate"
                       />
-                      <span className="revenue-input__suffix">%</span>
                     </td>
                   </tr>
 

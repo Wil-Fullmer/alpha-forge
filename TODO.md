@@ -22,6 +22,13 @@ a weighted rollup of DCF + RV implied prices (FCFE and FCFF paths), user-editabl
 auto-derived RV weight, 3-card summary (avg price, current price, upside %), analyst targets table,
 and EV/Revenue reference panel. Remaining: Assumptions tab.
 
+Valuation workbench refinement pass complete (2026-04-07): reusable draft-state inputs now cover
+projected revenue growth, WACC price/beta, DCF terminal multiples, and DCF sensitivity multiple
+centers. The abandoned global M/B display toggle was removed cleanly. Relative Valuation's comps
+view is now split into stacked Company Info & Market Data, Financial Data, and Multiples tables
+for readability. Analysis output was also expanded to 5 historical periods plus price-history and
+equity fields needed for the new sparkline/history UI.
+
 ProjectionsTab restructure complete (2026-04-07): Income statement is now dollar-values-only
 (no % inputs). Revenue row sourced from RevenueTab via new RevenueContext (with fallback). All
 user-editable % assumptions moved to Common Size section. Net Interest and Other Income now driven
@@ -72,10 +79,15 @@ Revenue, Projections, WACC, DCF, Relative Valuation, and Final Valuation tabs ar
 Next is the Assumptions tab (editable model inputs: growth rates, margins, WACC overrides, terminal
 value assumptions). This is the last remaining stub tab.
 
+Superseded priority (2026-04-07): the next best product step is now the initial frontend starter
+screen where ticker selection happens before entering the workbench. After that, return to the
+Assumptions tab as the last remaining workbench stub.
+
 ---
 
 ## Current Sprint
 
+- [ ] Frontend: initial starter screen where ticker selection happens before entering the valuation workbench
 - [ ] Frontend: verify analysis staleness indicator is fully surfaced and correct across fixture variants
 - [x] Backend: ticker input validation at route level before hitting services
 - [x] Backend: differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
+import PctInput from '../components/PctInput.jsx';
 import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
@@ -101,6 +102,14 @@ export default function ProjectionsTab({ analysis }) {
     setAssumptions(prev => {
       const next = { ...prev, [key]: [...prev[key]] };
       next[key][i] = parsed / 100;
+      return next;
+    });
+  }, []);
+
+  const updatePctDirect = useCallback((key, i, decimal) => {
+    setAssumptions(prev => {
+      const next = { ...prev, [key]: [...prev[key]] };
+      next[key][i] = decimal;
       return next;
     });
   }, []);
@@ -256,15 +265,13 @@ export default function ProjectionsTab({ analysis }) {
   function pctInputCells(key, inputLabel) {
     return assumptions[key].map((rate, i) => (
       <td key={projYears[i]} className="revenue-cell revenue-cell--projected revenue-cell--input">
-        <input
-          type="number"
-          className="revenue-input"
-          value={(rate * 100).toFixed(2)}
+        <PctInput
+          value={rate}
+          onChange={v => updatePctDirect(key, i, v)}
           step="0.1"
-          onChange={e => updatePct(key, i, e.target.value)}
-          aria-label={`${projYears[i]} ${inputLabel}`}
+          className="revenue-input"
+          ariaLabel={`${projYears[i]} ${inputLabel}`}
         />
-        <span className="revenue-input__suffix">%</span>
       </td>
     ));
   }
@@ -291,15 +298,13 @@ export default function ProjectionsTab({ analysis }) {
         ))}
         {assumptions[key].map((rate, pi) => (
           <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--input">
-            <input
-              type="number"
-              className="revenue-input"
-              value={(rate * 100).toFixed(2)}
+            <PctInput
+              value={rate}
+              onChange={v => updatePctDirect(key, pi, v)}
               step="0.1"
-              onChange={e => updatePct(key, pi, e.target.value)}
-              aria-label={`${projYears[pi]} ${label}`}
+              className="revenue-input"
+              ariaLabel={`${projYears[pi]} ${label}`}
             />
-            <span className="revenue-input__suffix">%</span>
           </td>
         ))}
       </tr>

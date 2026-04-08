@@ -194,3 +194,13 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Owns Next: frontend/src/tabs/FinalValuationTab.jsx, frontend/src/pages/CompanyPage.jsx
 - Do Not Touch: src/services/**, data/fixtures/AAPL/**, data/fixtures/MSFT/**, .claude/agents/**
 - Files Touched: frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/pages/CompanyPage.jsx, frontend/src/styles.css, data/fixtures/MSFT/analysis.json, TODO.md, docs/WORKLOG.md
+
+## 2026-04-07 22:45 (America/Denver) - codex
+- Branch: feature/valuation-workbench
+- Objective: finalize the valuation workbench refinement pass, fold the Claude + Codex session work into a single documented checkpoint, and prepare the branch for commit
+- Decisions: keep the commit scope to product code plus tracking docs; remove the abandoned global M/B display-unit toggle instead of partially wiring it; retain the broader 5-year historical payload and sparkline support added in this session; split Relative Valuation's wide comps view into stacked Company Info & Market Data, Financial Data, and Multiples tables for readability; standardize numeric editing UX with draft-state inputs for projected revenue growth, WACC price/beta, DCF terminal multiples, and DCF sensitivity multiple centers
+- Open Questions: Assumptions tab is still the last workbench stub, but the better next product step is now the initial frontend entry screen where ticker selection happens before entering the workbench
+- Next Step: implement the initial frontend starter screen for ticker selection and transition into the valuation workbench
+- Owns Next: frontend/src/App.jsx, frontend/src/pages/CompanyPage.jsx, frontend/src/components/TickerInput.jsx, frontend/src/components/FixtureSelector.jsx, frontend/src/styles.css, frontend/src/tabs/AssumptionsTab.jsx
+- Do Not Touch: .claude/worktrees/**, .claude/settings.local.json, data/AAPL-analysis.json
+- Files Touched: frontend/src/App.jsx, frontend/src/components/CoreMetrics.jsx, frontend/src/components/MarketSnapshot.jsx, frontend/src/components/PctInput.jsx, frontend/src/components/MultipleInput.jsx, frontend/src/components/Sparkline.jsx, frontend/src/styles.css, frontend/src/tabs/DcfTab.jsx, frontend/src/tabs/ProjectionsTab.jsx, frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/tabs/RevenueTab.jsx, frontend/src/tabs/WaccTab.jsx, frontend/src/utils/format.js, src/services/analysisRunner.js, TODO.md, docs/WORKLOG.md

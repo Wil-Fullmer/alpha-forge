@@ -1,5 +1,16 @@
 import React from 'react';
 import { EM_DASH, formatPrice, formatMarketCap, formatFixed, formatDaysAgo, stalenessLevel } from '../utils/format.js';
+import Sparkline from './Sparkline.jsx';
+
+// Downsample to ~52 weekly points so the sparkline stays lean
+function buildPriceData(historicalPrices) {
+  if (!historicalPrices?.length) return [];
+  const reversed = [...historicalPrices].reverse(); // oldest first
+  const step = Math.max(1, Math.floor(reversed.length / 52));
+  return reversed
+    .filter((_, i) => i % step === 0)
+    .map(d => ({ date: d.date?.slice(5), close: d.close })); // "MM-DD" for tooltip
+}
 
 export default function MarketSnapshot({ company, analysis }) {
   if (!company || !analysis) return null;
@@ -16,6 +27,18 @@ export default function MarketSnapshot({ company, analysis }) {
   const daysAgo        = formatDaysAgo(analysisDate);
   const freshnessLevel = stalenessLevel(analysisDate);
   const dateDisplay    = analysisDate ?? EM_DASH;
+
+  const priceData = buildPriceData(analysis.historicalPrices);
+
+  const sparkLabelStyle = {
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--font-weight-medium)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.07em',
+    color: 'var(--color-text-muted)',
+    marginBottom: '2px',
+    marginTop: '8px',
+  };
 
   return (
     <section className="card market-snapshot" aria-label="Market Snapshot">
@@ -39,6 +62,19 @@ export default function MarketSnapshot({ company, analysis }) {
         <div className="stat-grid__item">
           <dt className="stat-grid__label">Current Price</dt>
           <dd className="stat-grid__value stat-grid__value--hero">{price}</dd>
+          {priceData.length > 0 && (
+            <div style={{ marginTop: '4px' }}>
+              <div style={sparkLabelStyle}>1yr price</div>
+              <Sparkline
+                data={priceData}
+                dataKey="close"
+                color="var(--color-accent)"
+                fmt={v => v != null ? `$${v.toFixed(2)}` : EM_DASH}
+                label="Price"
+                height={48}
+              />
+            </div>
+          )}
         </div>
         <div className="stat-grid__item">
           <dt className="stat-grid__label">Market Cap</dt>

@@ -3,6 +3,8 @@ import { EM_DASH, formatLargeNumber, formatPct } from '../utils/format.js';
 import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
 import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
 import { getSharesOutstanding } from '../utils/sharesOutstanding.js';
+import PctInput from '../components/PctInput.jsx';
+import MultipleInput from '../components/MultipleInput.jsx';
 
 const PROJ_COUNT = 5;
 const GRID_SIZE = 7;
@@ -88,9 +90,6 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
     setS(buildState(analysis, company, waccOverride, ctx.beta, ctx.riskFreeRate, ctx.mrp));
   }, [analysis, company, waccOverride, ctx.beta, ctx.riskFreeRate, ctx.mrp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Terminal multiple handlers (only editable fields in assumptions panel)
-  const updTermPE = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalPE: v })); };
-  const updTermEV = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, terminalEVEBITDA: v })); };
   const updNetBorrowYear = (i, str) => {
     const v = parseFloat(str);
     if (!isNaN(v)) setS(p => {
@@ -99,12 +98,6 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
       return { ...p, netBorrowingPerYear: next };
     });
   };
-
-  // Sensitivity grid center handlers
-  const updWaccCenter     = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, waccCenter: v / 100 })); };
-  const updEvCenter       = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, evEbitdaCenter: v })); };
-  const updCoeCenter      = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, coeCenter: v / 100 })); };
-  const updPeCenter       = str => { const v = parseFloat(str); if (!isNaN(v)) setS(p => ({ ...p, peCenter: v })); };
 
   // ── Derived constants ──────────────────────────────────────────────────────
   // Assumptions are read from AssumptionsContext (single source of truth).
@@ -328,13 +321,12 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
           <div className="dcf-kv">
             <span className="dcf-kv__label">Terminal P/E</span>
             <span className="dcf-kv__value">
-              <input
-                type="number"
+              <MultipleInput
+                value={s.terminalPE}
+                onChange={v => setS(p => ({ ...p, terminalPE: v }))}
                 className="dcf-kv__input"
-                value={s.terminalPE.toFixed(1)}
                 step="0.5"
-                onChange={e => updTermPE(e.target.value)}
-                aria-label="Terminal P/E"
+                ariaLabel="Terminal P/E"
               />
               <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>x</span>
             </span>
@@ -342,13 +334,12 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
           <div className="dcf-kv">
             <span className="dcf-kv__label">Terminal EV/EBITDA</span>
             <span className="dcf-kv__value">
-              <input
-                type="number"
+              <MultipleInput
+                value={s.terminalEVEBITDA}
+                onChange={v => setS(p => ({ ...p, terminalEVEBITDA: v }))}
                 className="dcf-kv__input"
-                value={s.terminalEVEBITDA.toFixed(1)}
                 step="0.5"
-                onChange={e => updTermEV(e.target.value)}
-                aria-label="Terminal EV/EBITDA"
+                ariaLabel="Terminal EV/EBITDA"
               />
               <span style={{ marginLeft: '2px', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>x</span>
             </span>
@@ -549,7 +540,7 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
                   {evMultSteps.map((m, ci) => (
                     <th key={ci}>
                       {ci === HALF
-                        ? <input type="number" className="dcf-sens-input" value={s.evEbitdaCenter.toFixed(0)} step="1" onChange={e => updEvCenter(e.target.value)} aria-label="EV/EBITDA center" />
+                        ? <MultipleInput value={s.evEbitdaCenter} onChange={v => setS(p => ({ ...p, evEbitdaCenter: v }))} step="1" className="dcf-sens-input" ariaLabel="EV/EBITDA center" />
                         : `${m.toFixed(0)}x`}
                     </th>
                   ))}
@@ -560,7 +551,7 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
                   <tr key={ri}>
                     <th>
                       {ri === HALF
-                        ? <input type="number" className="dcf-sens-input" value={(s.waccCenter * 100).toFixed(2)} step="0.01" onChange={e => updWaccCenter(e.target.value)} aria-label="WACC center" />
+                        ? <PctInput value={s.waccCenter} onChange={v => setS(p => ({ ...p, waccCenter: v }))} step="0.01" className="dcf-sens-input" ariaLabel="WACC center" showSuffix={false} />
                         : `${(waccSteps[ri] * 100).toFixed(2)}%`}
                     </th>
                     {row.map((price, ci) => (
@@ -590,7 +581,7 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
                   {peSteps.map((p, ci) => (
                     <th key={ci}>
                       {ci === HALF
-                        ? <input type="number" className="dcf-sens-input" value={s.peCenter.toFixed(0)} step="1" onChange={e => updPeCenter(e.target.value)} aria-label="P/E center" />
+                        ? <MultipleInput value={s.peCenter} onChange={v => setS(p => ({ ...p, peCenter: v }))} step="1" className="dcf-sens-input" ariaLabel="P/E center" />
                         : `${p.toFixed(0)}x`}
                     </th>
                   ))}
@@ -601,7 +592,7 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
                   <tr key={ri}>
                     <th>
                       {ri === HALF
-                        ? <input type="number" className="dcf-sens-input" value={(s.coeCenter * 100).toFixed(2)} step="0.01" onChange={e => updCoeCenter(e.target.value)} aria-label="Cost of Equity center" />
+                        ? <PctInput value={s.coeCenter} onChange={v => setS(p => ({ ...p, coeCenter: v }))} step="0.01" className="dcf-sens-input" ariaLabel="Cost of Equity center" showSuffix={false} />
                         : `${(coeSteps[ri] * 100).toFixed(2)}%`}
                     </th>
                     {row.map((price, ci) => (
