@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-07
+> Current date: 2026-04-08
 
 
 
@@ -21,6 +21,17 @@ analysis.peers; MSFT fixture seeded with 5 peers from collected data. Final Valu
 a weighted rollup of DCF + RV implied prices (FCFE and FCFF paths), user-editable DCF weight with
 auto-derived RV weight, 3-card summary (avg price, current price, upside %), analyst targets table,
 and EV/Revenue reference panel. Remaining: Assumptions tab.
+
+Landing screen + SEC/EDGAR integration complete (2026-04-08): full-page landing screen
+(`LandingPage.jsx`) added before the workbench — ticker text input, Load button, recent-ticker
+chips (localStorage, max 5, persists across refresh). `App.jsx` now uses `screen` state
+('landing' | 'workbench') with a "← New Search" button in the workbench header. Fixture-mode
+pre-flight fetch prevents invalid tickers from transitioning. SEC EDGAR XBRL is now the primary
+source for all financial statements; FMP fills gaps and provides everything EDGAR doesn't
+(profile, prices, quote, peers, analyst targets). `secEdgar.js` fetches the CIK mapping
+(30d cache) and company facts (7d cache). `normalizers/sec.js` maps XBRL → same internal schema
+as FMP normalizer. `dataAssembler.js` runs SEC + FMP in parallel and merges field-by-field
+(SEC wins on non-null). `metadata.dataSource` reports `'sec_fmp'` | `'fmp_only'` | `'pre_collected'`.
 
 Valuation workbench refinement pass complete (2026-04-07): reusable draft-state inputs now cover
 projected revenue growth, WACC price/beta, DCF terminal multiples, and DCF sensitivity multiple
@@ -87,10 +98,14 @@ Assumptions tab as the last remaining workbench stub.
 
 ## Current Sprint
 
-- [ ] Frontend: initial starter screen where ticker selection happens before entering the valuation workbench
-- [ ] Frontend: verify analysis staleness indicator is fully surfaced and correct across fixture variants
+- [x] Frontend: initial starter screen where ticker selection happens before entering the valuation workbench
+- [x] Backend: SEC EDGAR as primary financial statements source (FMP fallback); field-by-field merge with provenance metadata
 - [x] Backend: ticker input validation at route level before hitting services
 - [x] Backend: differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
+- [ ] **Fix PROJ_COUNT 4→5**: RevenueTab.jsx, ProjectionsTab.jsx, AssumptionsContext.jsx (DcfTab already correct)
+- [ ] **Fix projection start year**: change `lastHistYear + 1` to `new Date().getFullYear() + 1` in RevenueTab, ProjectionsTab, DcfTab — projections must always be FY(currentYear+1) through FY(currentYear+5)
+- [ ] **Fix Revenue Trend chart missing bars**: change `defaultOpen={false}` → `defaultOpen={true}` on the CollapsibleSection wrapping the Revenue Trend chart in RevenueTab, and the nested "Trend Chart" section in ProjectionsTab — Recharts ResponsiveContainer measures at 0-width when section is collapsed at mount
+- [ ] Frontend: verify analysis staleness indicator is fully surfaced and correct across fixture variants
 - [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 
 ---
@@ -206,10 +221,10 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [ ] Scheduled auto-refresh — background job to pre-warm analysis files for tracked tickers
 - [ ] `getKeyMetrics` ratio display panel — surface grahamNumber, earningsYield, evToEBITDA, returnOnEquity, etc. in a frontend metrics card; not wired into EPS/shares fallback chains (key-metrics endpoint has no direct eps/sharesOutstanding fields)
 
-### v1.1 — SEC EDGAR Enrichment Layer
+### v1.1 — SEC EDGAR Enrichment Layer ✓ COMPLETE (2026-04-08)
 
-> Deferred post-workbench (v1.0). Conceptual audit completed 2026-03-31 via pipeline-orchestrator.
-> Do not begin until Final Valuation, Assumptions, and Relative Valuation tabs are shipped.
+> Originally deferred; implemented ahead of schedule in the 2026-04-08 session.
+> SEC is now the primary source for financial statements; FMP fills gaps.
 
 **What it is:** SEC EDGAR Company Facts API (data.sec.gov) as a supplementary enrichment layer
 sitting after FMP normalization — not a provider replacement. Adds audited, XBRL-tagged financials
@@ -252,6 +267,8 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Files Touched | Notes |
 |---|------|---------------|-------|
+| A-023 | **Landing screen + recent tickers** | `frontend/src/pages/LandingPage.jsx` (new), `frontend/src/utils/recentTickers.js` (new), `frontend/src/App.jsx`, `frontend/src/styles.css` | Full-page entry screen before workbench. Ticker input + Load button + recent chips (localStorage, max 5). Fixture-mode pre-flight fetch prevents invalid ticker transitions. `screen` state in App replaces header ticker input. "← New Search" in workbench header. |
+| A-024 | **SEC EDGAR as primary financial data source** | `src/services/secEdgar.js` (new), `src/services/normalizers/sec.js` (new), `src/services/dataAssembler.js`, `.gitignore` | SEC EDGAR XBRL fetched in parallel with FMP. CIK lookup cached 30d, company facts cached 7d. 19 GAAP concept fallback chains. Field-by-field merge (SEC wins on non-null). `metadata.dataSource` = `'sec_fmp'` \| `'fmp_only'` \| `'pre_collected'`. Graceful null on any EDGAR failure. |
 | A-001 | **BUG FIX — DCF hardcoded date** | `DcfTab.jsx:112` | `new Date(2026,2,30)` → `new Date()`. Scale factors now always reflect actual current date. |
 | A-002 | **BUG FIX — D&A double-counted in projected Operating Income** | `ProjectionsTab.jsx:154–157` | FMP's `operatingIncome` = GP − R&D − SG&A (D&A embedded in COGS). Removed `projDA` from `projOpIncome`. Historical/projected margins now comparable. |
 | A-003 | **BUG FIX — Change in NWC methodology mismatch** | `ProjectionsTab.jsx:519–534` | Switched historical Change in NWC from CF-statement `changeInWorkingCap` to balance-sheet delta (`NWC_curr − NWC_prev`). Eliminates false −$25B → +$5.7B cliff for AAPL. |

@@ -16,6 +16,73 @@ Purpose: high-signal session handoff between Codex and Claude.
 - Files Touched: <comma-separated file list or "none">
 ```
 
+## 2026-04-08 — claude
+- Branch: feature/valuation-workbench → version-1
+- Objective: implement landing screen (pre-workbench ticker selection), wire SEC EDGAR as primary financial data source, and create a Version 1 branch capturing the stable state of the workbench
+- Decisions:
+  - **Landing screen:** `LandingPage.jsx` is a full-page entry screen (full-screen centered layout) shown before the workbench loads. Props: `onSelectTicker(ticker)`. Ticker input uppercased, submit on Enter or click. In fixture mode, pre-flight fetch `/api/company/{TICKER}` — 404 shows inline error "No fixture data for {TICKER}. Try AAPL or MSFT." without transitioning. `recentTickers.js` stores up to 5 recent tickers in localStorage (`alpha-forge:recent-tickers`); chips render below the form and call `onSelectTicker` directly.
+  - **App.jsx routing:** replaced `ticker`-first state with `screen: 'landing' | 'workbench'` + `ticker: null`. Removed FixtureSelector, TickerInput, FIXTURE_OPTIONS, DEFAULT_TICKER. Added "← New Search" button in workbench header (`app-header__back` class). `handleSelect(t)` calls `addRecent(t)`, `setTicker(t)`, `setScreen('workbench')`.
+  - **styles.css additions:** `.landing-page`, `.landing-page__inner`, `.landing-page__brand`, `.landing-page__title`, `.landing-page__subtitle`, `.landing-page__form`, `.landing-page__input`, `.landing-page__btn`, `.landing-page__error`, `.recent-tickers`, `.recent-tickers__label`, `.recent-tickers__chips`, `.recent-tickers__chip`, `.app-header__back` — all using existing CSS variables.
+  - **SEC EDGAR integration:** `secEdgar.js` implements CIK mapping fetch (cached 30d as `sec_ciks`) and company facts fetch (cached 7d as `sec_facts_{TICKER}`). Uses `User-Agent: Alpha-Forge alpha-forge@example.com` per SEC guidelines. GAAP concept fallback chains for 19 fields. `extractAnnualData()` filters `form === "10-K"`, deduplicates by `fy` (latest `filed` wins), newest→oldest, max 5 years. Returns `{ annualRows }` or `null` on any failure.
+  - **SEC normalizer:** `normalizers/sec.js` maps EDGAR field names to same internal schema as `normalizers/fmp.js`. `normalizeSecCashFlow` **negates capitalExpenditure** (EDGAR positive = payments made → FMP negative convention). `freeCashFlow = operatingCashFlow + capitalExpenditure` computed inline.
+  - **dataAssembler.js merge:** `mergeStatements(secRows, fmpRows)` aligns by calendar year (first 4 chars of date), starts from FMP row, overlays all non-null SEC fields. SEC + FMP now fetched in parallel (8-slot `Promise.allSettled`). `metadata.dataSource` = `'sec_fmp'` | `'fmp_only'` | `'pre_collected'`.
+  - **.gitignore:** added `.claude/settings.local.json`
+  - **frontend/.env.local:** created pointing frontend at `http://localhost:3000` for live backend use (gitignored)
+  - **Version 1 branch:** created `version-1` branch from the commit capturing all of the above — represents the first stable, end-to-end deployable version of Alpha Forge
+- Open Questions: none — all work for this session committed and pushed
+- Next Step: **Fix projection years and chart rendering** (see plan below)
+- Owns Next: `frontend/src/tabs/RevenueTab.jsx`, `frontend/src/tabs/ProjectionsTab.jsx`, `frontend/src/contexts/AssumptionsContext.jsx`, `frontend/src/tabs/DcfTab.jsx`
+- Do Not Touch: `src/services/secEdgar.js`, `src/services/normalizers/sec.js`, `src/services/dataAssembler.js` (SEC integration complete — do not re-touch unless EDGAR API changes), `frontend/src/pages/LandingPage.jsx`, `frontend/src/utils/recentTickers.js`, `data/fixtures/**`
+- Files Touched: `.gitignore`, `frontend/src/App.jsx`, `frontend/src/styles.css`, `frontend/src/pages/LandingPage.jsx` (new), `frontend/src/utils/recentTickers.js` (new), `src/services/secEdgar.js` (new), `src/services/normalizers/sec.js` (new), `src/services/dataAssembler.js`, `frontend/.env.local` (new, gitignored), `TODO.md`, `docs/WORKLOG.md`
+
+### PLAN FOR NEXT SESSION — Projection Year Fix + Chart Rendering
+
+**Problem 1 — Wrong projection years (HIGHEST PRIORITY)**
+FY2024/FY2025 appear as "Projected" columns despite live data existing for them.
+Root cause: `projStartYear = lastHistYear + 1` uses the most recent filing date year (e.g. 2024) instead of the current calendar year.
+User confirmed: if it's 2026, projections must be FY2027–FY2031 (5 years, always `currentYear+1` onward).
+
+**Problem 2 — PROJ_COUNT mismatch**
+RevenueTab and ProjectionsTab use `PROJ_COUNT = 4`. AssumptionsContext also seeds arrays of length 4.
+DcfTab already uses 5. All must align at 5.
+
+**Problem 3 — Revenue Trend chart bars completely absent**
+Revenue Trend chart in RevenueTab is inside `<CollapsibleSection defaultOpen={false}>`.
+Recharts `ResponsiveContainer` measures its container at mount — when section is collapsed (display:none / 0-width), bars render at 0px and never recover when the section opens.
+Same issue in the nested "Trend Chart" `<CollapsibleSection defaultOpen={false}>` inside ProjectionsTab's Common Size section.
+
+**Exact changes required:**
+
+**`frontend/src/tabs/RevenueTab.jsx`**
+1. `const PROJ_COUNT = 4` → `const PROJ_COUNT = 5`
+2. Remove `lastHistYear` derivation from `historical` array
+3. Add: `const projStartYear = new Date().getFullYear() + 1;`
+4. Change: `const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => \`FY\${projStartYear + i}\`);`
+5. CollapsibleSection wrapping Revenue Trend chart: `defaultOpen={false}` → `defaultOpen={true}`
+
+**`frontend/src/tabs/ProjectionsTab.jsx`**
+1. `const PROJ_COUNT = 4` → `const PROJ_COUNT = 5`
+2. Remove lines 133–136 (the `lastHistYear` derivation block)
+3. Add: `const projStartYear = new Date().getFullYear() + 1;`
+4. Change: `const projYears = Array.from({ length: PROJ_COUNT }, (_, i) => \`FY\${projStartYear + i}E\`);`
+5. Line 517 — nested `<CollapsibleSection title="Trend Chart" defaultOpen={false}>` → `defaultOpen={true}`
+
+**`frontend/src/contexts/AssumptionsContext.jsx`**
+1. `const PROJ_COUNT = 4` → `const PROJ_COUNT = 5`
+   (All `Array(PROJ_COUNT).fill(value)` seeded arrays automatically grow to length 5)
+
+**`frontend/src/tabs/DcfTab.jsx`**
+1. PROJ_COUNT is already 5 — only the year calculation needs updating
+2. Find where projection years are derived from `lastFilingDate` or `lastHistYear`
+3. Change to: `const projStartYear = new Date().getFullYear() + 1;`
+
+**Verification after changes:**
+1. `npm run dev` (frontend) + `node src/index.js` (backend), load AAPL
+2. Revenue tab: chart open by default, bars visible; projected years are FY2027–FY2031
+3. Projections tab: projected columns FY2027E–FY2031E; Trend Chart opens by default with bars
+4. DCF tab: projection years align with FY2027–FY2031
+5. AssumptionsContext: assumption arrays have 5 elements
+
 ## 2026-04-07 — claude (session 2)
 - Branch: feature/valuation-workbench
 - Objective: commit previously uncommitted work from the 2026-04-06 session that was left staged but never pushed

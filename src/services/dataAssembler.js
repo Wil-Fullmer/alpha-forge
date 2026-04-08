@@ -2,8 +2,13 @@
  * dataAssembler.js
  *
  * Coordinates all data fetching for the analysis pipeline.
- * Checks pre-collected JSON first, then delegates to the cache/provider layer.
- * Returns a fully normalized data bundle ready for analysis calculations.
+ * Priority order for financial statements (income, balance sheet, cash flow):
+ *   1. Pre-collected JSON (data/{TICKER}-collected.json) — skips all API calls
+ *   2. SEC EDGAR XBRL — free, authoritative, no auth required
+ *   3. FMP API — fills gaps left by EDGAR and provides all non-financial data
+ *
+ * Non-financial data (profile, quote, prices, peers, analyst targets) always
+ * comes from FMP since EDGAR does not provide it.
  *
  * Pre-collected format (data/{TICKER}-collected.json):
  *   { company: {...}, financials: { incomeStatements, balanceSheets, cashFlows } }
@@ -28,6 +33,12 @@ import {
   normalizeBalanceSheet,
   normalizeCashFlow,
 } from './normalizers/fmp.js'
+import {
+  normalizeSecIncomeStatement,
+  normalizeSecBalanceSheet,
+  normalizeSecCashFlow,
+} from './normalizers/sec.js'
+import { getEdgarFinancials } from './secEdgar.js'
 
 const DATA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../data')
 
@@ -41,7 +52,49 @@ function tryReadCollected(ticker) {
 }
 
 /**
- * Assemble normalized data for a ticker from pre-collected, cache, or provider.
+ * Merge two arrays of normalized financial statement rows.
+ * Rows are aligned by calendar year (first 4 chars of the date field).
+ * SEC values take precedence over FMP values when non-null.
+ * Result is ordered by SEC rows (newest first); FMP-only years are appended.
+ *
+ * @param {object[]} secRows  - Normalized SEC rows (primary)
+ * @param {object[]} fmpRows  - Normalized FMP rows (fallback)
+ * @returns {object[]}
+ */
+function mergeStatements(secRows, fmpRows) {
+  if (!secRows?.length) return fmpRows ?? []
+  if (!fmpRows?.length) return secRows
+
+  const fmpByYear = new Map()
+  for (const row of fmpRows) {
+    const year = row.date?.substring(0, 4)
+    if (year) fmpByYear.set(year, row)
+  }
+
+  // Merge SEC rows with FMP data for the same year
+  const merged = secRows.map(secRow => {
+    const year   = secRow.date?.substring(0, 4)
+    const fmpRow = fmpByYear.get(year) ?? {}
+    fmpByYear.delete(year) // track consumed FMP years
+
+    // Start from FMP, then overlay all non-null SEC fields
+    const result = { ...fmpRow }
+    for (const [key, val] of Object.entries(secRow)) {
+      if (val != null) result[key] = val
+    }
+    return result
+  })
+
+  // Append any FMP years that SEC didn't cover (older years)
+  for (const row of fmpByYear.values()) {
+    merged.push(row)
+  }
+
+  return merged
+}
+
+/**
+ * Assemble normalized data for a ticker from pre-collected, SEC EDGAR, or FMP.
  *
  * @param {string} ticker
  * @param {{ force?: boolean }} options
@@ -52,6 +105,7 @@ function tryReadCollected(ticker) {
  *   cashFlows: object[],
  *   historicalPrices: { date: string, close: number }[],
  *   quote: object|null,
+ *   peers: object[],
  *   flags: string[],
  *   metadata: { dataSource: string, historicalPriceDays: number }
  * }>}
@@ -71,16 +125,20 @@ export async function assembleData(ticker, { force = false } = {}) {
     cashFlows        = normalizeCashFlow(collected.financials?.cashFlows ?? [])
   }
 
-  // Skip statement fetches if pre-collected; always fetch historical prices and quote
+  // Always fetch historical prices, quote, and peers fresh.
+  // Financial statements: skip if pre-collected; otherwise fetch SEC + FMP in parallel.
   const fetches = await Promise.allSettled([
-    collected ? Promise.resolve(null) : getCompanyProfile(ticker, force),
-    collected ? Promise.resolve(null) : getIncomeStatement(ticker, force),
-    collected ? Promise.resolve(null) : getBalanceSheet(ticker, force),
-    collected ? Promise.resolve(null) : getCashFlowStatement(ticker, force),
-    getHistoricalPrices(ticker, 252, force),
-    getQuote(ticker, force),
-    collected ? Promise.resolve(null) : getPeers(ticker, force),
+    collected ? Promise.resolve(null) : getCompanyProfile(ticker, force),      // 0
+    collected ? Promise.resolve(null) : getIncomeStatement(ticker, force),      // 1
+    collected ? Promise.resolve(null) : getBalanceSheet(ticker, force),         // 2
+    collected ? Promise.resolve(null) : getCashFlowStatement(ticker, force),    // 3
+    getHistoricalPrices(ticker, 252, force),                                    // 4
+    getQuote(ticker, force),                                                    // 5
+    collected ? Promise.resolve(null) : getPeers(ticker, force),               // 6
+    collected ? Promise.resolve(null) : getEdgarFinancials(ticker, { force }), // 7
   ])
+
+  let dataSource = collected ? 'pre_collected' : 'fmp_only'
 
   if (!collected) {
     const [pFetch, iFetch, bFetch, cFetch] = fetches
@@ -91,12 +149,39 @@ export async function assembleData(ticker, { force = false } = {}) {
     if (profileData.length === 0) throw new Error(`TICKER_NOT_FOUND: No company data found for "${ticker}"`)
     profile = profileData[0]
 
-    incomeStatements = iFetch.status === 'fulfilled' ? (iFetch.value ?? []) : []
-    balanceSheets    = bFetch.status === 'fulfilled' ? (bFetch.value ?? []) : []
-    cashFlows        = cFetch.status === 'fulfilled' ? (cFetch.value ?? []) : []
+    // Normalize FMP financial statements
+    const fmpIncome  = iFetch.status === 'fulfilled' ? normalizeIncomeStatement(iFetch.value ?? []) : []
+    const fmpBalance = bFetch.status === 'fulfilled' ? normalizeBalanceSheet(bFetch.value ?? []) : []
+    const fmpCash    = cFetch.status === 'fulfilled' ? normalizeCashFlow(cFetch.value ?? []) : []
     if (iFetch.status === 'rejected') flags.push(`Income statement fetch failed: ${iFetch.reason?.message}`)
     if (bFetch.status === 'rejected') flags.push(`Balance sheet fetch failed: ${bFetch.reason?.message}`)
     if (cFetch.status === 'rejected') flags.push(`Cash flow fetch failed: ${cFetch.reason?.message}`)
+
+    // Merge SEC data over FMP where available
+    const secFetch = fetches[7]
+    if (secFetch?.status === 'fulfilled' && secFetch.value) {
+      const { annualRows } = secFetch.value
+      const secIncome  = normalizeSecIncomeStatement(annualRows)
+      const secBalance = normalizeSecBalanceSheet(annualRows)
+      const secCash    = normalizeSecCashFlow(annualRows)
+
+      incomeStatements = mergeStatements(secIncome,  fmpIncome)
+      balanceSheets    = mergeStatements(secBalance, fmpBalance)
+      cashFlows        = mergeStatements(secCash,    fmpCash)
+      dataSource = 'sec_fmp'
+      logger.info(`[assembler] Financial statements: SEC primary + FMP fallback for ${ticker}`)
+    } else {
+      // SEC unavailable — use FMP only
+      incomeStatements = fmpIncome
+      balanceSheets    = fmpBalance
+      cashFlows        = fmpCash
+      if (secFetch?.status === 'rejected') {
+        flags.push(`SEC EDGAR unavailable — using FMP only: ${secFetch.reason?.message}`)
+      } else {
+        flags.push('SEC EDGAR unavailable — using FMP only')
+      }
+      logger.info(`[assembler] Financial statements: FMP only for ${ticker}`)
+    }
   }
 
   const historicalPrices = fetches[4].status === 'fulfilled' ? fetches[4].value : []
@@ -116,7 +201,7 @@ export async function assembleData(ticker, { force = false } = {}) {
     peers,
     flags,
     metadata: {
-      dataSource:          collected ? 'pre_collected' : 'fmp_direct',
+      dataSource,
       historicalPriceDays: historicalPrices.length,
     },
   }

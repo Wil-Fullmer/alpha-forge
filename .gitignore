@@ -40,3 +40,4 @@ Thumbs.db
 
 # Claude Code local state
 .claude/agent-memory/
+.claude/settings.local.json
