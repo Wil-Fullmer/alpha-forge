@@ -17,6 +17,7 @@ logs/
 # Data
 data/cache/
 data/exports/
+data/*-analysis.json
 
 # Build/Dist
 dist/
