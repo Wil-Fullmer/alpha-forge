@@ -204,9 +204,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Ticker input validation — reject malformed tickers at the route level before hitting services
 - [x] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
 ### Testing
-- [ ] Unit tests for `dataAssembler.js` — verify pre-collected path, fetch-error path, and flag accumulation
-- [ ] Unit tests for `normalizers/fmp.js` — verify coercion, missing fields, and idempotency
-- [ ] Unit test for `getOrRunAnalysis()` freshness logic — stale/fresh/malformed cases
+- [ ] Unit test for `getOrRunAnalysis()` freshness logic — stale/fresh/malformed cases (required before public launch)
 
 ---
 
