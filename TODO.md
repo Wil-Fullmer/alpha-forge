@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-24
+> Current date: 2026-04-25
 
 
 
@@ -15,6 +15,12 @@ for any ticker. Frontend workbench fully functional across all 7 tabs. Peer pipe
 end-to-end (9 live peers for AAPL via FMP + SEC EDGAR enrichment). Finnhub analyst consensus
 live (54 analysts, 37 buy/15 hold/2 sell for AAPL). DCF FCFF/FCFE calculations verified and
 reconciling. Final Valuation blending FCFE and FCFF weighted outputs correctly.
+
+Chart rendering fixed (2026-04-25): Recharts v3 animation bug identified — stroke-dashoffset
+animation never fires in CollapsibleSection mount context, leaving line paths invisible. Fixed with
+`isAnimationActive={false}` on all Line components. ProjectionsTab converted Bar→Line for all
+4 margin/cost series. RevenueTab migrated from dual-axis ComposedChart to single-axis LineChart
+showing Revenue ($B) with historical/projected reference line.
 
 Visual pass complete (2026-04-24): CompanyOverview description toggle wired; CSS design token
 unification across rv-* and fv-* sections; analyst consensus bar upgraded to use design system
@@ -94,7 +100,7 @@ model accuracy, and Final Valuation tab.
 - [x] **Fix DCF FCFF/FCFE**: projCOGS/projGP/projOpEx now from ProjectedValuesContext; D&A row added to IS bridge; FCFF/FCFE reconciling
 - [x] **Fix Final Valuation tab**: Finnhub analyst consensus replaces broken FMP price-target; buy/hold/sell bar rendering correctly
 - [x] **Visual cleanup pass**: description toggle, CSS token unification, consensus bar colors, $ millions label
-- [ ] **Fix chart rendering**: chart display issues across Projections tab (some bars/lines still off)
+- [x] **Fix chart rendering**: Recharts v3 animation bug — `isAnimationActive={false}` on all Line components; Bar→Line conversion in ProjectionsTab; Revenue chart migrated to single-axis LineChart
 - [ ] **Assumptions tab**: expose all valuation controls (tax rate, WACC inputs, growth overrides)
 
 ---
@@ -279,8 +285,6 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 | # | Task | Priority | Depends On |
 |---|------|----------|------------|
 | A-007 | **NOTE — Surface backend intrinsic value in DCF tab** | Low | — | Add `analysis.dcf.intrinsicValuePerShare` as a read-only reference row in DCF summary panel with tooltip explaining Gordon Growth method vs EV/EBITDA model. |
-| A-008 | **Regenerate AAPL fixture after Sharpe fix** | Medium | FMP API key in `.env` | Run `node src/services/analysisRunner.js AAPL`, copy output to `data/fixtures/AAPL/`. Annualised Sharpe should land in −1 to +1 range for AAPL 2025. |
-| A-009 | **Verify MSFT + AAPL-null fixtures against audit findings** | Medium | A-003 | AAPL-null fixture has null balanceSheet fields — confirm NWC delta renders as `—` gracefully. MSFT fixture has positive NWC — confirm delta is consistent. |
 
 ---
 
@@ -288,7 +292,6 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Area |
 |---|------|------|
-| A-010 | Final Valuation tab — weighted rollup of FCFF/FCFE implied prices, editable weights, football field chart | Frontend |
 | A-011 | Assumptions tab — expose all live model controls (tax rate, WACC inputs, growth overrides) currently scattered across other tabs | Frontend |
 | A-012 | Relative Valuation tab — EV/EBITDA, P/E, P/S peer table; requires peer data in pipeline | Frontend + Backend |
 | A-013 | Smoke-test all three fixture variants (AAPL, MSFT, AAPL-null) end-to-end after audit fixes | QA |

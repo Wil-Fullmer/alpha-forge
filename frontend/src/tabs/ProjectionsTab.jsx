@@ -4,7 +4,7 @@ import CollapsibleSection from '../components/CollapsibleSection.jsx';
 import PctInput from '../components/PctInput.jsx';
 import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
-import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
+import { ResponsiveContainer, ComposedChart, Line, Cell,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
 const PROJ_COUNT = 5;
@@ -526,10 +526,10 @@ export default function ProjectionsTab({ analysis }) {
                   <ReferenceLine x={lastHistLabel} stroke="#d4a853" strokeDasharray="4 4"
                     label={{ value: 'Projected →', position: 'insideTopRight', fill: '#8a9ab5', fontSize: 10 }} />
                 )}
-                <Bar dataKey="cogs"   name="COGS %"         stackId="a" fill="rgba(248,113,113,0.7)" maxBarSize={40} />
-                <Bar dataKey="opex"   name="OpEx %"          stackId="a" fill="rgba(251,191,36,0.6)"  maxBarSize={40} />
-                <Line dataKey="gross"  name="Gross Margin %" type="monotone" stroke="rgba(212,168,83,0.9)" strokeWidth={2} dot={{ r: 2 }} connectNulls />
-                <Line dataKey="netInc" name="Net Margin %"   type="monotone" stroke="#4ade80"               strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line dataKey="cogs"   name="COGS %"         type="monotone" stroke="rgba(248,113,113,0.85)" strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} connectNulls />
+                <Line dataKey="opex"   name="OpEx %"          type="monotone" stroke="rgba(251,191,36,0.75)"  strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} connectNulls />
+                <Line dataKey="gross"  name="Gross Margin %" type="monotone" stroke="rgba(212,168,83,0.9)"   strokeWidth={2} dot={{ r: 2 }} isAnimationActive={false} connectNulls />
+                <Line dataKey="netInc" name="Net Margin %"   type="monotone" stroke="#4ade80"                strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </div>

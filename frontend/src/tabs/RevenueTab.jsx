@@ -3,7 +3,7 @@ import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
 import PctInput from '../components/PctInput.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
-import { ResponsiveContainer, ComposedChart, Bar, Line, Cell,
+import { ResponsiveContainer, LineChart, Line,
          XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from 'recharts';
 
 const PROJ_COUNT = 5;
@@ -83,6 +83,8 @@ export default function RevenueTab({ analysis }) {
       </div>
     );
   }
+
+  const lastHistLabel = historical.at(-1) ? fiscalYear(historical.at(-1).date) : null;
 
   const revChartData = [
     ...historical.map((h, i) => ({
@@ -165,23 +167,21 @@ export default function RevenueTab({ analysis }) {
       <CollapsibleSection title="Revenue Trend" defaultOpen={true}>
         <div className="chart-panel">
           <ResponsiveContainer width="100%" height={240}>
-            <ComposedChart data={revChartData} margin={{ top: 4, right: 48, bottom: 0, left: 8 }}>
+            <LineChart data={revChartData} margin={{ top: 4, right: 24, bottom: 0, left: 8 }}>
               <CartesianGrid stroke="#1e2d40" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="year" tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="left"  tickFormatter={v => `$${v}B`} tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v}%`} tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `$${v}B`} tick={{ fill: '#8a9ab5', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: '#0e1624', border: '1px solid #1e2d40', borderRadius: '8px', fontSize: '12px', color: '#f0ead6' }}
-                       labelStyle={{ color: '#8a9ab5', marginBottom: '4px' }} />
+                       labelStyle={{ color: '#8a9ab5', marginBottom: '4px' }}
+                       formatter={(value, name) => name === 'Revenue ($B)' ? [`$${value}B`, name] : [value, name]} />
               <Legend wrapperStyle={{ fontSize: '11px', color: '#8a9ab5' }} />
-              <ReferenceLine y={0} yAxisId="right" stroke="#1e2d40" />
-              <Bar dataKey="revenue" yAxisId="left" name="Revenue ($B)" maxBarSize={40} fill="#d4a853">
-                {revChartData.map((entry, i) => (
-                  <Cell key={i} fill={entry.isProjected ? 'rgba(212,168,83,0.5)' : '#d4a853'} />
-                ))}
-              </Bar>
-              <Line dataKey="growth" yAxisId="right" name="YoY Growth (%)" type="monotone"
-                    stroke="#4ade80" strokeWidth={2} dot={{ r: 3, fill: '#4ade80' }} connectNulls />
-            </ComposedChart>
+              {lastHistLabel && (
+                <ReferenceLine x={lastHistLabel} stroke="#d4a853" strokeDasharray="4 4"
+                  label={{ value: 'Projected →', position: 'insideTopRight', fill: '#8a9ab5', fontSize: 10 }} />
+              )}
+              <Line dataKey="revenue" name="Revenue ($B)" type="monotone"
+                    stroke="#d4a853" strokeWidth={2} dot={{ r: 3, fill: '#d4a853' }} isAnimationActive={false} connectNulls />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </CollapsibleSection>
