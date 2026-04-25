@@ -16,6 +16,13 @@ end-to-end (9 live peers for AAPL via FMP + SEC EDGAR enrichment). Finnhub analy
 live (54 analysts, 37 buy/15 hold/2 sell for AAPL). DCF FCFF/FCFE calculations verified and
 reconciling. Final Valuation blending FCFE and FCFF weighted outputs correctly.
 
+Assumptions tab complete (2026-04-25): central control panel with editable Cost of Capital
+(RFR, beta, MRP, cost of debt, tax rate) and Projection Driver Defaults (COGS%, R&D%, SG&A%,
+D&A%, CAPEX%, NWC%, effective tax rate) as scalar fill-all-years inputs. AssumptionsContext
+refactored — cogsPct, netInterestPct, otherIncomePct, projTaxRate, netDebtPct added;
+ProjectionsTab now reads all margin ratios from context (full live-edit chain verified).
+Revenue Growth Schedule shown as read-only reference from RevenueContext.
+
 Chart rendering fixed (2026-04-25): Recharts v3 animation bug identified — stroke-dashoffset
 animation never fires in CollapsibleSection mount context, leaving line paths invisible. Fixed with
 `isAnimationActive={false}` on all Line components. ProjectionsTab converted Bar→Line for all
@@ -101,7 +108,7 @@ model accuracy, and Final Valuation tab.
 - [x] **Fix Final Valuation tab**: Finnhub analyst consensus replaces broken FMP price-target; buy/hold/sell bar rendering correctly
 - [x] **Visual cleanup pass**: description toggle, CSS token unification, consensus bar colors, $ millions label
 - [x] **Fix chart rendering**: Recharts v3 animation bug — `isAnimationActive={false}` on all Line components; Bar→Line conversion in ProjectionsTab; Revenue chart migrated to single-axis LineChart
-- [ ] **Assumptions tab**: expose all valuation controls (tax rate, WACC inputs, growth overrides)
+- [x] **Assumptions tab**: Cost of Capital + Projection Driver Defaults + Revenue Growth Schedule; AssumptionsContext wired to ProjectionsTab; fillProjectionRatio for bulk per-year override
 
 ---
 
@@ -292,7 +299,6 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Area |
 |---|------|------|
-| A-011 | Assumptions tab — expose all live model controls (tax rate, WACC inputs, growth overrides) currently scattered across other tabs | Frontend |
 | A-012 | Relative Valuation tab — EV/EBITDA, P/E, P/S peer table; requires peer data in pipeline | Frontend + Backend |
 | A-013 | Smoke-test all three fixture variants (AAPL, MSFT, AAPL-null) end-to-end after audit fixes | QA |
 | A-014 | Sensitivity grid — add light heatmap overlay treatment (CSS background intensity, currently numeric only) | Frontend |

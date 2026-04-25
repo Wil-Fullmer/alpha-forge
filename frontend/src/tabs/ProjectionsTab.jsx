@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
 import PctInput from '../components/PctInput.jsx';
+import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
 import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
 import { ResponsiveContainer, ComposedChart, Line, Cell,
@@ -33,86 +34,12 @@ function fiscalYear(dateStr) {
   return `FY${dateStr.slice(0, 4)}`;
 }
 
-// ── Seed helpers ─────────────────────────────────────────────────────────────
-
-function makeSeedAssumptions(analysis) {
-  const stmts = [...(analysis?.historicalFinancials?.incomeStatements ?? [])].reverse();
-  const bss   = [...(analysis?.historicalFinancials?.balanceSheets ?? [])].reverse();
-  const cfs   = [...(analysis?.historicalFinancials?.cashFlows ?? [])].reverse();
-
-  const last   = stmts.at(-1) ?? {};
-  const lastBS = bss.at(-1) ?? {};
-  const lastCF = cfs.at(-1) ?? {};
-
-  const rev = last.revenue ?? 1;
-
-  const dr = analysis?.derivedRatios ?? {};
-
-  const seedGM    = dr.grossMarginPct ?? safeDiv(last.grossProfit,       rev) ?? 0.45;
-  const seedRD    = dr.rdPct          ?? safeDiv(last.researchAndDev,    rev) ?? 0.08;
-  const seedSGA   = dr.sgaPct         ?? safeDiv(last.sgaExpense,        rev) ?? 0.06;
-  const seedDA    = dr.daPct          ?? safeDiv(last.depreciationAmort, rev) ?? 0.03;
-  const seedTax   = dr.taxRate ?? ((last.taxExpense != null && last.incomeBeforeTax > 0)
-                    ? safeDiv(last.taxExpense, last.incomeBeforeTax) ?? 0.20 : 0.20);
-  const seedCapex = dr.capexPct ?? (lastCF.capitalExpenditure != null
-                    ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03);
-  const nwcLast   = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
-  const seedNWC   = dr.nwcPct ?? (last.revenue ? nwcLast / last.revenue : 0.05);
-
-  // Net interest and other income now as % of revenue
-  const seedNetInterestPct = safeDiv(last.netInterestIncome ?? 0, rev) ?? 0;
-  const seedOtherIncomePct = safeDiv(last.otherIncomeExpense ?? 0, rev) ?? 0;
-
-  // Net Debt as % of (EBIT − D&A)
-  const lastNetDebt    = lastBS.netDebt ?? 0;
-  const lastEBIT       = last.operatingIncome ?? 0;
-  const lastDA         = last.depreciationAmort ?? 0;
-  const lastBase       = lastEBIT - lastDA;
-  const seedNetDebtPct = lastBase !== 0 ? lastNetDebt / lastBase : 1.0;
-
-  const fill = v => Array(PROJ_COUNT).fill(v);
-  return {
-    cogsPct:        fill(1 - seedGM),
-    rdPct:          fill(seedRD),
-    sgaPct:         fill(seedSGA),
-    daPct:          fill(seedDA),
-    netInterestPct: fill(seedNetInterestPct),
-    otherIncomePct: fill(seedOtherIncomePct),
-    taxRate:        fill(seedTax),
-    capexPct:       fill(seedCapex),
-    nwcPct:         fill(seedNWC),
-    netDebtPct:     fill(seedNetDebtPct),
-  };
-}
-
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function ProjectionsTab({ analysis }) {
-  const [assumptions, setAssumptions] = useState(() => makeSeedAssumptions(analysis));
+  const ctx = useAssumptions();
   const { publishProjections } = useProjectedValues();
   const { revenueData } = useRevenue();
-
-  useEffect(() => {
-    setAssumptions(makeSeedAssumptions(analysis));
-  }, [analysis]);
-
-  const updatePct = useCallback((key, i, rawStr) => {
-    const parsed = parseFloat(rawStr);
-    if (isNaN(parsed)) return;
-    setAssumptions(prev => {
-      const next = { ...prev, [key]: [...prev[key]] };
-      next[key][i] = parsed / 100;
-      return next;
-    });
-  }, []);
-
-  const updatePctDirect = useCallback((key, i, decimal) => {
-    setAssumptions(prev => {
-      const next = { ...prev, [key]: [...prev[key]] };
-      next[key][i] = decimal;
-      return next;
-    });
-  }, []);
 
   const stmts = [...(analysis?.historicalFinancials?.incomeStatements ?? [])].reverse();
   const bss   = [...(analysis?.historicalFinancials?.balanceSheets ?? [])].reverse();
@@ -143,42 +70,42 @@ export default function ProjectionsTab({ analysis }) {
 
   // ── Projections ───────────────────────────────────────────────────────────
   const projCOGS = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.cogsPct[i] : null);
+    r != null ? r * ctx.cogsPct[i] : null);
   const projGrossProfit = projRevenue.map((r, i) =>
     r != null ? r - projCOGS[i] : null);
   const projRD  = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.rdPct[i] : null);
+    r != null ? r * ctx.rdPct[i] : null);
   const projSGA = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.sgaPct[i] : null);
+    r != null ? r * ctx.sgaPct[i] : null);
   const projDA  = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.daPct[i] : null);
+    r != null ? r * ctx.daPct[i] : null);
   const projEBIT = projGrossProfit.map((gp, i) =>
     gp != null ? gp - (projRD[i] ?? 0) - (projSGA[i] ?? 0) - (projDA[i] ?? 0) : null);
   const projNetInterest = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.netInterestPct[i] : null);
+    r != null ? r * ctx.netInterestPct[i] : null);
   const projOtherIncome = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.otherIncomePct[i] : null);
+    r != null ? r * ctx.otherIncomePct[i] : null);
   const projEBT = projEBIT.map((op, i) =>
     op != null ? op + (projNetInterest[i] ?? 0) + (projOtherIncome[i] ?? 0) : null);
   const projTax = projEBT.map((ebt, i) =>
-    ebt != null ? Math.max(0, ebt * assumptions.taxRate[i]) : null);
+    ebt != null ? Math.max(0, ebt * ctx.projTaxRate[i]) : null);
   const projNetIncome = projEBT.map((ebt, i) =>
     ebt != null && projTax[i] != null ? ebt - projTax[i] : null);
 
   const projCapex = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.capexPct[i] : null);
+    r != null ? r * ctx.capexPct[i] : null);
 
   const lastBS  = bss.at(-1) ?? {};
   const nwcLast = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
   const projNWC = projRevenue.map((r, i) =>
-    r != null ? r * assumptions.nwcPct[i] : null);
+    r != null ? r * ctx.nwcPct[i] : null);
   const projChangeNWC = projNWC.map((nwc, i) => {
     const prev = i === 0 ? nwcLast : (projNWC[i - 1] ?? nwcLast);
     return nwc != null && prev != null ? nwc - prev : null;
   });
 
   const projNetDebt = projEBIT.map((ebit, i) =>
-    ebit != null ? (ebit - (projDA[i] ?? 0)) * assumptions.netDebtPct[i] : null);
+    ebit != null ? (ebit - (projDA[i] ?? 0)) * ctx.netDebtPct[i] : null);
 
   // ── Publish to ProjectedValuesContext ─────────────────────────────────────
   useEffect(() => {
@@ -254,18 +181,12 @@ export default function ProjectionsTab({ analysis }) {
     ));
   }
 
-  function dashCells(count = stmts.length) {
-    return Array.from({ length: count }, (_, i) => (
-      <td key={i} className="revenue-cell revenue-cell--historical revenue-cell--growth">{EM_DASH}</td>
-    ));
-  }
-
   function pctInputCells(key, inputLabel) {
-    return assumptions[key].map((rate, i) => (
+    return ctx[key].map((rate, i) => (
       <td key={projYears[i]} className="revenue-cell revenue-cell--projected revenue-cell--input">
         <PctInput
           value={rate}
-          onChange={v => updatePctDirect(key, i, v)}
+          onChange={v => ctx.updateProjectionRatio(key, i, v)}
           step="0.1"
           className="revenue-input"
           ariaLabel={`${projYears[i]} ${inputLabel}`}
@@ -274,31 +195,21 @@ export default function ProjectionsTab({ analysis }) {
     ));
   }
 
-  function nullProjCells() {
-    return projYears.map(yr => (
-      <td key={yr} className="revenue-cell revenue-cell--projected revenue-cell--null">
-        {EM_DASH}
-      </td>
-    ));
-  }
-
   // Common size row: historical cells read-only, projected cells editable inputs
-  function csInputRow(label, histNumGetter, histDenomGetter, key, labelSuffix = '') {
+  function csInputRow(label, histNumGetter, histDenomGetter, key) {
     return (
       <tr key={label} className="revenue-row revenue-row--value">
-        <td className="revenue-table__row-label">
-          {label}{labelSuffix ? <span className="revenue-table__row-label--sub"> {labelSuffix}</span> : null}
-        </td>
+        <td className="revenue-table__row-label">{label}</td>
         {stmts.map((s, si) => (
           <td key={s.date ?? si} className="revenue-cell revenue-cell--historical revenue-cell--growth">
             {fmtPctAbs(safeDiv(histNumGetter(s), histDenomGetter(s)))}
           </td>
         ))}
-        {assumptions[key].map((rate, pi) => (
+        {ctx[key].map((rate, pi) => (
           <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--input">
             <PctInput
               value={rate}
-              onChange={v => updatePctDirect(key, pi, v)}
+              onChange={v => ctx.updateProjectionRatio(key, pi, v)}
               step="0.1"
               className="revenue-input"
               ariaLabel={`${projYears[pi]} ${label}`}
@@ -482,7 +393,7 @@ export default function ProjectionsTab({ analysis }) {
               {/* EBT % — calculated */}
               {csCalcRow('EBT', s => s.incomeBeforeTax, s => s.revenue, projEBT)}
 
-              {/* Tax Rate % of EBT — editable (different denominator) */}
+              {/* Tax Rate % of EBT — editable */}
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label">
                   Tax Rate <span style={{ fontSize: '0.75em', opacity: 0.65 }}>(% of EBT)</span>
@@ -492,17 +403,15 @@ export default function ProjectionsTab({ analysis }) {
                     {fmtPctAbs(safeDiv(s.taxExpense, s.incomeBeforeTax))}
                   </td>
                 ))}
-                {assumptions.taxRate.map((rate, pi) => (
+                {ctx.projTaxRate.map((rate, pi) => (
                   <td key={projYears[pi]} className="revenue-cell revenue-cell--projected revenue-cell--input">
-                    <input
-                      type="number"
-                      className="revenue-input"
-                      value={(rate * 100).toFixed(2)}
+                    <PctInput
+                      value={rate}
+                      onChange={v => ctx.updateProjectionRatio('projTaxRate', pi, v)}
                       step="0.1"
-                      onChange={e => updatePct('taxRate', pi, e.target.value)}
-                      aria-label={`${projYears[pi]} tax rate`}
+                      className="revenue-input"
+                      ariaLabel={`${projYears[pi]} tax rate`}
                     />
-                    <span className="revenue-input__suffix">%</span>
                   </td>
                 ))}
               </tr>
