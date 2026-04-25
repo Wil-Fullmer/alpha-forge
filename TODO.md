@@ -198,13 +198,13 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
 - [x] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
 - [x] Sensitivity table presentation — numeric grid with red→green heatmap overlay (sensitivityStyle in DcfTab)
-- [ ] Start panel — user-friendly entry point: landing panel with ticker input, triggers `/api/analysis/{ticker}` on submit (runs full pipeline if no cached data), loading state while fetching, transitions to workbench tab view on success; replaces fixture-selector/header-ticker workflow for production use
+- [x] Start panel — user-friendly entry point: landing panel with ticker input, triggers `/api/analysis/{ticker}` on submit (runs full pipeline if no cached data), loading state while fetching, transitions to workbench tab view on success; replaces fixture-selector/header-ticker workflow for production use
 
 ### Backend
 - [x] Ticker input validation — reject malformed tickers at the route level before hitting services
 - [x] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
 ### Testing
-- [ ] Unit test for `getOrRunAnalysis()` freshness logic — stale/fresh/malformed cases (required before public launch)
+- [x] Unit test for `getOrRunAnalysis()` freshness logic — stale/fresh/malformed cases (required before public launch)
 
 ---
 

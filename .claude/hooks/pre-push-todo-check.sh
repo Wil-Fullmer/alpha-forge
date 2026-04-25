@@ -45,4 +45,20 @@ if ! grep -q "Current date: $TODAY" "$CLAUDE_PROJECT_DIR/TODO.md"; then
   exit 2
 fi
 
+# Check 3 (warn only): vault todos.md should be up to date
+VAULT_PATH=$(git config vault.path 2>/dev/null)
+if [ -n "$VAULT_PATH" ]; then
+  PROJECT_NAME=$(basename "$CLAUDE_PROJECT_DIR")
+  VAULT_TODOS="$VAULT_PATH/projects/$PROJECT_NAME/todos.md"
+  if [ -f "$VAULT_TODOS" ]; then
+    VAULT_DATE=$(date -r "$VAULT_TODOS" +%Y-%m-%d 2>/dev/null)
+    if [ "$VAULT_DATE" != "$TODAY" ]; then
+      echo "WARNING: vault todos.md may be stale (last updated: ${VAULT_DATE:-unknown})."
+      echo "  Update: $VAULT_TODOS"
+      echo "  Sync open items from TODO.md to match. Push is not blocked."
+      echo ""
+    fi
+  fi
+fi
+
 exit 0
