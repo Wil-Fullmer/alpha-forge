@@ -204,7 +204,6 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Ticker input validation — reject malformed tickers at the route level before hitting services
 - [x] Differentiated HTTP error responses — distinguish 404 (ticker not found), 503 (provider unavailable), 400 (bad input) instead of generic 500
 ### Testing
-- [ ] Smoke-test end-to-end: fixture server → frontend → all three fixture variants render correctly
 - [ ] Unit tests for `dataAssembler.js` — verify pre-collected path, fetch-error path, and flag accumulation
 - [ ] Unit tests for `normalizers/fmp.js` — verify coercion, missing fields, and idempotency
 - [ ] Unit test for `getOrRunAnalysis()` freshness logic — stale/fresh/malformed cases
@@ -299,8 +298,6 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Area |
 |---|------|------|
-| A-012 | Relative Valuation tab — EV/EBITDA, P/E, P/S peer table; requires peer data in pipeline | Frontend + Backend |
-| A-013 | Smoke-test all three fixture variants (AAPL, MSFT, AAPL-null) end-to-end after audit fixes | QA |
 | A-014 | Sensitivity grid — add light heatmap overlay treatment (CSS background intensity, currently numeric only) | Frontend |
 | A-015 | FCFE bridge accuracy — `projFCFE = projFCFF + netInterestIncome` is a simplification; proper bridge is `FCFF − interest×(1−tax) + net borrowings` | Modeling |
 
