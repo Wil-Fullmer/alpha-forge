@@ -196,8 +196,8 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 - [x] Valuation workbench — DCF tab deep rebuild (FCFF/FCFE side-by-side, 5-year projection model, EV/EBITDA + P/E terminal value, two color-coded 7×7 sensitivity grids)
 - [x] Data accuracy audit — pipeline orchestrator used to cross-reference tab data points against backend fields; 4 bugs fixed (see Agent Board below)
 - [x] Valuation workbench — Final Valuation tab (weighted rollup, football field, editable weights)
-- [ ] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
-- [ ] Sensitivity table presentation — numeric grid first, light heatmap treatment later
+- [x] Valuation workbench — Assumptions tab (expose all valuation controls: tax rate, WACC inputs, growth overrides)
+- [x] Sensitivity table presentation — numeric grid with red→green heatmap overlay (sensitivityStyle in DcfTab)
 - [ ] Start panel — user-friendly entry point: landing panel with ticker input, triggers `/api/analysis/{ticker}` on submit (runs full pipeline if no cached data), loading state while fetching, transitions to workbench tab view on success; replaces fixture-selector/header-ticker workflow for production use
 
 ### Backend
@@ -212,15 +212,7 @@ spreadsheet-pane workbench that mirrors the Excel analysis flow.
 
 ## Later Backlog
 
-- [ ] Multi-ticker comparison view
-- [ ] Peer/sector benchmarking — extend `financial-data-collector` output
-- [ ] Alpha Vantage as primary (not just fallback) — provider selection via env var
-- [ ] Persistent analysis history — keep timestamped snapshots of `{TICKER}-analysis.json` instead of overwriting
-- [ ] CI/CD pipeline — automated test run on push, no live API calls in CI
-- [ ] Rate-limit budget reporting — surface `_providerCallCount` in `/health` or a `/api/debug/budget` endpoint
-- [ ] `CACHE_TTL` env var wired into statement TTLs in `financialData.js` (currently documented in `.env.example` but not read at runtime)
-- [ ] Scheduled auto-refresh — background job to pre-warm analysis files for tracked tickers
-- [ ] `getKeyMetrics` ratio display panel — surface grahamNumber, earningsYield, evToEBITDA, returnOnEquity, etc. in a frontend metrics card; not wired into EPS/shares fallback chains (key-metrics endpoint has no direct eps/sharesOutstanding fields)
+— cleared —
 
 ### v1.1 — SEC EDGAR Enrichment Layer ✓ COMPLETE (2026-04-08)
 
@@ -298,7 +290,6 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Area |
 |---|------|------|
-| A-014 | Sensitivity grid — add light heatmap overlay treatment (CSS background intensity, currently numeric only) | Frontend |
 | A-015 | FCFE bridge accuracy — `projFCFE = projFCFF + netInterestIncome` is a simplification; proper bridge is `FCFF − interest×(1−tax) + net borrowings` | Modeling |
 
 ---
