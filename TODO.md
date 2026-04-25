@@ -280,7 +280,7 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Priority | Depends On |
 |---|------|----------|------------|
-| A-007 | **NOTE — Surface backend intrinsic value in DCF tab** | Low | — | Add `analysis.dcf.intrinsicValuePerShare` as a read-only reference row in DCF summary panel with tooltip explaining Gordon Growth method vs EV/EBITDA model. |
+| A-007 | **NOTE — Surface backend intrinsic value in DCF tab** ✓ | Low | — | Added as dimmed "GORDON GROWTH — BACKEND REF" summary block in DCF tab. Shows implied price, upside %, method, inputs, and read-only label. |
 
 ---
 
@@ -288,7 +288,7 @@ Zero disruption if EDGAR unavailable. Provenance flags surface FMP vs EDGAR sour
 
 | # | Task | Area |
 |---|------|------|
-| A-015 | FCFE bridge accuracy — `projFCFE = projFCFF + netInterestIncome` is a simplification; proper bridge is `FCFF − interest×(1−tax) + net borrowings` | Modeling |
+| A-015 | FCFE bridge accuracy ✓ — correct bridge `FCFF − interest×(1−tax) + net borrowings` already implemented; net borrowings derived from balance sheet debt deltas and editable per year | Modeling |
 
 ---
 

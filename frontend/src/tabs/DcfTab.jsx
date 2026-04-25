@@ -420,6 +420,35 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
               <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">{formatPct(pctTermFCFE, 2)}</span></div>
             </div>
           </div>
+
+          {(() => {
+            const iv = analysis?.dcf?.intrinsicValuePerShare ?? null;
+            const ivUpside = safeDiv(iv != null ? iv - currentPrice : null, currentPrice);
+            return (
+              <div className="dcf-summary-block" style={{ opacity: 0.75 }}>
+                <p className="dcf-summary-block__title" style={{ fontSize: 'var(--text-xs)', letterSpacing: '0.08em' }}>
+                  GORDON GROWTH — BACKEND REF
+                </p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+                  <span className="dcf-summary-block__hero">{iv != null ? `$${iv.toFixed(2)}` : EM_DASH}</span>
+                  <span
+                    className="dcf-summary-block__upside"
+                    style={{ color: ivUpside != null ? (ivUpside >= 0 ? 'var(--color-positive)' : 'var(--color-negative)') : undefined }}
+                  >
+                    {ivUpside != null ? fmtPct(ivUpside, 2) : EM_DASH}
+                  </span>
+                </div>
+                <div className="dcf-summary-block__detail-grid">
+                  <div><span className="dcf-kv__label">Method</span></div>
+                  <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">Gordon Growth</span></div>
+                  <div><span className="dcf-kv__label">Inputs</span></div>
+                  <div style={{ textAlign: 'right' }}><span className="dcf-kv__value">FCF · WACC · g</span></div>
+                  <div><span className="dcf-kv__label">Read-only</span></div>
+                  <div style={{ textAlign: 'right' }}><span className="dcf-kv__value" style={{ color: 'var(--color-text-muted)' }}>Backend only</span></div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
