@@ -69,6 +69,27 @@ const server = http.createServer((req, res) => {
     return
   }
 
+  // /api/peers/:ticker — extract peers array from analysis fixture
+  const peersMatch = url.pathname.match(/^\/api\/peers\/([A-Za-z0-9-]+)$/)
+  if (peersMatch) {
+    const ticker = peersMatch[1].toUpperCase()
+    const analysisFile = resolve(FIXTURES_DIR, ticker, 'analysis.json')
+    if (!existsSync(analysisFile)) {
+      res.writeHead(404)
+      res.end(JSON.stringify({ error: `No fixture data for ${ticker}` }))
+      return
+    }
+    try {
+      const analysis = JSON.parse(readFileSync(analysisFile, 'utf8'))
+      res.writeHead(200)
+      res.end(JSON.stringify({ ticker, peers: analysis.peers ?? [] }))
+    } catch {
+      res.writeHead(500)
+      res.end(JSON.stringify({ error: 'Failed to parse fixture' }))
+    }
+    return
+  }
+
   const file = resolveFixture(url.pathname)
 
   if (!file) {

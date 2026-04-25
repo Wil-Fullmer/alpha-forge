@@ -41,8 +41,8 @@ export function normalizeSecIncomeStatement(annualRows) {
     interestExpense:   null,
     netInterestIncome: null,
     otherIncomeExpense: null,
-    incomeBeforeTax:   null,
-    taxExpense:        null,
+    incomeBeforeTax:   toNum(row.incomeBeforeTax),
+    taxExpense:        toNum(row.taxExpense),
   }))
 }
 

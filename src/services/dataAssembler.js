@@ -12,6 +12,11 @@
  *
  * Pre-collected format (data/{TICKER}-collected.json):
  *   { company: {...}, financials: { incomeStatements, balanceSheets, cashFlows } }
+ *
+ * assemblePeers() — dedicated peer pipeline:
+ *   FMP stock_peers → list of peer tickers
+ *   Per peer: FMP quote (market data) + SEC EDGAR financials (FMP fallback)
+ *   Computes EV, EV/Revenue, EV/EBITDA, P/E for each peer.
  */
 
 import { readFileSync, existsSync } from 'fs'
@@ -127,8 +132,8 @@ export async function assembleData(ticker, { force = false } = {}) {
     cashFlows        = normalizeCashFlow(collected.financials?.cashFlows ?? [])
   }
 
-  // Always fetch historical prices, quote, and peers fresh.
-  // Financial statements: skip if pre-collected; otherwise fetch SEC + FMP in parallel.
+  // Always fetch historical prices, quote, and SEC EDGAR financials (SEC is free/cached, no key needed).
+  // FMP financial statements and profile: skip if pre-collected.
   const fetches = await Promise.allSettled([
     collected ? Promise.resolve(null) : getCompanyProfile(ticker, force),      // 0
     collected ? Promise.resolve(null) : getIncomeStatement(ticker, force),      // 1
@@ -137,7 +142,7 @@ export async function assembleData(ticker, { force = false } = {}) {
     getHistoricalPrices(ticker, 252, force),                                    // 4
     getQuote(ticker, force),                                                    // 5
     collected ? Promise.resolve(null) : getPeers(ticker, force),               // 6
-    collected ? Promise.resolve(null) : getEdgarFinancials(ticker, { force }), // 7
+    getEdgarFinancials(ticker, { force }),                                      // 7 — always: SEC is free/cached
   ])
 
   let dataSource = collected ? 'pre_collected' : 'fmp_only'
@@ -184,6 +189,24 @@ export async function assembleData(ticker, { force = false } = {}) {
       }
       logger.info(`[assembler] Financial statements: FMP only for ${ticker}`)
     }
+  } else {
+    // Pre-collected: enrich with SEC EDGAR (free, no API key, cached 7d)
+    // SEC wins on non-null fields; pre-collected FMP data fills the rest
+    const secFetch = fetches[7]
+    if (secFetch?.status === 'fulfilled' && secFetch.value) {
+      const { annualRows } = secFetch.value
+      const secIncome  = normalizeSecIncomeStatement(annualRows)
+      const secBalance = normalizeSecBalanceSheet(annualRows)
+      const secCash    = normalizeSecCashFlow(annualRows)
+
+      incomeStatements = mergeStatements(secIncome,  incomeStatements)
+      balanceSheets    = mergeStatements(secBalance, balanceSheets)
+      cashFlows        = mergeStatements(secCash,    cashFlows)
+      dataSource = 'sec_pre_collected'
+      logger.info(`[assembler] Pre-collected enriched with SEC EDGAR for ${ticker}`)
+    } else {
+      logger.info(`[assembler] SEC unavailable — using pre-collected only for ${ticker}`)
+    }
   }
 
   const historicalPrices = fetches[4].status === 'fulfilled' ? fetches[4].value : []
@@ -207,4 +230,76 @@ export async function assembleData(ticker, { force = false } = {}) {
       historicalPriceDays: historicalPrices.length,
     },
   }
+}
+
+/**
+ * Assemble peer comparables for the Relative Valuation tab.
+ *
+ * Priority for financial data per peer:
+ *   1. SEC EDGAR XBRL — revenue, EBITDA (op income + D&A), net income, debt, cash
+ *   2. FMP — fills any gaps left by SEC (and always provides market data)
+ *
+ * Market data (price, marketCap, sharesOutstanding) always comes from FMP since
+ * SEC EDGAR does not publish live market data.
+ *
+ * Returns peers enriched with enterpriseValue, evRevenue, evEbitda, pe.
+ *
+ * @param {string} ticker - Subject company ticker
+ * @param {{ force?: boolean }} options
+ * @returns {Promise<object[]>}
+ */
+export async function assemblePeers(ticker, { force = false } = {}) {
+  ticker = ticker.toUpperCase()
+
+  const rawPeers = await getPeers(ticker, force)
+  if (!rawPeers || rawPeers.length === 0) return []
+
+  // SEC-enrich each peer's financials in parallel; fall back to FMP data already in rawPeers
+  const enriched = await Promise.all(
+    rawPeers.map(async peer => {
+      try {
+        const secResult = await getEdgarFinancials(peer.ticker, { force })
+        if (!secResult) return peer
+
+        const { annualRows } = secResult
+        const secIncome  = normalizeSecIncomeStatement(annualRows)
+        const secBalance = normalizeSecBalanceSheet(annualRows)
+        const latestI = secIncome[0]
+        const latestB = secBalance[0]
+
+        const secRevenue   = latestI?.revenue ?? null
+        const secOpInc     = latestI?.operatingIncome ?? null
+        const secDA        = latestI?.depreciationAmort ?? null
+        const secEbitda    = secOpInc != null && secDA != null ? secOpInc + secDA : null
+        const secNetIncome = latestI?.netIncome ?? null
+        const secTotalDebt = latestB?.totalDebt ?? null
+        const secCash      = latestB?.cashAndCashEquivalents ?? null
+        const secNetDebt   = latestB?.netDebt ?? null
+
+        return {
+          ...peer,
+          revenue:                secRevenue   ?? peer.revenue,
+          ebitda:                 secEbitda    ?? peer.ebitda,
+          netIncome:              secNetIncome ?? peer.netIncome,
+          totalDebt:              secTotalDebt ?? peer.totalDebt,
+          cashAndCashEquivalents: secCash      ?? peer.cashAndCashEquivalents,
+          netDebt:                secNetDebt   ?? peer.netDebt,
+        }
+      } catch {
+        return peer
+      }
+    })
+  )
+
+  const safeDiv = (a, b) => (a != null && b != null && b !== 0) ? a / b : null
+  return enriched.map(p => {
+    const ev = p.equityValue != null && p.netDebt != null ? p.equityValue + p.netDebt : null
+    return {
+      ...p,
+      enterpriseValue: ev,
+      evRevenue: safeDiv(ev, p.revenue),
+      evEbitda:  safeDiv(ev, p.ebitda),
+      pe:        safeDiv(p.equityValue, p.netIncome),
+    }
+  })
 }

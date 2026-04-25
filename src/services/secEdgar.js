@@ -128,56 +128,85 @@ const CONCEPTS = {
   capitalExpenditure:      ['PaymentsToAcquirePropertyPlantAndEquipment'],
   depreciationAmort:       ['DepreciationDepletionAndAmortization', 'DepreciationAndAmortization'],
   changeInWorkingCap:      ['IncreaseDecreaseInOperatingCapital'],
+  incomeBeforeTax:         ['IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+                            'IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments'],
+  taxExpense:              ['IncomeTaxExpenseBenefit'],
 }
 
 /**
  * For a given GAAP concept list, extract the best available annual (10-K) data.
- * Returns array of { fy, end, val } sorted newest → oldest, deduped by fiscal year.
+ * Returns array deduped by period end date, sorted newest → oldest.
+ *
+ * "Best" concept = the one whose most recent annual period end date is latest.
+ * This handles companies that switch XBRL concepts over time (e.g. Apple moved from
+ * `Revenues` to `RevenueFromContractWithCustomerExcludingAssessedTax` at ASC 606
+ * adoption — the new concept has more recent data and wins).
+ *
+ * NOTE: SEC 10-K filings include multiple years of data (current + prior comparatives),
+ * all sharing the same `fy` (filing year). Deduplicating by `end` (period end date)
+ * rather than `fy` ensures we get one row per fiscal period, using the most recently
+ * filed (and therefore most up-to-date, possibly restated) value for each period.
  */
 function pickBestConcept(gaap, concepts) {
+  let bestEntries = null
+  let bestMaxEnd  = ''
+
   for (const concept of concepts) {
     const entries = gaap[concept]?.units?.USD
     if (!Array.isArray(entries)) continue
 
-    const annual = entries.filter(e => e.form === '10-K')
+    // Filter 10-K annual periods only (≥300 days excludes quarterly summaries
+    // that some companies embed inside the 10-K XBRL filing)
+    const annual = entries.filter(e => {
+      if (e.form !== '10-K') return false
+      if (!e.start || !e.end) return true
+      return (new Date(e.end) - new Date(e.start)) / 86400000 >= 300
+    })
     if (annual.length === 0) continue
 
-    // Deduplicate by fiscal year — keep the most recently filed entry
-    const byFy = new Map()
-    for (const e of annual) {
-      const existing = byFy.get(e.fy)
-      if (!existing || e.filed > existing.filed) {
-        byFy.set(e.fy, e)
-      }
+    const maxEnd = annual.reduce((m, e) => (e.end > m ? e.end : m), '')
+    if (maxEnd > bestMaxEnd) {
+      bestMaxEnd  = maxEnd
+      bestEntries = annual
     }
-
-    return [...byFy.values()].sort((a, b) => b.fy - a.fy)
   }
-  return []
+
+  if (!bestEntries) return []
+
+  // Deduplicate by period end date — keep the most recently filed entry per period
+  const byEnd = new Map()
+  for (const e of bestEntries) {
+    const existing = byEnd.get(e.end)
+    if (!existing || e.filed > existing.filed) {
+      byEnd.set(e.end, e)
+    }
+  }
+
+  return [...byEnd.values()].sort((a, b) => b.end.localeCompare(a.end))
 }
 
 /**
- * Build a map of fiscal-year rows from XBRL company facts.
- * Returns an array of rows (newest first, max 5), each keyed by our field names.
+ * Build a map of fiscal-period rows from XBRL company facts.
+ * Returns an array of rows (newest first, max 7), each keyed by our field names.
  */
 function extractAnnualData(facts) {
   const gaap = facts?.['us-gaap']
   if (!gaap) return []
 
-  const yearMap = new Map() // fy -> { fy, endDate, ...fieldValues }
+  const yearMap = new Map() // endDate -> { fy, endDate, ...fieldValues }
 
   for (const [field, concepts] of Object.entries(CONCEPTS)) {
     const entries = pickBestConcept(gaap, concepts)
     for (const entry of entries) {
-      if (!yearMap.has(entry.fy)) {
-        yearMap.set(entry.fy, { fy: entry.fy, endDate: entry.end })
+      if (!yearMap.has(entry.end)) {
+        yearMap.set(entry.end, { fy: entry.fy, endDate: entry.end })
       }
-      yearMap.get(entry.fy)[field] = entry.val
+      yearMap.get(entry.end)[field] = entry.val
     }
   }
 
   return [...yearMap.values()]
-    .sort((a, b) => b.fy - a.fy)
+    .sort((a, b) => b.endDate.localeCompare(a.endDate))
     .slice(0, 7)
 }
 

@@ -180,9 +180,15 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
   const projEBIT  = Array.from({ length: PROJ_COUNT }, (_, i) =>
     extendFromCtx(ctxProj?.ebit, localEBIT, i));
 
-  const projCOGS  = projRevenue.map(r => r * cogsPct);
-  const projGP    = projRevenue.map((r, i) => r - projCOGS[i]);
-  const projOpEx  = projRevenue.map(r => r * opExPct);
+  const projCOGS  = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    extendFromCtx(ctxProj?.cogs, projRevenue.map(r => r * cogsPct), i));
+  const projGP    = Array.from({ length: PROJ_COUNT }, (_, i) =>
+    extendFromCtx(ctxProj?.grossProfit, projRevenue.map(r => r * (1 - cogsPct)), i));
+  const projOpEx  = Array.from({ length: PROJ_COUNT }, (_, i) => {
+    const rd  = ctxProj?.rd?.[i];
+    const sga = ctxProj?.sga?.[i];
+    return (rd != null && sga != null) ? rd + sga : projRevenue[i] * opExPct;
+  });
 
   const projEBITDA    = projEBIT.map((e, i) => e + projDA[i]);
   const projTax       = projEBIT.map(e => Math.max(0, e * taxRate));
@@ -419,7 +425,7 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
 
       {/* ── Area 3: Projection Table ─────────────────────────────────────── */}
       <div className="proj-section">
-        <p className="proj-section__title">FCFF / FCFE Projection Model</p>
+        <p className="proj-section__title">FCFF / FCFE Projection Model <span className="proj-section__subtitle">$ millions</span></p>
         <div className="revenue-table-wrap">
           <table className="revenue-table">
             <thead>
@@ -456,6 +462,10 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Less: Operating Expenses</td>
                 {projOpEx.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
+              </tr>
+              <tr className="revenue-row revenue-row--value">
+                <td className="revenue-table__row-label revenue-table__row-label--indent">Less: D&amp;A</td>
+                {projDA.map((v, i) => <td key={i} className="revenue-cell revenue-cell--projected">{fmtM(-v)}</td>)}
               </tr>
               <tr className="revenue-row revenue-row--subtotal">
                 <td className="revenue-table__row-label">EBIT</td>

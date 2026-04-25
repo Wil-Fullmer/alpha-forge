@@ -176,7 +176,7 @@ function CompsTables({ rows }) {
   );
 }
 
-export default function RelativeValuationTab({ company, analysis, onPricesChange }) {
+export default function RelativeValuationTab({ company, analysis, peers: peersProp, peersLoading, onPricesChange }) {
   const symbol = company?.symbol;
   const name = company?.companyName;
   const exchange = company?.exchange;
@@ -186,6 +186,7 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
   const dilutedSharesM = sharesRaw != null ? sharesRaw / 1e6 : null;
   const equityValueM = marketCap ? marketCap / 1e6 : null;
 
+  // Subject company financials from SEC-primary historicalFinancials
   const incomeStmt = analysis?.historicalFinancials?.incomeStatements?.[0];
   const balanceSheet = analysis?.historicalFinancials?.balanceSheets?.[0];
 
@@ -201,7 +202,8 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
   const evEbitda = (enterpriseValueM && ebitda) ? enterpriseValueM / ebitda : null;
   const pe = (equityValueM && netIncome) ? equityValueM / netIncome : null;
 
-  const peers = analysis?.peers ?? [];
+  // Use live peers from dedicated endpoint if available; fall back to analysis fixture peers
+  const peers = peersProp ?? analysis?.peers ?? [];
 
   function calcStats(getMultiple) {
     const allValues = peers
@@ -337,7 +339,10 @@ export default function RelativeValuationTab({ company, analysis, onPricesChange
           <h2 className="rv-section__title">Relative Valuation for {symbol || '—'}</h2>
           <p className="rv-section__subtitle">Subject company benchmarked against peer multiples</p>
           <CompsTables rows={[subjectRow]} />
-          <p className="rv-placeholder-note">No peer data available. Populate analysis.peers to enable full comps analysis.</p>
+          {peersLoading
+            ? <p className="rv-placeholder-note rv-placeholder-note--loading">Loading peer data&hellip;</p>
+            : <p className="rv-placeholder-note">No peer data available for this ticker.</p>
+          }
         </div>
 
         <div className="rv-section">

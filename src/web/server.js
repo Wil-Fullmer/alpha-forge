@@ -1,4 +1,4 @@
-import '../utils/env.js'
+﻿import '../utils/env.js'
 import http from 'http'
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
@@ -7,6 +7,7 @@ import logger from '../utils/logger.js'
 import { normalizeTicker, validateTicker } from '../utils/validation.js'
 import { getCompanyProfile } from '../services/financialData.js'
 import { runFullAnalysis } from '../services/analysisRunner.js'
+import { assemblePeers } from '../services/dataAssembler.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = resolve(__dirname, '../../data')
@@ -48,9 +49,9 @@ async function getOrRunAnalysis(ticker, force) {
           logger.info(`Serving analysis for ${ticker} from disk (age: ${Math.round(age / 60000)}m)`)
           return cached
         }
-        logger.info(`Analysis file for ${ticker} is stale (age: ${Math.round(age / 60000)}m) — rerunning`)
+        logger.info(`Analysis file for ${ticker} is stale (age: ${Math.round(age / 60000)}m) â€” rerunning`)
       } catch {
-        logger.warn(`Could not parse cached analysis for ${ticker} — rerunning`)
+        logger.warn(`Could not parse cached analysis for ${ticker} â€” rerunning`)
       }
     }
   }
@@ -73,7 +74,7 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname
 
   try {
-    // Route: GET / — landing page
+    // Route: GET / â€” landing page
     if (pathname === '/') {
       res.setHeader('Content-Type', 'text/html')
       res.writeHead(200)
@@ -88,7 +89,7 @@ const server = http.createServer(async (req, res) => {
 <a href="/api/analysis/AAPL">AAPL Analysis JSON</a>
 </div></body></html>`)
     }
-    // Route: GET /dashboard/:ticker — serve HTML dashboard
+    // Route: GET /dashboard/:ticker â€” serve HTML dashboard
     else if (pathname.match(/^\/dashboard\/[^/]+$/)) {
       const ticker = normalizeTicker(pathname.split('/')[2])
       if (!validateTicker(ticker)) {
@@ -108,7 +109,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200)
       res.end(readFileSync(file, 'utf8'))
     }
-    // Route: GET /report/:ticker — serve Markdown report as HTML
+    // Route: GET /report/:ticker â€” serve Markdown report as HTML
     else if (pathname.match(/^\/report\/[^/]+$/)) {
       const ticker = normalizeTicker(pathname.split('/')[2])
       if (!validateTicker(ticker)) {
@@ -183,6 +184,20 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200)
       res.end(JSON.stringify({ ticker: data.ticker, coreMetrics: data.coreMetrics, flags: data.flags }))
     }
+    // Route: GET /api/peers/:ticker
+    else if (pathname.match(/^\/api\/peers\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[3])
+      if (!validateTicker(ticker)) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid ticker format' }))
+        return
+      }
+      const force = url.searchParams.get('force') === 'true'
+      logger.info(`Web request for peers: ${ticker}${force ? ' (force)' : ''}`)
+      const peers = await assemblePeers(ticker, { force })
+      res.writeHead(200)
+      res.end(JSON.stringify({ ticker, peers }))
+    }
     // Route: GET /health
     else if (pathname === '/health') {
       res.writeHead(200)
@@ -195,7 +210,7 @@ const server = http.createServer(async (req, res) => {
     }
   } catch (error) {
     // TODO: /dashboard/:ticker and /report/:ticker pre-route 400s use text/plain, but errors
-    // thrown from those routes fall through here and return JSON — minor UX inconsistency.
+    // thrown from those routes fall through here and return JSON â€” minor UX inconsistency.
     const { status, type, error: msg } = mapErrorToHttp(error)
     logger.error(`[${status}] ${type}: ${error.message}`)
     res.writeHead(status)
@@ -205,5 +220,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   logger.info(`Server running at http://${HOST}:${PORT}`)
-  console.log(`\n🚀 Server started on http://${HOST}:${PORT}`)
+  console.log(`\nðŸš€ Server started on http://${HOST}:${PORT}`)
 })
+
+

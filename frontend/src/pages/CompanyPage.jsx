@@ -24,7 +24,7 @@ const TABS = [
 ];
 
 export default function CompanyPage({ ticker = 'AAPL' }) {
-  const { company, analysis, loading, error } = useCompanyPage(ticker);
+  const { company, analysis, peers, peersLoading, loading, error } = useCompanyPage(ticker);
   const [activeTab, setActiveTab] = useState('assumptions');
   const [waccOverride, setWaccOverride] = useState(null);
   const [waccModel, setWaccModel] = useState(null);
@@ -83,7 +83,7 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
           <DcfTab company={company} analysis={analysis} waccOverride={waccOverride} waccModel={waccModel} onPricesChange={handleDcfPricesChange} />
         </div>
         <div style={{ display: activeTab === 'relative-valuation' ? 'block' : 'none' }}>
-          <RelativeValuationTab company={company} analysis={analysis} onPricesChange={handleRvPricesChange} />
+          <RelativeValuationTab company={company} analysis={analysis} peers={peers} peersLoading={peersLoading} onPricesChange={handleRvPricesChange} />
         </div>
 
         {/* Active tab panel — all other tabs, keyed for fade-in animation */}

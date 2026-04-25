@@ -64,6 +64,73 @@ function WeightingTable({ title, subtitle, dcfLabel, dcfPrice, rvLabel, rvPrice,
   );
 }
 
+function AnalystConsensusPanel({ consensus, targets }) {
+  // Prefer Finnhub consensus; fall back to legacy individual targets table
+  if (consensus && (consensus.totalAnalysts ?? 0) > 0) {
+    const { buy, hold, sell, totalAnalysts, period } = consensus;
+
+    return (
+      <div className="fv-section">
+        <h2 className="fv-section__title">Analyst Consensus</h2>
+        <p className="fv-section__subtitle">
+          {totalAnalysts} analysts{period ? ` — ${period.slice(0, 7)}` : ''}
+        </p>
+        <div className="fv-consensus-bar">
+          {buy > 0  && <div className="fv-bar--buy"  style={{ flex: buy }}  title={`Buy: ${buy}`}>{buy}</div>}
+          {hold > 0 && <div className="fv-bar--hold" style={{ flex: hold }} title={`Hold: ${hold}`}>{hold}</div>}
+          {sell > 0 && <div className="fv-bar--sell" style={{ flex: sell }} title={`Sell: ${sell}`}>{sell}</div>}
+        </div>
+        <p className="fv-consensus-legend">
+          <span className="fv-legend--buy">■ Buy ({buy})</span>{' '}
+          <span className="fv-legend--hold">■ Hold ({hold})</span>{' '}
+          <span className="fv-legend--sell">■ Sell ({sell})</span>
+        </p>
+      </div>
+    );
+  }
+
+  // Legacy fallback: individual targets table
+  if (targets && targets.length > 0) {
+    return (
+      <div className="fv-section">
+        <h2 className="fv-section__title">Analyst Price Targets</h2>
+        <p className="fv-section__subtitle">Third-party targets sorted by most recent publication date</p>
+        <div className="fv-table-scroll">
+          <table className="fv-table">
+            <thead>
+              <tr>
+                <th>Analyst / Firm</th>
+                <th className="fv-cell--num">Target Price</th>
+                <th>Rating</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {targets.map((t, i) => (
+                <tr key={i}>
+                  <td>{[t.analystName, t.firm].filter(Boolean).join(' / ') || '—'}</td>
+                  <td className="fv-cell--num">{t.priceTarget != null ? `$${Number(t.priceTarget).toFixed(2)}` : '—'}</td>
+                  <td>{t.rating || '—'}</td>
+                  <td>{fmtDate(t.publishedDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fv-section">
+      <h2 className="fv-section__title">Analyst Consensus</h2>
+      <p className="fv-placeholder-note">
+        Add <code>FINNHUB_API_KEY</code> to <code>.env</code> to enable analyst consensus (free at finnhub.io).
+      </p>
+    </div>
+  );
+}
+
 export default function FinalValuationTab({ analysis, company, dcfPrices, rvPrices, dcfWeight, onDcfWeightChange }) {
   const rvWeight = 1 - dcfWeight;
 
@@ -217,37 +284,9 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
         )}
       </div>
 
-      {/* Analyst Price Targets */}
-      <div className="fv-section">
-        <h2 className="fv-section__title">Analyst Price Targets</h2>
-        <p className="fv-section__subtitle">Third-party consensus targets sorted by most recent publication date</p>
-        {sortedTargets && sortedTargets.length > 0 ? (
-          <div className="fv-table-scroll">
-            <table className="fv-table">
-              <thead>
-                <tr>
-                  <th>Analyst / Firm</th>
-                  <th className="fv-cell--num">Target Price</th>
-                  <th>Rating</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTargets.map((t, i) => (
-                  <tr key={i}>
-                    <td>{[t.analystName, t.firm].filter(Boolean).join(' / ') || '—'}</td>
-                    <td className="fv-cell--num">{t.priceTarget != null ? `$${Number(t.priceTarget).toFixed(2)}` : '—'}</td>
-                    <td>{t.rating || '—'}</td>
-                    <td>{fmtDate(t.publishedDate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="fv-placeholder-note">No analyst targets available for this ticker.</p>
-        )}
-      </div>
+      {/* Analyst Consensus */}
+      <AnalystConsensusPanel consensus={analysis?.analystConsensus} targets={sortedTargets} />
+
 
       <FlagsPanel analysis={analysis} />
     </div>

@@ -1,7 +1,7 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-08
+> Current date: 2026-04-24
 
 
 
@@ -11,14 +11,15 @@
 ## Current Status
 
 Live app working end-to-end on `live-app-v1` branch. Backend serves real FMP + SEC EDGAR data
-for any ticker. Frontend workbench shows 7 years of historical actuals (FY2019–FY2025) followed
-by 5 projection years (FY2026–FY2030). PROJ_COUNT aligned at 5 across all tabs and
-AssumptionsContext. `mergeStatements` sort bug fixed — FMP-only recent years (e.g. FY2024/2025
-not yet reflected in SEC EDGAR's `endDate`) now correctly sort to the front after merge. Revenue
-Trend chart bars now visible (gold fill applied directly on Bar element).
+for any ticker. Frontend workbench fully functional across all 7 tabs. Peer pipeline working
+end-to-end (9 live peers for AAPL via FMP + SEC EDGAR enrichment). Finnhub analyst consensus
+live (54 analysts, 37 buy/15 hold/2 sell for AAPL). DCF FCFF/FCFE calculations verified and
+reconciling. Final Valuation blending FCFE and FCFF weighted outputs correctly.
 
-Outstanding issues on `live-app-v1`: RV screen data/layout problems; chart rendering issues;
-DCF tab FCFF/FCFE calculations not correct; Final Valuation tab cascading from DCF errors.
+Visual pass complete (2026-04-24): CompanyOverview description toggle wired; CSS design token
+unification across rv-* and fv-* sections; analyst consensus bar upgraded to use design system
+colors; undefined CSS tokens fixed (--color-text, --color-gold); DCF projection table labeled
+"$ millions"; peer data pipeline verified end-to-end.
 
 Landing screen + SEC/EDGAR integration complete (2026-04-08). Historical data pipeline now
 fetches 7 years from FMP and SEC EDGAR (limit:7 / slice(0,7)), with newest-first sort after
@@ -89,10 +90,12 @@ model accuracy, and Final Valuation tab.
 - [x] **Fix Revenue Trend chart missing bars**: `defaultOpen={true}` + `fill` on Bar element
 - [x] **Fix FY2024/FY2025 missing actuals**: FMP limit 5→7, slice(0,5)→slice(0,7) in analysisRunner + secEdgar; fixed `mergeStatements` sort to put FMP-only newer years at the front
 - [x] **Create `live-app-v1` branch**: ongoing live-app work lives here
-- [ ] **Fix RV tab**: data issues and layout problems in RelativeValuationTab
-- [ ] **Fix chart rendering**: chart display issues across tabs
-- [ ] **Fix DCF FCFF/FCFE**: calculation accuracy in DcfTab
-- [ ] **Fix Final Valuation tab**: cascading from DCF FCFF/FCFE fix
+- [x] **Fix RV tab peer pipeline**: FMP stock-peers endpoint (underscore→hyphen), SEC EDGAR enrichment per peer, /api/peers/:ticker backend route
+- [x] **Fix DCF FCFF/FCFE**: projCOGS/projGP/projOpEx now from ProjectedValuesContext; D&A row added to IS bridge; FCFF/FCFE reconciling
+- [x] **Fix Final Valuation tab**: Finnhub analyst consensus replaces broken FMP price-target; buy/hold/sell bar rendering correctly
+- [x] **Visual cleanup pass**: description toggle, CSS token unification, consensus bar colors, $ millions label
+- [ ] **Fix chart rendering**: chart display issues across Projections tab (some bars/lines still off)
+- [ ] **Assumptions tab**: expose all valuation controls (tax rate, WACC inputs, growth overrides)
 
 ---
 

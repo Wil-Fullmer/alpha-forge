@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
 import { assembleData } from './dataAssembler.js'
 import { getAnalystTargets } from './financialData.js'
+import { getAnalystConsensus } from './finnhub.js'
 import {
   calculateSharpeRatio,
   calculateROE,
@@ -184,9 +185,10 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   logger.info(`Starting full analysis for ${ticker}${force ? ' (force refresh)' : ''}`)
 
   // ── 1. Assemble normalized data ────────────────────────────────────────────
-  const [bundle, analystTargets] = await Promise.all([
+  const [bundle, analystTargets, analystConsensus] = await Promise.all([
     assembleData(ticker, { force }),
     getAnalystTargets(ticker, force),
+    getAnalystConsensus(ticker, force),
   ])
   const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers } = bundle
   const flags = [...bundle.flags]  // copy so calculation flags can be appended
@@ -388,6 +390,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     lastFilingDate: incomeStatements[0]?.date ?? null,
     peers: enrichPeersWithMultiples(rawPeers),
     analystTargets,
+    analystConsensus,
     flags,
     metadata
   }
