@@ -187,6 +187,19 @@ function pickBestConcept(gaap, concepts) {
 }
 
 /**
+ * Extract shares outstanding from the DEI namespace.
+ * dei:EntityCommonStockSharesOutstanding is filed on the 10-K cover page for every company,
+ * making it the most reliable shares source when FMP profile data is missing.
+ */
+function extractDeiShares(facts) {
+  const entries = facts?.['dei']?.EntityCommonStockSharesOutstanding?.units?.shares
+  if (!Array.isArray(entries)) return null
+  const tenK = entries.filter(e => e.form === '10-K' && e.filed)
+  if (!tenK.length) return null
+  return tenK.sort((a, b) => b.filed.localeCompare(a.filed))[0]?.val ?? null
+}
+
+/**
  * Build a map of fiscal-period rows from XBRL company facts.
  * Returns an array of rows (newest first, max 7), each keyed by our field names.
  */
@@ -231,14 +244,15 @@ export async function getEdgarFinancials(ticker, { force = false } = {}) {
 
     const facts = await fetchCompanyFacts(ticker, cik, force)
     const annualRows = extractAnnualData(facts?.facts)
+    const sharesOutstanding = extractDeiShares(facts?.facts)
 
-    if (annualRows.length === 0) {
+    if (annualRows.length === 0 && sharesOutstanding == null) {
       logger.warn(`[SEC] No annual 10-K data extracted for ${ticker}`)
       return null
     }
 
-    logger.info(`[SEC] Extracted ${annualRows.length} annual rows for ${ticker}`)
-    return { annualRows }
+    logger.info(`[SEC] Extracted ${annualRows.length} annual rows for ${ticker}${sharesOutstanding ? ` + DEI shares (${(sharesOutstanding/1e6).toFixed(1)}M)` : ''}`)
+    return { annualRows, sharesOutstanding }
   } catch (err) {
     logger.warn(`[SEC] Failed to fetch EDGAR data for ${ticker}: ${err.message}`)
     return null

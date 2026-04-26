@@ -44,6 +44,7 @@ import {
   normalizeSecCashFlow,
 } from './normalizers/sec.js'
 import { getEdgarFinancials } from './secEdgar.js'
+import { getFinnhubBasicFinancials } from './finnhub.js'
 
 const DATA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../data')
 
@@ -143,6 +144,7 @@ export async function assembleData(ticker, { force = false } = {}) {
     getQuote(ticker, force),                                                    // 5
     collected ? Promise.resolve(null) : getPeers(ticker, force),               // 6
     getEdgarFinancials(ticker, { force }),                                      // 7 — always: SEC is free/cached
+    getFinnhubBasicFinancials(ticker, force),                                   // 8 — balance sheet fallback
   ])
 
   let dataSource = collected ? 'pre_collected' : 'fmp_only'
@@ -164,7 +166,12 @@ export async function assembleData(ticker, { force = false } = {}) {
     // Merge SEC data over FMP where available
     const secFetch = fetches[7]
     if (secFetch?.status === 'fulfilled' && secFetch.value) {
-      const { annualRows } = secFetch.value
+      const { annualRows, sharesOutstanding: deiShares } = secFetch.value
+      // DEI shares are more reliable than FMP profile for sparse-plan tickers
+      if (deiShares != null && profile.sharesOutstanding == null) {
+        profile = { ...profile, sharesOutstanding: deiShares }
+        logger.info(`[assembler] sharesOutstanding from SEC DEI for ${ticker}: ${(deiShares/1e6).toFixed(1)}M`)
+      }
       const secIncome  = normalizeSecIncomeStatement(annualRows)
       const secBalance = normalizeSecBalanceSheet(annualRows)
       const secCash    = normalizeSecCashFlow(annualRows)
@@ -198,7 +205,10 @@ export async function assembleData(ticker, { force = false } = {}) {
     // SEC wins on non-null fields; pre-collected FMP data fills the rest
     const secFetch = fetches[7]
     if (secFetch?.status === 'fulfilled' && secFetch.value) {
-      const { annualRows } = secFetch.value
+      const { annualRows, sharesOutstanding: deiShares } = secFetch.value
+      if (deiShares != null && profile?.sharesOutstanding == null) {
+        profile = { ...profile, sharesOutstanding: deiShares }
+      }
       const secIncome  = normalizeSecIncomeStatement(annualRows)
       const secBalance = normalizeSecBalanceSheet(annualRows)
       const secCash    = normalizeSecCashFlow(annualRows)
@@ -213,9 +223,10 @@ export async function assembleData(ticker, { force = false } = {}) {
     }
   }
 
-  const historicalPrices = fetches[4].status === 'fulfilled' ? fetches[4].value : []
-  const quote            = fetches[5].status === 'fulfilled' ? fetches[5].value : null
-  const peers            = fetches[6]?.status === 'fulfilled' ? (fetches[6].value ?? []) : []
+  const historicalPrices  = fetches[4].status === 'fulfilled' ? fetches[4].value : []
+  const quote             = fetches[5].status === 'fulfilled' ? fetches[5].value : null
+  const peers             = fetches[6]?.status === 'fulfilled' ? (fetches[6].value ?? []) : []
+  const finnhubMetrics    = fetches[8]?.status === 'fulfilled' ? fetches[8].value : null
   if (fetches[4].status === 'rejected') flags.push(`Historical prices fetch failed: ${fetches[4].reason?.message}`)
   if (fetches[5].status === 'rejected') flags.push(`Quote fetch failed: ${fetches[5].reason?.message}`)
   if (fetches[6]?.status === 'rejected') flags.push(`Peers fetch failed: ${fetches[6].reason?.message}`)
@@ -228,6 +239,7 @@ export async function assembleData(ticker, { force = false } = {}) {
     historicalPrices,
     quote,
     peers,
+    finnhubMetrics,
     flags,
     metadata: {
       dataSource,

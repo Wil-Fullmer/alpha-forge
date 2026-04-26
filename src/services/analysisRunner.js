@@ -190,7 +190,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     getAnalystTargets(ticker, force),
     getAnalystConsensus(ticker, force),
   ])
-  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers } = bundle
+  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers, finnhubMetrics } = bundle
   const flags = [...bundle.flags]  // copy so calculation flags can be appended
   const metadata = bundle.metadata
 
@@ -205,6 +205,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   const totalDebt = latestBalance.totalDebt ?? null
   const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
     ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
+    ?? (profile?.marketCap && currentPrice ? Math.round(profile.marketCap / currentPrice) : null)
   const eps = quote?.eps ?? latestIncome.eps
     ?? (netIncome != null && sharesOutstanding != null ? netIncome / sharesOutstanding : null)
 
@@ -232,9 +233,35 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   // ── 3. DCF Valuation ───────────────────────────────────────────────────────
   const latestCF = cashFlows[0] ?? {}
   const freeCashFlow = latestCF.freeCashFlow ?? null
-  const netDebt = (totalDebt ?? 0) - (latestBalance.cashAndCashEquivalents ?? 0)
-  if (totalDebt == null) flags.push('Net debt: totalDebt missing from balance sheet, assumed 0')
-  if (latestBalance.cashAndCashEquivalents == null) flags.push('Net debt: cash missing from balance sheet, assumed 0')
+
+  // Net debt: prefer balance sheet; fall back to Finnhub EV−mktCap when balance sheet is empty
+  let netDebt, netDebtSource
+  if (totalDebt != null) {
+    netDebt = totalDebt - (latestBalance.cashAndCashEquivalents ?? 0)
+    netDebtSource = 'balance_sheet'
+    if (latestBalance.cashAndCashEquivalents == null) flags.push('Net debt: cash missing from balance sheet, assumed 0')
+  } else if (finnhubMetrics?.netDebt != null) {
+    netDebt = finnhubMetrics.netDebt
+    netDebtSource = 'finnhub_ev'
+    flags.push(`Net debt sourced from Finnhub (EV − market cap): $${(netDebt / 1e6).toFixed(0)}M — balance sheet unavailable`)
+  } else {
+    netDebt = 0
+    netDebtSource = 'assumed_zero'
+    flags.push('⚠ Net debt: no balance sheet or Finnhub data — assumed 0, intrinsic value likely overstated')
+  }
+
+  // Estimated total debt for WACC capital structure when balance sheet is missing
+  // Derived from Finnhub D/E ratio × book equity (approximate)
+  let balanceSheetsForWacc = balanceSheets
+  if (totalDebt == null && finnhubMetrics?.deRatioAndBvps != null && sharesOutstanding != null) {
+    const { deRatio, bvps } = finnhubMetrics.deRatioAndBvps
+    const estimatedTotalDebt = deRatio * bvps * sharesOutstanding
+    const estimatedEquity    = bvps * sharesOutstanding
+    balanceSheetsForWacc = [{ totalDebt: estimatedTotalDebt, totalStockholdersEquity: estimatedEquity }]
+    flags.push(`WACC: balance sheet missing — debt weight estimated from Finnhub D/E ratio (${(deRatio * 100).toFixed(1)}%)`)
+  } else if (totalDebt == null && finnhubMetrics == null) {
+    flags.push('⚠ WACC: no balance sheet or Finnhub data — assumes all-equity, intrinsic value likely overstated')
+  }
 
   const { growthRate, source: growthRateSource } = deriveGrowthRate(incomeStatements)
 
@@ -247,7 +274,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     currentPrice,
   }
 
-  const waccEst = estimateWACC(profile, balanceSheets, incomeStatements, currentPrice, sharesOutstanding, derivedRatios)
+  const waccEst = estimateWACC(profile, balanceSheetsForWacc, incomeStatements, currentPrice, sharesOutstanding, derivedRatios)
 
   let dcfResult = { intrinsicValuePerShare: null, projectedFCFs: [], terminalValue: null, enterpriseValue: null }
   if (freeCashFlow !== null && freeCashFlow < 0) {

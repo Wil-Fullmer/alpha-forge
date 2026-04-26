@@ -1,15 +1,15 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-26
+> Current date: 2026-04-26 (updated)
 
 ---
 
 ## Current Status
 
-Live app on `live-app-v1`. All 7 workbench tabs functional. Backend serves real FMP + SEC EDGAR
-data for any ticker, including telecoms (VZ, T). DCF and P/E now work for FMP-restricted tickers
-via SEC EDGAR capex fallbacks and derived EPS. Unit tests passing. Ready for public launch.
+Live app on `live-app-v1`. All 7 workbench tabs functional. Valuation pipeline hardened for
+FMP-restricted tickers: SEC EDGAR capex fallbacks, DEI shares, Finnhub balance sheet fallback,
+WACC guard rails. MXL DCF/WACC/net debt now accurate. Unit tests passing.
 
 ---
 
@@ -27,7 +27,14 @@ via SEC EDGAR capex fallbacks and derived EPS. Unit tests passing. Ready for pub
 
 ### BACKLOG
 
-— empty —
+- **AV key setup** — Add `AV_API_KEY` to `.env` to enable price history + technicals for
+  FMP-restricted tickers (Sharpe, MA50/200, RSI currently null for non-flagship tickers).
+  AV fallback is already wired in `financialData.js` — just needs the key.
+
+- **Null-line UI notes** — When a workbench cell is null due to a known data gap, show an
+  inline note on that line explaining why (e.g. "No price data — configure AV key" on Sharpe
+  ratio row; "Balance sheet unavailable via SEC EDGAR" on D/E row). Currently shows blank/N/A
+  with no context. Flags panel exists but users miss the connection to specific cells.
 
 ---
 
