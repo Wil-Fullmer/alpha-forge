@@ -22,16 +22,16 @@ export function useCompanyPage(ticker) {
 
     setState({ company: null, analysis: null, peers: null, peersLoading: true, loading: true, error: null });
 
-    Promise.all([fetchCompany(ticker), fetchAnalysis(ticker)])
-      .then(([company, analysis]) => {
-        if (!cancelled) {
-          setState(s => ({ ...s, company, analysis, loading: false, error: null }));
+    Promise.allSettled([fetchCompany(ticker), fetchAnalysis(ticker)])
+      .then(([companyResult, analysisResult]) => {
+        if (cancelled) return;
+        // Analysis failure is fatal (no data to show); profile failure is soft (renders without header data).
+        if (analysisResult.status === 'rejected') {
+          setState(s => ({ ...s, loading: false, error: analysisResult.reason?.message ?? 'Analysis failed' }));
+          return;
         }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setState(s => ({ ...s, loading: false, error: err.message }));
-        }
+        const company = companyResult.status === 'fulfilled' ? companyResult.value : null;
+        setState(s => ({ ...s, company, analysis: analysisResult.value, loading: false, error: null }));
       });
 
     // Peers load independently — updates state when resolved, regardless of analysis timing.

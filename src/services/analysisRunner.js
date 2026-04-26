@@ -194,7 +194,11 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   const flags = [...bundle.flags]  // copy so calculation flags can be appended
   const metadata = bundle.metadata
 
-  const currentPrice = quote?.price ?? profile?.price ?? null
+  const _derivedPrice =
+    (profile?.marketCap && profile?.sharesOutstanding ? profile.marketCap / profile.sharesOutstanding : null)
+    ?? (profile?.eps && profile?.pe ? profile.eps * profile.pe : null)
+  const currentPrice = quote?.price ?? profile?.price ?? _derivedPrice ?? null
+  if (currentPrice != null && !quote?.price && !profile?.price) flags.push(`Current price derived from profile data ($${currentPrice.toFixed(2)}) — live quote unavailable`)
   if (quote == null && profile?.price != null) flags.push('Current price sourced from profile (quote unavailable)')
 
   // ── 2. Core Metrics ────────────────────────────────────────────────────────

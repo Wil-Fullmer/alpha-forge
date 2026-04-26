@@ -20,7 +20,9 @@ function mapErrorToHttp(error) {
     msg.startsWith('FMP_RATE_LIMITED') ||
     msg.startsWith('FMP_AUTH_FAILED') ||
     msg.startsWith('FMP_PLAN_RESTRICTED') ||
-    msg.startsWith('FMP_API_ERROR')
+    msg.startsWith('FMP_API_ERROR') ||
+    msg.startsWith('AV_ALL_KEYS_EXHAUSTED') ||
+    msg.startsWith('FMP_NO_KEYS')
   )
     return { status: 503, type: 'PROVIDER_ERROR', error: 'Financial data provider is temporarily unavailable' }
   return { status: 500, type: 'INTERNAL', error: 'An unexpected server error occurred' }

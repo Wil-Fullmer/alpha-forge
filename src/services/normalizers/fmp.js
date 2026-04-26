@@ -47,6 +47,7 @@ export function normalizeProfile(raw) {
 export function normalizeIncomeStatement(raw) {
   return (Array.isArray(raw) ? raw : []).map(d => ({
     date:              d.date ?? null,
+    reportedCurrency:  d.reportedCurrency ?? null,
     revenue:           toNum(d.revenue),
     netIncome:         toNum(d.netIncome),
     grossProfit:       toNum(d.grossProfit),
@@ -74,6 +75,7 @@ export function normalizeIncomeStatement(raw) {
 export function normalizeBalanceSheet(raw) {
   return (Array.isArray(raw) ? raw : []).map(d => ({
     date:                    d.date ?? null,
+    reportedCurrency:        d.reportedCurrency ?? null,
     totalAssets:             toNum(d.totalAssets),
     totalLiabilities:        toNum(d.totalLiabilities),
     totalStockholdersEquity: toNum(d.totalStockholdersEquity),
@@ -102,6 +104,7 @@ export function normalizeCashFlow(raw) {
       : (operating != null && capex != null ? operating + capex : null)
     return {
       date:               d.date ?? null,
+      reportedCurrency:   d.reportedCurrency ?? null,
       operatingCashFlow:  operating,
       capitalExpenditure: capex,
       freeCashFlow:       fcf,

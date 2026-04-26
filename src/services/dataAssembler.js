@@ -170,11 +170,19 @@ export async function assembleData(ticker, { force = false } = {}) {
   if (!collected) {
     const [pFetch, iFetch, bFetch, cFetch] = fetches
 
-    // Surface profile failures — rejection means provider error; empty result means unknown ticker
-    if (pFetch.status === 'rejected') throw pFetch.reason
-    const profileData = pFetch.value ?? []
-    if (profileData.length === 0) throw new Error(`TICKER_NOT_FOUND: No company data found for "${ticker}"`)
-    profile = profileData[0]
+    // Surface profile failures — unknown ticker is fatal; provider error is degraded (proceed with minimal profile)
+    if (pFetch.status === 'rejected') {
+      const reason = pFetch.reason?.message ?? String(pFetch.reason)
+      const isApiLimit = reason.includes('EXHAUSTED') || reason.includes('AUTH_FAILED') || reason.includes('RATE_LIMITED') || reason.includes('PLAN_RESTRICTED') || reason.includes('NO_KEYS')
+      if (!isApiLimit) throw pFetch.reason  // TICKER_NOT_FOUND, network errors → still fatal
+      flags.push(`Profile unavailable (${reason}) — analysis proceeds with limited data`)
+      logger.warn(`[assembler] Profile fetch failed for ${ticker}: ${reason} — continuing with null profile`)
+      profile = { symbol: ticker, companyName: ticker, currency: 'USD' }
+    } else {
+      const profileData = pFetch.value ?? []
+      if (profileData.length === 0) throw new Error(`TICKER_NOT_FOUND: No company data found for "${ticker}"`)
+      profile = profileData[0]
+    }
 
     // Normalize FMP financial statements
     const fmpIncome  = iFetch.status === 'fulfilled' ? normalizeIncomeStatement(iFetch.value ?? []) : []
@@ -193,6 +201,9 @@ export async function assembleData(ticker, { force = false } = {}) {
       if (isIfrs) {
         // IFRS filer — financials from FMP only; flag for downstream
         flags.push('Foreign filer (IFRS/20-F): SEC financial data unavailable — financial statements sourced from FMP only')
+        if (iFetch.status === 'rejected') flags.push(`Income statement unavailable: ${iFetch.reason?.message}`)
+        if (bFetch.status === 'rejected') flags.push(`Balance sheet unavailable: ${bFetch.reason?.message}`)
+        if (cFetch.status === 'rejected') flags.push(`Cash flow unavailable: ${cFetch.reason?.message}`)
         incomeStatements = fmpIncome
         balanceSheets    = fmpBalance
         cashFlows        = fmpCash
@@ -258,9 +269,15 @@ export async function assembleData(ticker, { force = false } = {}) {
   if (fetches[5].status === 'rejected') flags.push(`Quote fetch failed: ${fetches[5].reason?.message}`)
   if (fetches[6]?.status === 'rejected') flags.push(`Peers fetch failed: ${fetches[6].reason?.message}`)
 
-  // Currency normalization: if the company reports in non-USD, convert all
-  // monetary statement fields to USD using the current spot rate.
-  const reportingCurrency = profile?.currency ?? 'USD'
+  // Currency normalization: use the statement-level reportedCurrency if available,
+  // since profile.currency reflects the ADR trading currency (always USD for NYSE ADRs)
+  // rather than the company's actual reporting currency (e.g. TWD for TSM).
+  const statementCurrency =
+    incomeStatements[0]?.reportedCurrency ??
+    cashFlows[0]?.reportedCurrency ??
+    balanceSheets[0]?.reportedCurrency ??
+    null
+  const reportingCurrency = statementCurrency ?? (profile?.currency !== 'USD' ? profile?.currency : null) ?? 'USD'
   if (reportingCurrency && reportingCurrency !== 'USD') {
     const fxRate = await getExchangeRate(reportingCurrency, 'USD')
     if (fxRate) {

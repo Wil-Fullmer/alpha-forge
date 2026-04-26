@@ -101,6 +101,7 @@ async function doFetch(url, params) {
  * Propagates non-auth errors immediately.
  */
 async function fetchWithKeyRotation(requestFn) {
+  if (API_KEYS.length === 0) throw new Error('FMP_NO_KEYS: No FMP API key configured. Set FMP_API_KEY in .env')
   let lastErr
   for (let i = 0; i < API_KEYS.length; i++) {
     try {

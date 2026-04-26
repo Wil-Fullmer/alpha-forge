@@ -38,7 +38,7 @@ function seedFromAnalysis(analysis, company) {
   const seedDA            = dr.daPct          ?? safeDiv(last.depreciationAmort, rev) ?? 0.03;
   const seedNetInterestPct = rev > 0 ? (last.netInterestIncome ?? 0) / rev : 0;
   const seedOtherIncomePct = rev > 0 ? (last.otherIncomeExpense ?? 0) / rev : 0;
-  const seedCapex         = dr.capexPct ?? (lastCF.capitalExpenditure != null
+  const seedCapex         = dr.capexPct ?? (last.revenue != null && lastCF.capitalExpenditure != null
     ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03);
   const nwcLast           = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
   const seedNWC           = dr.nwcPct ?? (last.revenue ? nwcLast / last.revenue : 0.05);

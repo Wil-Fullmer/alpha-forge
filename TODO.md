@@ -7,12 +7,12 @@
 
 ## Current Status
 
-Live app on `live-app-v1`. All 7 workbench tabs functional. Full multi-company hardening
-complete across 8 ticker types (small-cap, REIT, bank, foreign 20-F, IPO, pre-revenue,
-asset-light, holding company). Currency normalization for 20-F filers (TWD→USD via AV FX rate).
-Null-line UI notes shipped: `dataGaps` map wired backend→frontend, `?` badges on null cells.
-AV key rotation live. Unit tests passing. Technicals card wired into AssumptionsTab — degraded
-state shows "No price history — configure AV key" when AV is not configured.
+Live app on `live-app-v1`. All 7 workbench tabs functional. Full 12-ticker stress test complete
+(AAPL, NVDA, JPM, O, TSM, BRK-B, RDDT, MRNA, ABNB, SLAB, MXL, PLTR). Stress-test bugs fixed:
+TSM CAPEX % overflow (AssumptionsContext guard + IFRS failure flags + ADR reportedCurrency in
+normalizers), PLTR profile 500 now non-fatal (Promise.allSettled + AV exhaustion → 503).
+Profile failure graceful: analysis renders even without cached profile. AV exhaustion properly
+mapped to 503 (was 500 catch-all).
 
 ---
 
