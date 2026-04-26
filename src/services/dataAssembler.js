@@ -160,9 +160,6 @@ export async function assembleData(ticker, { force = false } = {}) {
     const fmpIncome  = iFetch.status === 'fulfilled' ? normalizeIncomeStatement(iFetch.value ?? []) : []
     const fmpBalance = bFetch.status === 'fulfilled' ? normalizeBalanceSheet(bFetch.value ?? []) : []
     const fmpCash    = cFetch.status === 'fulfilled' ? normalizeCashFlow(cFetch.value ?? []) : []
-    if (iFetch.status === 'rejected') flags.push(`Income statement fetch failed: ${iFetch.reason?.message}`)
-    if (bFetch.status === 'rejected') flags.push(`Balance sheet fetch failed: ${bFetch.reason?.message}`)
-    if (cFetch.status === 'rejected') flags.push(`Cash flow fetch failed: ${cFetch.reason?.message}`)
 
     // Merge SEC data over FMP where available
     const secFetch = fetches[7]
@@ -176,12 +173,19 @@ export async function assembleData(ticker, { force = false } = {}) {
       balanceSheets    = mergeStatements(secBalance, fmpBalance)
       cashFlows        = mergeStatements(secCash,    fmpCash)
       dataSource = 'sec_fmp'
+      // FMP statement failures are silently covered by SEC — log only
+      if (iFetch.status === 'rejected') logger.info(`[assembler] FMP income unavailable, covered by SEC: ${iFetch.reason?.message}`)
+      if (bFetch.status === 'rejected') logger.info(`[assembler] FMP balance unavailable, covered by SEC: ${bFetch.reason?.message}`)
+      if (cFetch.status === 'rejected') logger.info(`[assembler] FMP cash flow unavailable, covered by SEC: ${cFetch.reason?.message}`)
       logger.info(`[assembler] Financial statements: SEC primary + FMP fallback for ${ticker}`)
     } else {
-      // SEC unavailable — use FMP only
+      // SEC unavailable — use FMP only; surface any FMP failures to the user
       incomeStatements = fmpIncome
       balanceSheets    = fmpBalance
       cashFlows        = fmpCash
+      if (iFetch.status === 'rejected') flags.push(`Income statement fetch failed: ${iFetch.reason?.message}`)
+      if (bFetch.status === 'rejected') flags.push(`Balance sheet fetch failed: ${bFetch.reason?.message}`)
+      if (cFetch.status === 'rejected') flags.push(`Cash flow fetch failed: ${cFetch.reason?.message}`)
       if (secFetch?.status === 'rejected') {
         flags.push(`SEC EDGAR unavailable — using FMP only: ${secFetch.reason?.message}`)
       } else {
