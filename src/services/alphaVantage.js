@@ -8,7 +8,29 @@
  */
 
 import axios from 'axios'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const CACHE_DIR  = resolve(__dirname, '../../data/cache')
+const FX_TTL_MS  = 24 * 60 * 60 * 1000 // 1 day — FX rates are stable enough
+
+function readCache(key) {
+  const file = resolve(CACHE_DIR, `${key}.json`)
+  if (!existsSync(file)) return null
+  try {
+    const { data, cachedAt, ttlMs } = JSON.parse(readFileSync(file, 'utf8'))
+    if (Date.now() - cachedAt > ttlMs) return null
+    return data
+  } catch { return null }
+}
+
+function writeCache(key, data, ttlMs = FX_TTL_MS) {
+  if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
+  writeFileSync(resolve(CACHE_DIR, `${key}.json`), JSON.stringify({ data, cachedAt: Date.now(), ttlMs }))
+}
 
 const BASE_URL = 'https://www.alphavantage.co/query'
 
@@ -224,4 +246,29 @@ export async function fetchHistoricalPricesFromAV(ticker, days = 252) {
   const result = normalizeHistoricalPrices(raw, days)
   logger.info(`Alpha Vantage: ${result.length} historical prices for ${ticker}`)
   return result
+}
+
+/**
+ * Fetch the current spot exchange rate from→to (e.g. TWD→USD).
+ * Returns a number (units of `to` per 1 unit of `from`), or null on failure.
+ * Cached 24 hours per currency pair.
+ */
+export async function getExchangeRate(from, to) {
+  if (from === to) return 1
+  if (!AV_KEY) return null
+  const cacheKey = `fx-${from}-${to}`
+  const cached = readCache(cacheKey)
+  if (cached != null) return cached
+
+  try {
+    const d = await avGet({ function: 'CURRENCY_EXCHANGE_RATE', from_currency: from, to_currency: to })
+    const rate = parseNum(d?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'])
+    if (rate == null) return null
+    writeCache(cacheKey, rate, FX_TTL_MS)
+    logger.info(`[AV] Exchange rate ${from}→${to}: ${rate}`)
+    return rate
+  } catch (err) {
+    logger.warn(`[AV] Could not fetch ${from}→${to} exchange rate: ${err.message}`)
+    return null
+  }
 }

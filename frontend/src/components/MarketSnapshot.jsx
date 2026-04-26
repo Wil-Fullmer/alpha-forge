@@ -1,6 +1,7 @@
 import React from 'react';
 import { EM_DASH, formatPrice, formatMarketCap, formatFixed, formatDaysAgo, stalenessLevel } from '../utils/format.js';
 import Sparkline from './Sparkline.jsx';
+import DataGapNote from './DataGapNote.jsx';
 
 // Downsample to ~52 weekly points so the sparkline stays lean
 function buildPriceData(historicalPrices) {
@@ -15,6 +16,7 @@ function buildPriceData(historicalPrices) {
 export default function MarketSnapshot({ company, analysis }) {
   if (!company || !analysis) return null;
 
+  const gaps  = analysis.dataGaps ?? {};
   const price     = formatPrice(analysis.technicals?.currentPrice);
   const marketCap = formatMarketCap(company.marketCap);
   const beta      = formatFixed(company.beta, 3);
@@ -86,11 +88,15 @@ export default function MarketSnapshot({ company, analysis }) {
         </div>
         <div className="stat-grid__item">
           <dt className="stat-grid__label">P/E Ratio</dt>
-          <dd className="stat-grid__value stat-grid__value--tabular">{pe}</dd>
+          <dd className={`stat-grid__value stat-grid__value--tabular${pe === EM_DASH ? ' value--null' : ''}`}>
+            {pe}<DataGapNote reason={pe === EM_DASH ? gaps.peRatio : null} />
+          </dd>
         </div>
         <div className="stat-grid__item">
           <dt className="stat-grid__label">EPS</dt>
-          <dd className="stat-grid__value stat-grid__value--tabular">{eps}</dd>
+          <dd className={`stat-grid__value stat-grid__value--tabular${eps === EM_DASH ? ' value--null' : ''}`}>
+            {eps}<DataGapNote reason={eps === EM_DASH ? gaps.eps : null} />
+          </dd>
         </div>
       </dl>
     </section>

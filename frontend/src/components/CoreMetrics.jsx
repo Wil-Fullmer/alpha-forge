@@ -1,6 +1,7 @@
 import React from 'react';
 import { EM_DASH, formatPct } from '../utils/format.js';
 import Sparkline from './Sparkline.jsx';
+import DataGapNote from './DataGapNote.jsx';
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
@@ -47,7 +48,8 @@ const sparkLabelStyle = {
 export default function CoreMetrics({ analysis }) {
   if (!analysis) return null;
 
-  const m = analysis.coreMetrics ?? {};
+  const m    = analysis.coreMetrics ?? {};
+  const gaps = analysis.dataGaps ?? {};
 
   const roe = m.roe != null ? formatPct(m.roe, 2) : EM_DASH;
   const de  = m.debtToEquity != null ? formatPct(m.debtToEquity, 2) : EM_DASH;
@@ -64,11 +66,15 @@ export default function CoreMetrics({ analysis }) {
       <dl className="stat-grid">
         <div className="stat-grid__item">
           <dt className="stat-grid__label">Return on Equity (ROE)</dt>
-          <dd className={`stat-grid__value stat-grid__value--tabular${roe === EM_DASH ? ' value--null' : ''}`}>{roe}</dd>
+          <dd className={`stat-grid__value stat-grid__value--tabular${roe === EM_DASH ? ' value--null' : ''}`}>
+            {roe}<DataGapNote reason={roe === EM_DASH ? gaps.roe : null} />
+          </dd>
         </div>
         <div className="stat-grid__item">
           <dt className="stat-grid__label">Debt / Equity</dt>
-          <dd className={`stat-grid__value stat-grid__value--tabular${de === EM_DASH ? ' value--null' : ''}`}>{de}</dd>
+          <dd className={`stat-grid__value stat-grid__value--tabular${de === EM_DASH ? ' value--null' : ''}`}>
+            {de}<DataGapNote reason={de === EM_DASH ? gaps.debtToEquity : null} />
+          </dd>
         </div>
       </dl>
 

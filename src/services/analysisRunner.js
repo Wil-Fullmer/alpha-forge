@@ -389,6 +389,25 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     })
   }
 
+  // Build structured data-gap map: field → human-readable reason for null value.
+  // Frontend reads this to render inline notes next to N/A cells.
+  const noPrice = historicalPrices.length === 0
+  const noAV    = !finnhubMetrics && noPrice
+  const dataGaps = {}
+  if (coreMetrics.sharpeRatio == null) dataGaps.sharpeRatio = noPrice ? 'No price history — configure AV key' : 'Insufficient returns data'
+  if (coreMetrics.roe == null)         dataGaps.roe          = 'Missing net income or equity data'
+  if (coreMetrics.debtToEquity == null) dataGaps.debtToEquity = balanceSheets.length === 0 ? 'Balance sheet unavailable' : 'Missing debt or equity data'
+  if (coreMetrics.peRatio == null)     dataGaps.peRatio      = coreMetrics.eps == null ? 'No EPS data available' : 'No current price'
+  if (coreMetrics.eps == null)         dataGaps.eps          = 'EPS unavailable from all sources'
+  if (technicals.ma50 == null)         dataGaps.ma50         = noPrice ? 'No price history — configure AV key' : 'Insufficient price data (need 50 days)'
+  if (technicals.ma200 == null)        dataGaps.ma200        = noPrice ? 'No price history — configure AV key' : 'Insufficient price data (need 200 days)'
+  if (technicals.rsi14 == null)        dataGaps.rsi14        = noPrice ? 'No price history — configure AV key' : 'Insufficient price data (need 15 days)'
+  if (dcf.intrinsicValuePerShare == null) {
+    const dcfFlag = flags.find(f => f.startsWith('DCF skipped'))
+    dataGaps.dcf = dcfFlag ? dcfFlag.replace('DCF skipped: ', '') : 'DCF unavailable'
+  }
+  if (coreMetrics.debtToEquity == null && isReit) dataGaps.debtToEquity = 'REIT — uses leverage ratio, not D/E'
+
   const result = {
     ticker,
     derivedRatios,
@@ -444,6 +463,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     analystTargets,
     analystConsensus,
     flags,
+    dataGaps,
     metadata
   }
 

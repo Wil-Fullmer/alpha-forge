@@ -45,6 +45,24 @@ import {
 } from './normalizers/sec.js'
 import { getEdgarFinancials } from './secEdgar.js'
 import { getFinnhubBasicFinancials } from './finnhub.js'
+import { getExchangeRate } from './alphaVantage.js'
+
+// Fields that hold absolute monetary amounts (need FX conversion).
+// Per-share fields (eps, bvps) are intentionally excluded — they derive
+// from netIncome/shares and will correct automatically once income is converted.
+const INCOME_MONEY_FIELDS  = ['revenue','costOfRevenue','grossProfit','researchAndDev','sgaExpense','depreciationAmort','operatingIncome','ebitda','incomeBeforeTax','taxExpense','netIncome']
+const BALANCE_MONEY_FIELDS = ['totalCurrentAssets','totalCurrentLiabilities','totalDebt','cashAndCashEquivalents','netDebt','totalStockholdersEquity','totalAssets','totalLiabilities']
+const CASHFLOW_MONEY_FIELDS = ['operatingCashFlow','capitalExpenditure','freeCashFlow']
+
+function applyFxRate(rows, moneyFields, rate) {
+  return rows.map(row => {
+    const out = { ...row }
+    for (const f of moneyFields) {
+      if (out[f] != null) out[f] = out[f] * rate
+    }
+    return out
+  })
+}
 
 const DATA_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../data')
 
@@ -239,6 +257,22 @@ export async function assembleData(ticker, { force = false } = {}) {
   if (fetches[4].status === 'rejected') flags.push(`Historical prices fetch failed: ${fetches[4].reason?.message}`)
   if (fetches[5].status === 'rejected') flags.push(`Quote fetch failed: ${fetches[5].reason?.message}`)
   if (fetches[6]?.status === 'rejected') flags.push(`Peers fetch failed: ${fetches[6].reason?.message}`)
+
+  // Currency normalization: if the company reports in non-USD, convert all
+  // monetary statement fields to USD using the current spot rate.
+  const reportingCurrency = profile?.currency ?? 'USD'
+  if (reportingCurrency && reportingCurrency !== 'USD') {
+    const fxRate = await getExchangeRate(reportingCurrency, 'USD')
+    if (fxRate) {
+      incomeStatements = applyFxRate(incomeStatements, INCOME_MONEY_FIELDS,  fxRate)
+      balanceSheets    = applyFxRate(balanceSheets,    BALANCE_MONEY_FIELDS,  fxRate)
+      cashFlows        = applyFxRate(cashFlows,        CASHFLOW_MONEY_FIELDS, fxRate)
+      flags.push(`Financial statements converted from ${reportingCurrency} to USD (rate: ${fxRate.toFixed(6)})`)
+      logger.info(`[assembler] Applied ${reportingCurrency}→USD FX rate ${fxRate} for ${ticker}`)
+    } else {
+      flags.push(`⚠ Financial statements in ${reportingCurrency} — could not fetch USD exchange rate; monetary values may be in local currency`)
+    }
+  }
 
   return {
     profile,
