@@ -4,6 +4,7 @@ import PctInput from '../components/PctInput.jsx';
 import MultipleInput from '../components/MultipleInput.jsx';
 import MarketSnapshot from '../components/MarketSnapshot.jsx';
 import CoreMetrics from '../components/CoreMetrics.jsx';
+import Technicals from '../components/Technicals.jsx';
 import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
 
@@ -48,6 +49,9 @@ export default function AssumptionsTab({ company, analysis }) {
         <MarketSnapshot company={company} analysis={analysis} />
         <CoreMetrics analysis={analysis} />
       </div>
+
+      {/* ── Technicals ── */}
+      <Technicals analysis={analysis} />
 
       {/* ── Two-column assumption controls ── */}
       <div className="wacc-layout-grid">
