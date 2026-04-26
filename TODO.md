@@ -27,20 +27,23 @@ WACC guard rails. MXL DCF/WACC/net debt now accurate. Unit tests passing.
 
 ### BACKLOG
 
-- **AV key setup** — Add `AV_API_KEY` to `.env` to enable price history + technicals for
-  FMP-restricted tickers (Sharpe, MA50/200, RSI currently null for non-flagship tickers).
-  AV fallback is already wired in `financialData.js` — just needs the key.
-
-- **Null-line UI notes** — When a workbench cell is null due to a known data gap, show an
-  inline note on that line explaining why (e.g. "No price data — configure AV key" on Sharpe
-  ratio row; "Balance sheet unavailable via SEC EDGAR" on D/E row). Currently shows blank/N/A
-  with no context. Flags panel exists but users miss the connection to specific cells.
+- **[DONE] AV key setup** — `Alpha_Vantage_KEYS` wired in `.env`. Key rotation implemented in
+  `alphaVantage.js`: comma-separated keys, rotates on rate-limit, resets at midnight. Add more
+  keys by appending to `Alpha_Vantage_KEYS=key1,key2,...` — no code changes needed.
 
 - **Multi-company hardening** — Systematically test a cross-section of company types to find
-  and fix data gaps: small-caps, REITs, financials (banks/insurance), foreign private issuers,
-  recent IPOs, holding companies, and pre-revenue/loss-stage companies. Each sector has
-  non-standard XBRL reporting patterns and different FMP plan coverage. Goal: DCF and core
-  metrics should either produce a valid result or a clear ⚠ flag — never silently wrong.
+  and fix data gaps. Execution plan (Phase 1):
+  - Test matrix: SLAB (small-cap), O (REIT), JPM (bank), TSM (foreign 20-F), RDDT (recent IPO),
+    MRNA (pre-revenue), ABNB (asset-light), BRK-B (holding company)
+  - Known fix needed: SEC extractor filters `form === '10-K'` — must also accept `20-F` for
+    foreign issuers (TSM, ASML)
+  - REITs/banks: add sector flag "DCF not applicable" rather than full model
+  - Goal: valid result OR clear ⚠ — never silently wrong
+  - Do this BEFORE null-line UI notes (hardening reveals gap patterns that inform the notes)
+
+- **Null-line UI notes** — After hardening, add inline context to frontend for null cells.
+  Approach: backend passes `dataGaps` map `{ fieldName: "reason string" }`, frontend renders
+  a small note next to N/A cells with a known cause. No hardcoded strings in frontend.
 
 ---
 

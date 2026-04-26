@@ -4,17 +4,52 @@
  * Alpha Vantage fallback adapter. Fetches data when all FMP keys are exhausted,
  * and normalizes AV responses into the same shapes the pipeline expects from FMP.
  *
- * Env var: Alpha_Vantage_KEY
+ * Env var: Alpha_Vantage_KEYS (comma-separated list of API keys)
  */
 
 import axios from 'axios'
 import logger from '../utils/logger.js'
 
 const BASE_URL = 'https://www.alphavantage.co/query'
-export const AV_KEY = process.env.Alpha_Vantage_KEY ?? null
 
-if (AV_KEY) {
-  logger.info('Alpha Vantage fallback key loaded')
+const AV_KEYS = (process.env.Alpha_Vantage_KEYS ?? '')
+  .split(',')
+  .map(k => k.trim())
+  .filter(Boolean)
+
+// Exported for backward-compat boolean gate in financialData.js
+export const AV_KEY = AV_KEYS.length > 0 ? AV_KEYS[0] : null
+
+if (AV_KEYS.length > 0) {
+  logger.info(`Alpha Vantage fallback loaded: ${AV_KEYS.length} key(s)`)
+}
+
+// ── Key rotation ──────────────────────────────────────────────────────────────
+
+let keyIndex = 0
+let exhaustedKeys = new Set()
+let exhaustedResetDate = new Date().toDateString()
+
+function getActiveKey() {
+  const today = new Date().toDateString()
+  if (today !== exhaustedResetDate) {
+    exhaustedKeys = new Set()
+    exhaustedResetDate = today
+  }
+  for (let i = 0; i < AV_KEYS.length; i++) {
+    const idx = (keyIndex + i) % AV_KEYS.length
+    if (!exhaustedKeys.has(idx)) {
+      keyIndex = idx
+      return AV_KEYS[idx]
+    }
+  }
+  return null
+}
+
+function markKeyExhausted() {
+  logger.info(`[AV] Key ${keyIndex + 1}/${AV_KEYS.length} rate-limited — rotating`)
+  exhaustedKeys.add(keyIndex)
+  keyIndex = (keyIndex + 1) % AV_KEYS.length
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,15 +62,26 @@ function addNulls(a, b) {
 }
 
 async function avGet(params) {
-  const response = await axios.get(BASE_URL, { params: { ...params, apikey: AV_KEY } })
-  const d = response.data
+  let attempts = 0
+  while (attempts < AV_KEYS.length) {
+    const key = getActiveKey()
+    if (!key) throw new Error('AV_ALL_KEYS_EXHAUSTED: All Alpha Vantage keys have hit their daily limit.')
 
-  // AV soft errors — always HTTP 200
-  if (d?.['Error Message']) throw new Error(`AV_API_ERROR: ${d['Error Message']}`)
-  if (d?.['Note'])          throw new Error('AV_RATE_LIMITED: Alpha Vantage call frequency exceeded. Wait before retrying.')
-  if (d?.['Information'])   throw new Error('AV_PLAN_RESTRICTED: Alpha Vantage endpoint requires a higher subscription tier.')
+    const response = await axios.get(BASE_URL, { params: { ...params, apikey: key } })
+    const d = response.data
 
-  return d
+    if (d?.['Error Message']) throw new Error(`AV_API_ERROR: ${d['Error Message']}`)
+    if (d?.['Information'])   throw new Error('AV_PLAN_RESTRICTED: Alpha Vantage endpoint requires a higher subscription tier.')
+
+    if (d?.['Note']) {
+      markKeyExhausted()
+      attempts++
+      continue
+    }
+
+    return d
+  }
+  throw new Error('AV_ALL_KEYS_EXHAUSTED: All Alpha Vantage keys have hit their daily limit.')
 }
 
 // ── Normalizers — AV response → FMP-compatible shape ─────────────────────────
