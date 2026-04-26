@@ -71,7 +71,19 @@ async function avGet(params) {
     const d = response.data
 
     if (d?.['Error Message']) throw new Error(`AV_API_ERROR: ${d['Error Message']}`)
-    if (d?.['Information'])   throw new Error('AV_PLAN_RESTRICTED: Alpha Vantage endpoint requires a higher subscription tier.')
+
+    // AV uses 'Information' for both rate limits and actual plan restrictions.
+    // Rate-limit text contains "standard API call frequency" — rotate key and retry.
+    // True plan restriction text contains "premium" — throw immediately.
+    if (d?.['Information']) {
+      const msg = d['Information']
+      if (msg.includes('standard API call frequency') || msg.includes('per day') || msg.includes('per minute')) {
+        markKeyExhausted()
+        attempts++
+        continue
+      }
+      throw new Error('AV_PLAN_RESTRICTED: Alpha Vantage endpoint requires a higher subscription tier.')
+    }
 
     if (d?.['Note']) {
       markKeyExhausted()

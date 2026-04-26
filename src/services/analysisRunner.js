@@ -203,9 +203,25 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   const netIncome = latestIncome.netIncome ?? null
   const shareholderEquity = latestBalance.totalStockholdersEquity ?? null
   const totalDebt = latestBalance.totalDebt ?? null
-  const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
+  let sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
     ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
     ?? (profile?.marketCap && currentPrice ? Math.round(profile.marketCap / currentPrice) : null)
+
+  // Cross-check: if shares × price is more than 5× off from known market cap,
+  // the share count is from a different share class (e.g. TSM Taiwan shares vs ADR price,
+  // BRK-B price vs BRK-A share count). Override with marketCap / price.
+  if (sharesOutstanding && currentPrice && profile?.marketCap) {
+    const impliedMktCap = sharesOutstanding * currentPrice
+    const knownMktCap   = profile.marketCap
+    const ratio = impliedMktCap / knownMktCap
+    if (ratio > 3 || ratio < 0.33) {
+      const corrected = Math.round(knownMktCap / currentPrice)
+      logger.info(`[analysis] Share count cross-check failed for ${ticker}: ${sharesOutstanding.toLocaleString()} × $${currentPrice} = $${(impliedMktCap/1e9).toFixed(0)}B vs known mktCap $${(knownMktCap/1e9).toFixed(0)}B — correcting to ${corrected.toLocaleString()}`)
+      flags.push(`Share count corrected: DEI/profile shares (${(sharesOutstanding/1e6).toFixed(0)}M) inconsistent with market cap — using marketCap/price (${(corrected/1e6).toFixed(0)}M)`)
+      sharesOutstanding = corrected
+    }
+  }
+
   const eps = quote?.eps ?? latestIncome.eps
     ?? (netIncome != null && sharesOutstanding != null ? netIncome / sharesOutstanding : null)
 
@@ -275,6 +291,14 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   }
 
   const waccEst = estimateWACC(profile, balanceSheetsForWacc, incomeStatements, currentPrice, sharesOutstanding, derivedRatios)
+
+  // Sector-based DCF applicability check
+  const sector = (profile?.sector ?? '').toLowerCase()
+  const industry = (profile?.industry ?? '').toLowerCase()
+  const isReit = sector.includes('real estate') || industry.includes('reit')
+  const isBank = sector.includes('financial') && (industry.includes('bank') || industry.includes('insurance') || industry.includes('diversified financial'))
+  if (isReit) flags.push('⚠ DCF methodology may not apply to REITs — intrinsic value based on FCF, not FFO. Treat with caution.')
+  if (isBank) flags.push('⚠ DCF methodology not standard for banks/financials — FCF not meaningful; balance sheet is the business model.')
 
   let dcfResult = { intrinsicValuePerShare: null, projectedFCFs: [], terminalValue: null, enterpriseValue: null }
   if (freeCashFlow !== null && freeCashFlow < 0) {

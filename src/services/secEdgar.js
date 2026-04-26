@@ -126,7 +126,8 @@ const CONCEPTS = {
   operatingCashFlow:       ['NetCashProvidedByUsedInOperatingActivities'],
   // SEC capex is positive (payments made); will be negated in normalizer to match FMP sign convention
   // PaymentsToAcquireOtherProductiveAssets covers telecoms (VZ, T) that report network capex this way
-  capitalExpenditure:      ['PaymentsToAcquirePropertyPlantAndEquipment', 'PaymentsToAcquireOtherProductiveAssets', 'PaymentsToAcquireProductiveAssets'],
+  // PaymentsForProceedsFromOtherInvestingActivities covers asset-light platforms (ABNB) post-2022
+  capitalExpenditure:      ['PaymentsToAcquirePropertyPlantAndEquipment', 'PaymentsToAcquireOtherProductiveAssets', 'PaymentsToAcquireProductiveAssets', 'PaymentsForProceedsFromOtherInvestingActivities'],
   depreciationAmort:       ['DepreciationDepletionAndAmortization', 'DepreciationAndAmortization'],
   changeInWorkingCap:      ['IncreaseDecreaseInOperatingCapital'],
   incomeBeforeTax:         ['IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
@@ -156,10 +157,10 @@ function pickBestConcept(gaap, concepts) {
     const entries = gaap[concept]?.units?.USD
     if (!Array.isArray(entries)) continue
 
-    // Filter 10-K annual periods only (≥300 days excludes quarterly summaries
-    // that some companies embed inside the 10-K XBRL filing)
+    // Filter annual filings only (10-K domestic, 20-F foreign private issuers)
+    // ≥300 days excludes quarterly summaries embedded in annual XBRL filings
     const annual = entries.filter(e => {
-      if (e.form !== '10-K') return false
+      if (e.form !== '10-K' && e.form !== '20-F') return false
       if (!e.start || !e.end) return true
       return (new Date(e.end) - new Date(e.start)) / 86400000 >= 300
     })
@@ -194,7 +195,7 @@ function pickBestConcept(gaap, concepts) {
 function extractDeiShares(facts) {
   const entries = facts?.['dei']?.EntityCommonStockSharesOutstanding?.units?.shares
   if (!Array.isArray(entries)) return null
-  const tenK = entries.filter(e => e.form === '10-K' && e.filed)
+  const tenK = entries.filter(e => (e.form === '10-K' || e.form === '20-F') && e.filed)
   if (!tenK.length) return null
   return tenK.sort((a, b) => b.filed.localeCompare(a.filed))[0]?.val ?? null
 }
@@ -243,11 +244,22 @@ export async function getEdgarFinancials(ticker, { force = false } = {}) {
     }
 
     const facts = await fetchCompanyFacts(ticker, cik, force)
+
+    // IFRS filers (most foreign private issuers filing 20-F) use ifrs-full namespace,
+    // not us-gaap. We can still extract DEI shares but skip financials.
+    const namespaces = Object.keys(facts?.facts ?? {})
+    const isIfrs = namespaces.includes('ifrs-full') && !namespaces.includes('us-gaap')
+    if (isIfrs) {
+      const sharesOutstanding = extractDeiShares(facts?.facts)
+      logger.info(`[SEC] ${ticker} files under IFRS — DEI shares only, financials from FMP`)
+      return { annualRows: [], sharesOutstanding, isIfrs: true }
+    }
+
     const annualRows = extractAnnualData(facts?.facts)
     const sharesOutstanding = extractDeiShares(facts?.facts)
 
     if (annualRows.length === 0 && sharesOutstanding == null) {
-      logger.warn(`[SEC] No annual 10-K data extracted for ${ticker}`)
+      logger.warn(`[SEC] No annual 10-K/20-F data extracted for ${ticker}`)
       return null
     }
 

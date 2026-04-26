@@ -166,12 +166,20 @@ export async function assembleData(ticker, { force = false } = {}) {
     // Merge SEC data over FMP where available
     const secFetch = fetches[7]
     if (secFetch?.status === 'fulfilled' && secFetch.value) {
-      const { annualRows, sharesOutstanding: deiShares } = secFetch.value
+      const { annualRows, sharesOutstanding: deiShares, isIfrs } = secFetch.value
       // DEI shares are more reliable than FMP profile for sparse-plan tickers
       if (deiShares != null && profile.sharesOutstanding == null) {
         profile = { ...profile, sharesOutstanding: deiShares }
         logger.info(`[assembler] sharesOutstanding from SEC DEI for ${ticker}: ${(deiShares/1e6).toFixed(1)}M`)
       }
+      if (isIfrs) {
+        // IFRS filer — financials from FMP only; flag for downstream
+        flags.push('Foreign filer (IFRS/20-F): SEC financial data unavailable — financial statements sourced from FMP only')
+        incomeStatements = fmpIncome
+        balanceSheets    = fmpBalance
+        cashFlows        = fmpCash
+        dataSource = 'fmp_ifrs'
+      } else {
       const secIncome  = normalizeSecIncomeStatement(annualRows)
       const secBalance = normalizeSecBalanceSheet(annualRows)
       const secCash    = normalizeSecCashFlow(annualRows)
@@ -185,6 +193,7 @@ export async function assembleData(ticker, { force = false } = {}) {
       if (bFetch.status === 'rejected') logger.info(`[assembler] FMP balance unavailable, covered by SEC: ${bFetch.reason?.message}`)
       if (cFetch.status === 'rejected') logger.info(`[assembler] FMP cash flow unavailable, covered by SEC: ${cFetch.reason?.message}`)
       logger.info(`[assembler] Financial statements: SEC primary + FMP fallback for ${ticker}`)
+      } // end else (not IFRS)
     } else {
       // SEC unavailable — use FMP only; surface any FMP failures to the user
       incomeStatements = fmpIncome

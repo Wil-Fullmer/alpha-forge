@@ -1,6 +1,6 @@
-// Accepted format (after normalization): 1–10 uppercase ASCII letters.
-// Extend TICKER_REGEX if future symbol formats (e.g. BRK.B, ADR suffixes) are needed.
-const TICKER_REGEX = /^[A-Z]{1,10}$/
+// Accepted format (after normalization): 1–10 uppercase letters, optionally followed
+// by a hyphen or dot and 1–5 alphanumeric chars (e.g. BRK-B, BRK.B, BF.B).
+const TICKER_REGEX = /^[A-Z]{1,10}([.\-][A-Z0-9]{1,5})?$/
 
 export function normalizeTicker(ticker) {
   if (typeof ticker !== 'string') return ''
