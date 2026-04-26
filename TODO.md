@@ -1,14 +1,15 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-25
+> Current date: 2026-04-26
 
 ---
 
 ## Current Status
 
 Live app on `live-app-v1`. All 7 workbench tabs functional. Backend serves real FMP + SEC EDGAR
-data for any ticker. Unit tests passing. Ready for public launch.
+data for any ticker, including telecoms (VZ, T). DCF and P/E now work for FMP-restricted tickers
+via SEC EDGAR capex fallbacks and derived EPS. Unit tests passing. Ready for public launch.
 
 ---
 

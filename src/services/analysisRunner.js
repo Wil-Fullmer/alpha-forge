@@ -203,7 +203,10 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   const netIncome = latestIncome.netIncome ?? null
   const shareholderEquity = latestBalance.totalStockholdersEquity ?? null
   const totalDebt = latestBalance.totalDebt ?? null
-  const eps = quote?.eps ?? latestIncome.eps ?? null
+  const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
+    ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
+  const eps = quote?.eps ?? latestIncome.eps
+    ?? (netIncome != null && sharesOutstanding != null ? netIncome / sharesOutstanding : null)
 
   const closingPrices = historicalPrices.map(d => d.close)
   const dailyReturns = closingPrices.slice(1).map((p, i) => (p - closingPrices[i]) / closingPrices[i])
@@ -229,8 +232,6 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   // ── 3. DCF Valuation ───────────────────────────────────────────────────────
   const latestCF = cashFlows[0] ?? {}
   const freeCashFlow = latestCF.freeCashFlow ?? null
-  const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
-    ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
   const netDebt = (totalDebt ?? 0) - (latestBalance.cashAndCashEquivalents ?? 0)
   if (totalDebt == null) flags.push('Net debt: totalDebt missing from balance sheet, assumed 0')
   if (latestBalance.cashAndCashEquivalents == null) flags.push('Net debt: cash missing from balance sheet, assumed 0')

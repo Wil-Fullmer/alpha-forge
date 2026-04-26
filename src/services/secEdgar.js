@@ -125,7 +125,8 @@ const CONCEPTS = {
   totalCurrentLiabilities: ['LiabilitiesCurrent'],
   operatingCashFlow:       ['NetCashProvidedByUsedInOperatingActivities'],
   // SEC capex is positive (payments made); will be negated in normalizer to match FMP sign convention
-  capitalExpenditure:      ['PaymentsToAcquirePropertyPlantAndEquipment'],
+  // PaymentsToAcquireOtherProductiveAssets covers telecoms (VZ, T) that report network capex this way
+  capitalExpenditure:      ['PaymentsToAcquirePropertyPlantAndEquipment', 'PaymentsToAcquireOtherProductiveAssets', 'PaymentsToAcquireProductiveAssets'],
   depreciationAmort:       ['DepreciationDepletionAndAmortization', 'DepreciationAndAmortization'],
   changeInWorkingCap:      ['IncreaseDecreaseInOperatingCapital'],
   incomeBeforeTax:         ['IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',

@@ -181,10 +181,14 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Not found' }))
     }
   } catch (error) {
-    // TODO: /dashboard/:ticker and /report/:ticker pre-route 400s use text/plain, but errors
-    // thrown from those routes fall through here and return JSON â€” minor UX inconsistency.
     const { status, type, error: msg } = mapErrorToHttp(error)
     logger.error(`[${status}] ${type}: ${error.message}`)
+    if (pathname.match(/^\/(dashboard|report)\/[^/]+$/)) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.writeHead(status)
+      res.end(msg)
+      return
+    }
     res.writeHead(status)
     res.end(JSON.stringify({ error: msg, type }))
   }
