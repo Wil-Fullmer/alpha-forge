@@ -7,9 +7,11 @@
 
 ## Current Status
 
-Live app on `live-app-v1`. All 7 workbench tabs functional. Valuation pipeline hardened for
-FMP-restricted tickers: SEC EDGAR capex fallbacks, DEI shares, Finnhub balance sheet fallback,
-WACC guard rails. MXL DCF/WACC/net debt now accurate. Unit tests passing.
+Live app on `live-app-v1`. All 7 workbench tabs functional. Full multi-company hardening
+complete across 8 ticker types (small-cap, REIT, bank, foreign 20-F, IPO, pre-revenue,
+asset-light, holding company). Currency normalization for 20-F filers (TWD→USD via AV FX rate).
+Null-line UI notes shipped: `dataGaps` map wired backend→frontend, `?` badges on null cells.
+AV key rotation live. Unit tests passing.
 
 ---
 
@@ -31,19 +33,14 @@ WACC guard rails. MXL DCF/WACC/net debt now accurate. Unit tests passing.
   `alphaVantage.js`: comma-separated keys, rotates on rate-limit, resets at midnight. Add more
   keys by appending to `Alpha_Vantage_KEYS=key1,key2,...` — no code changes needed.
 
-- **Multi-company hardening** — Systematically test a cross-section of company types to find
-  and fix data gaps. Execution plan (Phase 1):
-  - Test matrix: SLAB (small-cap), O (REIT), JPM (bank), TSM (foreign 20-F), RDDT (recent IPO),
-    MRNA (pre-revenue), ABNB (asset-light), BRK-B (holding company)
-  - Known fix needed: SEC extractor filters `form === '10-K'` — must also accept `20-F` for
-    foreign issuers (TSM, ASML)
-  - REITs/banks: add sector flag "DCF not applicable" rather than full model
-  - Goal: valid result OR clear ⚠ — never silently wrong
-  - Do this BEFORE null-line UI notes (hardening reveals gap patterns that inform the notes)
+- **[DONE] Multi-company hardening** — Tested SLAB, O, JPM, TSM, RDDT, MRNA, ABNB, BRK-B.
+  Fixes: 20-F filter, IFRS detection, asset-light capex concept, share count cross-check,
+  REIT/bank sector flags, AV rate-limit/plan-restriction disambiguation, hyphen ticker support.
+  Remaining known gap: TSM/foreign-filer FX normalization (TWD→USD via AV rate, live in prod).
 
-- **Null-line UI notes** — After hardening, add inline context to frontend for null cells.
-  Approach: backend passes `dataGaps` map `{ fieldName: "reason string" }`, frontend renders
-  a small note next to N/A cells with a known cause. No hardcoded strings in frontend.
+- **[DONE] Null-line UI notes** — `dataGaps` map in analysis output, `DataGapNote.jsx` badge
+  component with tooltip, wired into MarketSnapshot (P/E, EPS), CoreMetrics (ROE, D/E),
+  Technicals (degraded state message). No hardcoded strings in frontend.
 
 ---
 
