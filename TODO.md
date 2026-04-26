@@ -36,6 +36,12 @@ WACC guard rails. MXL DCF/WACC/net debt now accurate. Unit tests passing.
   ratio row; "Balance sheet unavailable via SEC EDGAR" on D/E row). Currently shows blank/N/A
   with no context. Flags panel exists but users miss the connection to specific cells.
 
+- **Multi-company hardening** — Systematically test a cross-section of company types to find
+  and fix data gaps: small-caps, REITs, financials (banks/insurance), foreign private issuers,
+  recent IPOs, holding companies, and pre-revenue/loss-stage companies. Each sector has
+  non-standard XBRL reporting patterns and different FMP plan coverage. Goal: DCF and core
+  metrics should either produce a valid result or a clear ⚠ flag — never silently wrong.
+
 ---
 
 ## Architecture Guardrails
