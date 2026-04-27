@@ -24,21 +24,12 @@ const TTL = {
 }
 
 // ── API Key Pool ──────────────────────────────────────────────────────────────
-// Loads all FMP API keys from environment variables.
-// Supported names: FMP_API_KEY (primary), FMP_API_KEY_ALT (legacy), FMP_API_KEY_2, FMP_API_KEY_3, ...
-// Add new keys by adding FMP_API_KEY_N=... to .env — no code changes needed.
+// FMP_API_KEY accepts one key or a comma-separated list: key0,key1,key2
 function loadApiKeys() {
   const seen = new Set()
   const keys = []
-  const candidates = [
-    'FMP_API_KEY',
-    'FMP_API_KEY_ALT',
-    ...Object.keys(process.env)
-      .filter(k => /^FMP_API_KEY_(?!ALT$)\w+$/.test(k))
-      .sort()
-  ]
-  for (const name of candidates) {
-    const val = process.env[name]
+  for (const raw of (process.env.FMP_API_KEY ?? '').split(',')) {
+    const val = raw.trim()
     if (val && !seen.has(val)) { seen.add(val); keys.push(val) }
   }
   return keys
@@ -47,7 +38,7 @@ function loadApiKeys() {
 const API_KEYS = loadApiKeys()
 
 if (API_KEYS.length === 0) {
-  logger.error('No FMP API keys found. Set FMP_API_KEY in .env')
+  logger.error('No FMP API keys found. Set FMP_API_KEY=key0,key1,... in .env')
 } else {
   logger.info(`FMP API keys loaded: ${API_KEYS.length}`)
 }
