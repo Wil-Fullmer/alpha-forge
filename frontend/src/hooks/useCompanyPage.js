@@ -27,7 +27,11 @@ export function useCompanyPage(ticker) {
         if (cancelled) return;
         // Analysis failure is fatal (no data to show); profile failure is soft (renders without header data).
         if (analysisResult.status === 'rejected') {
-          setState(s => ({ ...s, loading: false, error: analysisResult.reason?.message ?? 'Analysis failed' }));
+          const raw = analysisResult.reason?.message ?? '';
+          const userMsg = raw.includes('404')
+            ? `No data found for "${ticker}". Check the ticker symbol and try again.`
+            : 'Could not load data. Please try again.';
+          setState(s => ({ ...s, loading: false, error: userMsg }));
           return;
         }
         const company = companyResult.status === 'fulfilled' ? companyResult.value : null;
