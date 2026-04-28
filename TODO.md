@@ -7,13 +7,21 @@
 
 ## Current Status
 
-v2 UI overhaul active. Four major UI features shipped 2026-04-27:
-- Cmd+K global command bar (navigation, WACC override, export CSV, tab switching)
-- Conviction Toggle (Conservative/Base/Aggressive) — whole-app CSS palette shift + header glow
-- Margin of Safety Liquid Gauge on Final Valuation tab (SVG liquid fill animation)
-- Theme switcher (Gold / Oxidized Copper / Monolithic Slate)
-- Tab bar upgraded to small-caps monospace (terminal feel)
-- Header typography improved, aligned, conviction-aware glow
+v2 UI overhaul active. Active branch: `v2`.
+
+Shipped 2026-04-28 (this session):
+- Conviction Toggle now affects valuation — re-seeds AssumptionsContext with scenario multipliers
+  (CONS: growth ×0.75, COGS ×1.05, CAPEX ×1.10, WACC +50bps, EV/EBITDA −1, P/E −2;
+   AGG: opposite; grid centers shift live in DCF sensitivity heat maps)
+- Aggressive palette fully red (--color-accent red across sparklines, tabs, inputs, header glow)
+- Friendly error messages — 404 maps to "No data found for X" in hook layer, raw API strings never reach UI
+- Branch switched from live-app-v1 to v2 as primary working branch
+
+Shipped 2026-04-27/28 (prior sessions):
+- Cmd+K global command bar, Conviction Toggle, Liquid Gauge, Theme switcher
+- 12-row micro-sparklines (Projections tab income statement)
+- DCF cockpit band (price / FCFF / FCFE / range bar / market-zone cells)
+- API-limited gate screen (SEC-only mode)
 Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism card.
 
 ---
@@ -42,6 +50,13 @@ Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism ca
 - **[DONE] API-limited gate screen** — Blocks workbench when analysis.technicals.currentPrice is null
   but historical financials exist (SEC data available). Two options: "View SEC Data" (Assumptions +
   Revenue + Projections tabs only) or "Return to Search". SEC-mode banner with "Change view" dismiss.
+
+- **[DONE] Conviction Toggle valuation wiring** — AssumptionsContext re-seeds with scenario multipliers
+  on conviction change. DcfTab sensitivity grid centers shift by conviction deltas. Aggressive palette
+  fully red across all --color-accent consumers.
+
+- **[DONE] Friendly error messages** — 404 mapped to "No data found for X" in useCompanyPage hook.
+  Dev fixture hint removed from error screen. Raw API strings never reach UI.
 
 - **Next visual pass** — projected column visual refinements. DCF cockpit further polish.
 
