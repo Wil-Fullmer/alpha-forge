@@ -1,5 +1,6 @@
 import React from 'react';
 import FlagsPanel from '../components/FlagsPanel.jsx';
+import LiquidGauge from '../components/LiquidGauge.jsx';
 
 function fmtPrice(v) {
   if (v == null || isNaN(v)) return '—';
@@ -261,7 +262,13 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
       <div className="fv-section">
         <h2 className="fv-section__title">Valuation Summary</h2>
         <p className="fv-section__subtitle">Average of FCFE and FCFF weighted outputs vs. current market price</p>
-        <div className="fv-summary-grid">
+        <div className="fv-summary-main">
+          <LiquidGauge
+            intrinsicValue={avgValuation}
+            currentPrice={currentPrice}
+            label="Avg Implied"
+          />
+          <div className="fv-summary-grid">
           <div className="fv-summary-card">
             <span className="fv-summary-card__label">Average Implied Price</span>
             <span className="fv-summary-card__value">{fmtPrice(avgValuation)}</span>
@@ -277,6 +284,7 @@ export default function FinalValuationTab({ analysis, company, dcfPrices, rvPric
             </span>
           </div>
         </div>
+        </div>{/* end fv-summary-main */}
         {(dcfPrices == null || rvPrices == null) && (
           <p className="fv-hint">
             Navigate to the <strong>DCF</strong> and <strong>Relative Valuation</strong> tabs to populate implied prices.

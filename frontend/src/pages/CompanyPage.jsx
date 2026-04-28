@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useCompanyPage } from '../hooks/useCompanyPage.js';
 import { AssumptionsProvider } from '../contexts/AssumptionsContext.jsx';
 import { ProjectedValuesProvider } from '../contexts/ProjectedValuesContext.jsx';
@@ -44,6 +44,49 @@ export default function CompanyPage({ ticker = 'AAPL' }) {
     setRvPrices(null);
     setDcfWeight(0.5);
   }, [ticker]);
+
+  // Listen for global command events from CommandBar
+  useEffect(() => {
+    function onCmd(e) {
+      const { type, tab, value } = e.detail ?? {};
+      if (type === 'view-tab' && tab) setActiveTab(tab);
+      if (type === 'reset') {
+        setWaccOverride(null);
+        setWaccModel(null);
+      }
+      if (type === 'set-wacc' && value != null) setWaccOverride(value);
+      if (type === 'export-csv') exportCsv();
+    }
+    window.addEventListener('af:cmd', onCmd);
+    return () => window.removeEventListener('af:cmd', onCmd);
+  }, [analysis, company, dcfPrices, rvPrices]);
+
+  function exportCsv() {
+    if (!analysis || !company) return;
+    const t = company.symbol ?? 'ticker';
+    const rows = [
+      ['Field', 'Value'],
+      ['Ticker', t],
+      ['Name', company.companyName ?? ''],
+      ['Price', company.price ?? ''],
+      ['WACC', analysis.wacc?.wacc ?? ''],
+      ['DCF FCFF', dcfPrices?.fcff ?? ''],
+      ['DCF FCFE', dcfPrices?.fcfe ?? ''],
+      ['RV P/E Neutral', rvPrices?.peNeutral ?? ''],
+      ['RV EV/EBITDA Neutral', rvPrices?.evEbitdaNeutral ?? ''],
+      ['ROE', analysis.coreMetrics?.roe ?? ''],
+      ['D/E', analysis.coreMetrics?.debtToEquity ?? ''],
+      ['Beta', analysis.costOfCapital?.beta ?? ''],
+    ];
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${t}-alpha-forge.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   if (loading) {
     return (

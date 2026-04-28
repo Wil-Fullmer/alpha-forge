@@ -1,24 +1,42 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-26 (updated)
+> Current date: 2026-04-27 (updated)
 
 ---
 
 ## Current Status
 
-Live app on `live-app-v1`. All 7 workbench tabs functional. Full 12-ticker stress test complete
-(AAPL, NVDA, JPM, O, TSM, BRK-B, RDDT, MRNA, ABNB, SLAB, MXL, PLTR). Stress-test bugs fixed:
-TSM CAPEX % overflow (AssumptionsContext guard + IFRS failure flags + ADR reportedCurrency in
-normalizers), PLTR profile 500 now non-fatal (Promise.allSettled + AV exhaustion → 503).
-Profile failure graceful: analysis renders even without cached profile. AV exhaustion properly
-mapped to 503 (was 500 catch-all).
+v2 UI overhaul active. Four major UI features shipped 2026-04-27:
+- Cmd+K global command bar (navigation, WACC override, export CSV, tab switching)
+- Conviction Toggle (Conservative/Base/Aggressive) — whole-app CSS palette shift + header glow
+- Margin of Safety Liquid Gauge on Final Valuation tab (SVG liquid fill animation)
+- Theme switcher (Gold / Oxidized Copper / Monolithic Slate)
+- Tab bar upgraded to small-caps monospace (terminal feel)
+- Header typography improved, aligned, conviction-aware glow
+Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism card.
 
 ---
 
 ## Current Sprint
 
-— empty —
+- **Begin v2 UI overhaul** — Landing page video background complete (proof of concept).
+  Next: full workbench tab redesign, typography refresh, component visual pass.
+
+- **[DONE] UI redesign layer (from Gemini brainstorm 2026-04-27)** — All 4 items shipped:
+  1. ✅ Cmd+K global command bar
+  2. ✅ Conviction Toggle (Conservative / Base / Aggressive)
+  3. ✅ Margin of Safety Liquid Gauge (Final Valuation tab)
+  4. ✅ Theme switcher: Gold / Oxidized Copper / Monolithic Slate
+  Full spec: `vault/projects/alpha-forge/design-specs/ui-redesign-brainstorm-2026-04-27.md`
+
+- **[DONE] Micro-sparklines** — All 12 income statement rows in Projections tab have inline SVG sparklines.
+  Pure SVG MiniSparkline component (no Recharts). Semantic colors: accent=revenue, positive=gross/op/net income,
+  negative=COGS/tax, auto=others. Spark column isolated to Income Statement section; Common Size and
+  Other Forecasted Terms use colHeadersNoSpark to avoid column misalignment.
+
+- **Next visual pass** — DCF tab cockpit layout (sensitivity heat maps in corners, gauges),
+  projected column visual refinements.
 
 ---
 

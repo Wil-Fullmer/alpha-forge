@@ -45,6 +45,15 @@ export default function LandingPage({ onSelectTicker }) {
 
   return (
     <div className="landing-page">
+      <video
+        className="landing-page__video-bg"
+        src="/generated/hero-bg.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
+      <div className="landing-page__overlay" />
       <div className="landing-page__inner">
         <div className="landing-page__brand">
           <h1 className="landing-page__title">Alpha Forge</h1>

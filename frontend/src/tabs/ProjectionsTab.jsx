@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { formatLargeNumber } from '../utils/format.js';
 import CollapsibleSection from '../components/CollapsibleSection.jsx';
 import PctInput from '../components/PctInput.jsx';
+import MiniSparkline from '../components/MiniSparkline.jsx';
 import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
 import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
 import { useRevenue } from '../contexts/RevenueContext.jsx';
@@ -239,9 +240,8 @@ export default function ProjectionsTab({ analysis }) {
     );
   }
 
-  const colHeaders = (
-    <tr>
-      <th className="revenue-table__row-label" scope="col"></th>
+  const histProjHeaders = (
+    <>
       {stmts.map(s => (
         <th key={s.date} className="revenue-col-header revenue-col-header--historical" scope="col">
           {fiscalYear(s.date)}
@@ -254,8 +254,33 @@ export default function ProjectionsTab({ analysis }) {
           <span className="revenue-col-header__tag">Projected</span>
         </th>
       ))}
+    </>
+  );
+
+  const colHeaders = (
+    <tr>
+      <th className="revenue-table__row-label" scope="col"></th>
+      <th className="revenue-col-header revenue-col-header--spark" scope="col" aria-label="Trend"></th>
+      {histProjHeaders}
     </tr>
   );
+
+  const colHeadersNoSpark = (
+    <tr>
+      <th className="revenue-table__row-label" scope="col"></th>
+      {histProjHeaders}
+    </tr>
+  );
+
+  // Helper: sparkline cell from historical statement getter
+  function sparkCell(getter, color = 'auto') {
+    const vals = stmts.map(getter);
+    return (
+      <td className="revenue-cell revenue-cell--spark">
+        <MiniSparkline values={vals} color={color} width={60} height={18} />
+      </td>
+    );
+  }
 
   // ── Sections ───────────────────────────────────────────────────────────────
 
@@ -270,72 +295,84 @@ export default function ProjectionsTab({ analysis }) {
             <tbody>
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label">Revenue</td>
+                {sparkCell(s => s.revenue, 'var(--color-accent)')}
                 {histCells(s => s.revenue)}
                 {projCells(projRevenue)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">COGS</td>
+                {sparkCell(s => s.costOfRevenue, 'var(--color-negative)')}
                 {histCells(s => s.costOfRevenue)}
                 {projCells(projCOGS)}
               </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--subtotal">
                 <td className="revenue-table__row-label">Gross Profit</td>
+                {sparkCell(s => s.grossProfit, 'var(--color-positive)')}
                 {histCells(s => s.grossProfit)}
                 {projCells(projGrossProfit)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">R&amp;D</td>
+                {sparkCell(s => s.researchAndDev)}
                 {histCells(s => s.researchAndDev)}
                 {projCells(projRD)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">SG&amp;A</td>
+                {sparkCell(s => s.sgaExpense)}
                 {histCells(s => s.sgaExpense)}
                 {projCells(projSGA)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">D&amp;A</td>
+                {sparkCell(s => s.depreciationAmort)}
                 {histCells(s => s.depreciationAmort)}
                 {projCells(projDA)}
               </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--subtotal">
                 <td className="revenue-table__row-label">Operating Profit (Loss)</td>
+                {sparkCell(s => s.operatingIncome, 'var(--color-positive)')}
                 {histCells(s => s.operatingIncome)}
                 {projCells(projEBIT)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Net Interest Inc (Exp)</td>
+                {sparkCell(s => s.netInterestIncome)}
                 {histCells(s => s.netInterestIncome)}
                 {projCells(projNetInterest)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Other Inc (Exp)</td>
+                {sparkCell(s => s.otherIncomeExpense)}
                 {histCells(s => s.otherIncomeExpense)}
                 {projCells(projOtherIncome)}
               </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--subtotal">
                 <td className="revenue-table__row-label">Earnings Before Tax (Loss)</td>
+                {sparkCell(s => s.incomeBeforeTax, 'var(--color-positive)')}
                 {histCells(s => s.incomeBeforeTax)}
                 {projCells(projEBT)}
               </tr>
 
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label revenue-table__row-label--indent">Tax Provision</td>
+                {sparkCell(s => s.taxExpense, 'var(--color-negative)')}
                 {histCells(s => s.taxExpense)}
                 {projCells(projTax)}
               </tr>
 
               <tr className="revenue-row revenue-row--value revenue-row--total">
                 <td className="revenue-table__row-label">Net Income</td>
+                {sparkCell(s => s.netIncome, 'var(--color-positive)')}
                 {histCells(s => s.netIncome)}
                 {projCells(projNetIncome)}
               </tr>
@@ -348,7 +385,7 @@ export default function ProjectionsTab({ analysis }) {
       <CollapsibleSection title="Common Size Income Statement" subtitle="(% of Revenue)" defaultOpen={true}>
         <div className="revenue-table-wrap">
           <table className="revenue-table">
-            <thead>{colHeaders}</thead>
+            <thead>{colHeadersNoSpark}</thead>
             <tbody>
               {/* Revenue: YoY growth % — read-only, sourced from RevenueTab */}
               <tr className="revenue-row revenue-row--value">
@@ -449,7 +486,7 @@ export default function ProjectionsTab({ analysis }) {
       <CollapsibleSection title="Other Forecasted Terms" defaultOpen={true}>
         <div className="revenue-table-wrap">
           <table className="revenue-table">
-            <thead>{colHeaders}</thead>
+            <thead>{colHeadersNoSpark}</thead>
             <tbody>
               <tr className="revenue-row revenue-row--value">
                 <td className="revenue-table__row-label">CAPEX</td>
