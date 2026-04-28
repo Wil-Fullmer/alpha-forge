@@ -2690,8 +2690,8 @@ code {
 }
 
 .conviction-btn--aggressive.conviction-btn--active {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 .app-header__cmd-hint {
