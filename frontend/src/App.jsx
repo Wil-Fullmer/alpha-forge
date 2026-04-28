@@ -52,7 +52,7 @@ export default function App() {
               </div>
             </header>
             <main className="app-main">
-              <CompanyPage ticker={ticker} />
+              <CompanyPage ticker={ticker} onReturnToSearch={handleNewSearch} />
             </main>
           </>
         )}

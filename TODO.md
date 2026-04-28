@@ -35,8 +35,15 @@ Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism ca
   negative=COGS/tax, auto=others. Spark column isolated to Income Statement section; Common Size and
   Other Forecasted Terms use colHeadersNoSpark to avoid column misalignment.
 
-- **Next visual pass** — DCF tab cockpit layout (sensitivity heat maps in corners, gauges),
-  projected column visual refinements.
+- **[DONE] DCF cockpit** — Cockpit banner bar (current price | FCFF/FCFE intrinsic + upside | price range bar
+  across sensitivity span). Sensitivity grids moved above FCF table. FCF Projection Model collapsible
+  (default closed). Market-zone highlight (±5%) on heat map cells.
+
+- **[DONE] API-limited gate screen** — Blocks workbench when analysis.technicals.currentPrice is null
+  but historical financials exist (SEC data available). Two options: "View SEC Data" (Assumptions +
+  Revenue + Projections tabs only) or "Return to Search". SEC-mode banner with "Change view" dismiss.
+
+- **Next visual pass** — projected column visual refinements. DCF cockpit further polish.
 
 ---
 

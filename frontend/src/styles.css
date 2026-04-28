@@ -929,6 +929,153 @@ code {
   color: var(--color-text-muted);
 }
 
+/* ── API Limited Gate ────────────────────────────────────────── */
+.api-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.api-gate__icon {
+  font-size: 2.5rem;
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+.api-gate__title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--color-text-primary);
+}
+
+.api-gate__body {
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  max-width: 48ch;
+  line-height: 1.6;
+}
+
+.api-gate__body--sub {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border-faint);
+  padding-top: var(--space-4);
+}
+
+.api-gate__actions {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.api-gate__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  min-width: 220px;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.api-gate__btn--primary {
+  background: var(--color-surface);
+  border-color: var(--color-accent);
+}
+
+.api-gate__btn--primary:hover {
+  background: rgba(212, 168, 83, 0.08);
+}
+
+.api-gate__btn--secondary {
+  background: var(--color-surface);
+}
+
+.api-gate__btn--secondary:hover {
+  background: var(--color-surface-alt);
+}
+
+.api-gate__btn-label {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+}
+
+.api-gate__btn--primary .api-gate__btn-label {
+  color: var(--color-accent);
+}
+
+.api-gate__btn-sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.api-gate__hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  max-width: 52ch;
+  line-height: 1.5;
+}
+
+.api-gate__hint code {
+  font-family: var(--font-mono);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+/* ── SEC-mode banner (shown when gate dismissed with SEC choice) ─ */
+.api-gate-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-5);
+  background: rgba(212, 168, 83, 0.07);
+  border: 1px solid rgba(212, 168, 83, 0.25);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.api-gate-banner__text {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+
+.api-gate-banner__dismiss {
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-mono);
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+.api-gate-banner__dismiss:hover {
+  opacity: 1;
+}
+
 /* Spinner */
 .spinner {
   width: 36px;
@@ -1566,6 +1713,124 @@ code {
 /* ============================================================
    DCF Tab
    ============================================================ */
+
+/* ── Cockpit Banner ─────────────────────────────────────────── */
+.dcf-cockpit-band {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  margin-bottom: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+.dcf-cockpit-band__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.dcf-cockpit-band__label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.dcf-cockpit-band__value {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.dcf-cockpit-band__upside {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dcf-cockpit-band__sep {
+  width: 1px;
+  height: 56px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.dcf-cockpit-band__range {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* ── Price Range Bar ────────────────────────────────────────── */
+.dcf-price-range {
+  margin-top: var(--space-2);
+}
+
+.dcf-price-range__track {
+  position: relative;
+  height: 5px;
+  background: linear-gradient(to right, rgba(248,113,113,0.35), rgba(74,222,128,0.35));
+  border-radius: 3px;
+  margin-bottom: var(--space-1);
+}
+
+.dcf-price-range__current {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dcf-price-range__current-line {
+  width: 2px;
+  height: 13px;
+  background: var(--color-text-primary);
+  opacity: 0.7;
+}
+
+.dcf-price-range__current-label {
+  font-size: 0.5rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+.dcf-price-range__dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
+  z-index: 3;
+  cursor: default;
+}
+
+.dcf-price-range__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Market-zone highlight in sensitivity grids ─────────────── */
+.dcf-sensitivity__cell--market {
+  outline: 1.5px solid var(--color-accent);
+  outline-offset: -1px;
+  position: relative;
+}
 
 .dcf-top-grid {
   display: grid;
