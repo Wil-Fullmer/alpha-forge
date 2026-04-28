@@ -117,10 +117,6 @@ export default function CompanyPage({ ticker = 'AAPL', onReturnToSearch }) {
       <div className="page-state page-state--error" role="alert">
         <h2>Unable to load data</h2>
         <p className="page-state__detail">{error}</p>
-        <p className="page-state__hint">
-          Make sure the fixture server is running:&nbsp;
-          <code>npm run web:fixtures</code>
-        </p>
       </div>
     );
   }

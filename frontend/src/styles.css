@@ -206,8 +206,8 @@ code {
 
 /* Accent glow on header border in aggressive mode */
 [data-conviction="aggressive"] .app-header {
-  border-bottom-color: rgba(245, 158, 11, 0.35);
-  box-shadow: 0 1px 12px rgba(245, 158, 11, 0.08);
+  border-bottom-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 1px 12px rgba(239, 68, 68, 0.08);
 }
 
 [data-conviction="conservative"] .app-header {
@@ -2894,9 +2894,9 @@ code {
 }
 
 [data-conviction="aggressive"] {
-  --color-accent:       #f59e0b;
-  --color-accent-dim:   rgba(245, 158, 11, 0.2);
-  --color-accent-hover: #fbbf24;
+  --color-accent:       #ef4444;
+  --color-accent-dim:   rgba(239, 68, 68, 0.15);
+  --color-accent-hover: #f87171;
   --color-positive:     #34d399;
 }
 
@@ -2955,8 +2955,8 @@ code {
 }
 
 .conviction-btn--aggressive.conviction-btn--active {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 
 .app-header__cmd-hint {
@@ -2979,7 +2979,7 @@ code {
 /* Aggressive glow on projected headers */
 [data-conviction="aggressive"] .proj-col-header,
 [data-conviction="aggressive"] th.projected {
-  text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
 /* Conservative muted feel */
