@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { EM_DASH, formatLargeNumber, formatPct } from '../utils/format.js';
 import { useAssumptions } from '../contexts/AssumptionsContext.jsx';
 import { useProjectedValues } from '../contexts/ProjectedValuesContext.jsx';
+import { useConviction } from '../contexts/ConvictionContext.jsx';
 import { getSharesOutstanding } from '../utils/sharesOutstanding.js';
 import PctInput from '../components/PctInput.jsx';
 import MultipleInput from '../components/MultipleInput.jsx';
@@ -121,6 +122,12 @@ function buildState(analysis, company, waccOverride, ctxBeta, ctxRfr, ctxMrp) {
 export default function DcfTab({ company, analysis, waccOverride, waccModel, onPricesChange }) {
   const ctx = useAssumptions();
   const { projections: ctxProj } = useProjectedValues();
+  const { conviction } = useConviction();
+
+  const waccDelta = conviction === 'conservative' ?  0.005 : conviction === 'aggressive' ? -0.005 : 0;
+  const evDelta   = conviction === 'conservative' ? -1.0   : conviction === 'aggressive' ?  1.0   : 0;
+  const peDelta   = conviction === 'conservative' ? -2.0   : conviction === 'aggressive' ?  2.0   : 0;
+  const coeDelta  = conviction === 'conservative' ?  0.005 : conviction === 'aggressive' ? -0.005 : 0;
 
   const [s, setS] = useState(() => buildState(analysis, company, waccOverride, ctx.beta, ctx.riskFreeRate, ctx.mrp));
 
@@ -287,10 +294,10 @@ export default function DcfTab({ company, analysis, waccOverride, waccModel, onP
 
   // ── Sensitivity grids ────────────────────────────────────────────────────
   // Axis steps generated from editable center values
-  const waccSteps   = Array.from({ length: GRID_SIZE }, (_, i) => s.waccCenter + (i - HALF) * 0.01);
-  const evMultSteps = Array.from({ length: GRID_SIZE }, (_, i) => s.evEbitdaCenter + (i - HALF));
-  const coeSteps    = Array.from({ length: GRID_SIZE }, (_, i) => s.coeCenter + (i - HALF) * 0.01);
-  const peSteps     = Array.from({ length: GRID_SIZE }, (_, i) => s.peCenter + (i - HALF));
+  const waccSteps   = Array.from({ length: GRID_SIZE }, (_, i) => (s.waccCenter + waccDelta) + (i - HALF) * 0.01);
+  const evMultSteps = Array.from({ length: GRID_SIZE }, (_, i) => (s.evEbitdaCenter + evDelta) + (i - HALF));
+  const coeSteps    = Array.from({ length: GRID_SIZE }, (_, i) => (s.coeCenter + coeDelta) + (i - HALF) * 0.01);
+  const peSteps     = Array.from({ length: GRID_SIZE }, (_, i) => (s.peCenter + peDelta) + (i - HALF));
 
   const grid1 = waccSteps.map(w => {
     const pvs   = projFCFF.map((f, i) => f / Math.pow(1 + w, discountPeriods[i]));

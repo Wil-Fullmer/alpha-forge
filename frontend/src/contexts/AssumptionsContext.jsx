@@ -1,10 +1,22 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { useConviction } from './ConvictionContext.jsx';
 
 const PROJ_COUNT = 5;
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
   return a / b;
+}
+
+function applyConviction(seed, conviction) {
+  if (conviction === 'base') return seed;
+  const cons = conviction === 'conservative';
+  return {
+    ...seed,
+    revenueGrowth: seed.revenueGrowth.map(v => v * (cons ? 0.75 : 1.25)),
+    cogsPct:       seed.cogsPct.map(v => Math.min(0.99, v * (cons ? 1.05 : 0.95))),
+    capexPct:      seed.capexPct.map(v => v * (cons ? 1.10 : 0.90)),
+  };
 }
 
 function seedFromAnalysis(analysis, company) {
@@ -99,6 +111,8 @@ function reducer(state, action) {
 const AssumptionsContext = createContext(null);
 
 export function AssumptionsProvider({ analysis, company, children }) {
+  const { conviction } = useConviction();
+
   const [state, dispatch] = useReducer(
     reducer,
     null,
@@ -106,8 +120,8 @@ export function AssumptionsProvider({ analysis, company, children }) {
   );
 
   useEffect(() => {
-    dispatch({ type: 'SEED', payload: seedFromAnalysis(analysis, company) });
-  }, [analysis, company]);
+    dispatch({ type: 'SEED', payload: applyConviction(seedFromAnalysis(analysis, company), conviction) });
+  }, [analysis, company, conviction]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateWaccInputs     = (patch)               => dispatch({ type: 'UPDATE_WACC',       patch });
   const updateProjectionRatio = (key, index, value)  => dispatch({ type: 'UPDATE_PROJ_RATIO', key, index, value });
