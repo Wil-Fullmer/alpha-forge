@@ -1,13 +1,13 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-28 (updated)
+> Current date: 2026-04-29 (updated)
 
 ---
 
 ## Current Status
 
-v2 UI overhaul active. Active branch: `v2`.
+v2 shipped. v3 brainstorm complete (2026-04-29). Active branch: `v2`. Next: begin v3a implementation.
 
 Shipped 2026-04-28 (this session):
 - Conviction Toggle now affects valuation — re-seeds AssumptionsContext with scenario multipliers
@@ -58,6 +58,11 @@ Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism ca
 - **[DONE] Friendly error messages** — 404 mapped to "No data found for X" in useCompanyPage hook.
   Dev fixture hint removed from error screen. Raw API strings never reach UI.
 
+- **v3a implementation** — per design-specs/v3-feature-brainstorm-2026-04-29.md:
+  1. Capital Allocation tab (ROIC/WACC river chart, DuPont decomposition, FCF allocation waterfall)
+  2. FRED API integration (live 10Y risk-free rate into WACC)
+  3. Forensic Accounting tab (Beneish M-Score computed from existing SEC data)
+  4. The Heartbeat animation (ECG-style SVG on Final Valuation tab alongside Liquid Gauge)
 - **Next visual pass** — projected column visual refinements. DCF cockpit further polish.
 
 ---
