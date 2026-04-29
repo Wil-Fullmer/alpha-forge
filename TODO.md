@@ -8,29 +8,7 @@
 ## Current Status
 
 v2 shipped (2026-04-28). v3 brainstorm complete (2026-04-29). Active branch: `v2`.
-Next: v3a implementation. Full v3 spec in `vault/projects/alpha-forge/design-specs/`.
-
----
-
-## Current Sprint
-
-- **v3a** — per design-specs/v3-feature-brainstorm-2026-04-29.md:
-  1. Capital Allocation tab (ROIC/WACC river chart, DuPont decomposition, FCF allocation waterfall)
-  2. FRED API integration (live 10Y risk-free rate into WACC) — needs FRED_API_KEY in .env
-  3. Forensic Accounting tab (Beneish M-Score computed from existing SEC data)
-  4. The Heartbeat animation (ECG-style SVG on Final Valuation tab alongside Liquid Gauge)
-
-- **v3b** — per design-specs/v3-feature-brainstorm-2026-04-29-round2.md:
-  5. Multi-Factor Pentagon Radar — 5-axis radar chart (Value, Quality, Safety, Growth, Sentiment)
-  6. Altman Z-Score — add to Forensic tab
-  7. Reverse DCF Scrubber Dial — solve for market-implied growth rate; dial maps price to historical growth period analogue
-  8. Footnote Miner / Delta Map — NLP year-over-year diff of Risk Factors + MD&A; heatmap overlay (red=new risk, green=removed)
-  9. Thermal Pressure ROIC/WACC — WACC layer visually crushes ROIC layer when spread negative; extends river chart animation
-
-- **v3c** — architectural:
-  10. Persistence layer (SQLite/DuckDB) — cache 10 years of FMP + SEC data locally; eliminates API latency on repeat lookups
-
-- **Next visual pass** — projected column visual refinements. DCF cockpit further polish.
+Next: v3 implementation — roadmap in `vault/projects/alpha-forge/brainstorming.md`.
 
 ---
 
