@@ -12,6 +12,12 @@ Next: v3 implementation — roadmap in `vault/projects/alpha-forge/brainstorming
 
 ---
 
+## Current Sprint
+
+— empty —
+
+---
+
 ## Agent Board
 
 ### TODO
