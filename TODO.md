@@ -14,7 +14,13 @@ Next: v3 implementation — roadmap in `vault/projects/alpha-forge/brainstorming
 
 ## Current Sprint
 
-— empty —
+**Final Valuation accuracy fixes** — audit complete 2026-04-29, full findings in `vault/projects/alpha-forge/bugs/final-valuation-accuracy.md`
+
+- [ ] **FV-1** `dataAssembler.js assemblePeers()` — derive peer netDebt from totalDebt−cash when null; unlocks EV multiples for GOOGL/MSFT (currently null → EV/EBITDA only has 3 data points for AAPL)
+- [ ] **FV-2** `DcfTab.jsx` — cap terminal P/E at normalized value (e.g. 20x) instead of seeding from current market P/E; circular seeding inflates FCFE for high-PE stocks (AAPL 35.6x, NVDA 42x)
+- [ ] **FV-3** `dataAssembler.js assemblePeers()` — add D&A fallback from cash flow statement for EBITDA when income statement D&A is null; fixes GOOGL/MSFT EBITDA = null
+- [ ] **FV-4** `dataAssembler.js assemblePeers()` — filter out peers with all-null financials (revenue/ebitda/netIncome all null); removes contamination from TBCH/NXT/RIME for AAPL
+- [ ] **FV-5** `RelativeValuationTab.jsx` — change `netDebt` truthy check to `!= null`; fixes edge case where netDebt=0 treated as missing
 
 ---
 
