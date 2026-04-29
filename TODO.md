@@ -1,68 +1,35 @@
 # Alpha Forge — Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-29 (updated)
+> Current date: 2026-04-29
 
 ---
 
 ## Current Status
 
-v2 shipped. v3 brainstorm complete (2026-04-29). Active branch: `v2`. Next: begin v3a implementation.
-
-Shipped 2026-04-28 (this session):
-- Conviction Toggle now affects valuation — re-seeds AssumptionsContext with scenario multipliers
-  (CONS: growth ×0.75, COGS ×1.05, CAPEX ×1.10, WACC +50bps, EV/EBITDA −1, P/E −2;
-   AGG: opposite; grid centers shift live in DCF sensitivity heat maps)
-- Aggressive palette fully red (--color-accent red across sparklines, tabs, inputs, header glow)
-- Friendly error messages — 404 maps to "No data found for X" in hook layer, raw API strings never reach UI
-- Branch switched from live-app-v1 to v2 as primary working branch
-
-Shipped 2026-04-27/28 (prior sessions):
-- Cmd+K global command bar, Conviction Toggle, Liquid Gauge, Theme switcher
-- 12-row micro-sparklines (Projections tab income statement)
-- DCF cockpit band (price / FCFF / FCFE / range bar / market-zone cells)
-- API-limited gate screen (SEC-only mode)
-Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism card.
+v2 shipped (2026-04-28). v3 brainstorm complete (2026-04-29). Active branch: `v2`.
+Next: v3a implementation. Full v3 spec in `vault/projects/alpha-forge/design-specs/`.
 
 ---
 
 ## Current Sprint
 
-- **Begin v2 UI overhaul** — Landing page video background complete (proof of concept).
-  Next: full workbench tab redesign, typography refresh, component visual pass.
-
-- **[DONE] UI redesign layer (from Gemini brainstorm 2026-04-27)** — All 4 items shipped:
-  1. ✅ Cmd+K global command bar
-  2. ✅ Conviction Toggle (Conservative / Base / Aggressive)
-  3. ✅ Margin of Safety Liquid Gauge (Final Valuation tab)
-  4. ✅ Theme switcher: Gold / Oxidized Copper / Monolithic Slate
-  Full spec: `vault/projects/alpha-forge/design-specs/ui-redesign-brainstorm-2026-04-27.md`
-
-- **[DONE] Micro-sparklines** — All 12 income statement rows in Projections tab have inline SVG sparklines.
-  Pure SVG MiniSparkline component (no Recharts). Semantic colors: accent=revenue, positive=gross/op/net income,
-  negative=COGS/tax, auto=others. Spark column isolated to Income Statement section; Common Size and
-  Other Forecasted Terms use colHeadersNoSpark to avoid column misalignment.
-
-- **[DONE] DCF cockpit** — Cockpit banner bar (current price | FCFF/FCFE intrinsic + upside | price range bar
-  across sensitivity span). Sensitivity grids moved above FCF table. FCF Projection Model collapsible
-  (default closed). Market-zone highlight (±5%) on heat map cells.
-
-- **[DONE] API-limited gate screen** — Blocks workbench when analysis.technicals.currentPrice is null
-  but historical financials exist (SEC data available). Two options: "View SEC Data" (Assumptions +
-  Revenue + Projections tabs only) or "Return to Search". SEC-mode banner with "Change view" dismiss.
-
-- **[DONE] Conviction Toggle valuation wiring** — AssumptionsContext re-seeds with scenario multipliers
-  on conviction change. DcfTab sensitivity grid centers shift by conviction deltas. Aggressive palette
-  fully red across all --color-accent consumers.
-
-- **[DONE] Friendly error messages** — 404 mapped to "No data found for X" in useCompanyPage hook.
-  Dev fixture hint removed from error screen. Raw API strings never reach UI.
-
-- **v3a implementation** — per design-specs/v3-feature-brainstorm-2026-04-29.md:
+- **v3a** — per design-specs/v3-feature-brainstorm-2026-04-29.md:
   1. Capital Allocation tab (ROIC/WACC river chart, DuPont decomposition, FCF allocation waterfall)
-  2. FRED API integration (live 10Y risk-free rate into WACC)
+  2. FRED API integration (live 10Y risk-free rate into WACC) — needs FRED_API_KEY in .env
   3. Forensic Accounting tab (Beneish M-Score computed from existing SEC data)
   4. The Heartbeat animation (ECG-style SVG on Final Valuation tab alongside Liquid Gauge)
+
+- **v3b** — per design-specs/v3-feature-brainstorm-2026-04-29-round2.md:
+  5. Multi-Factor Pentagon Radar — 5-axis radar chart (Value, Quality, Safety, Growth, Sentiment)
+  6. Altman Z-Score — add to Forensic tab
+  7. Reverse DCF Scrubber Dial — solve for market-implied growth rate; dial maps price to historical growth period analogue
+  8. Footnote Miner / Delta Map — NLP year-over-year diff of Risk Factors + MD&A; heatmap overlay (red=new risk, green=removed)
+  9. Thermal Pressure ROIC/WACC — WACC layer visually crushes ROIC layer when spread negative; extends river chart animation
+
+- **v3c** — architectural:
+  10. Persistence layer (SQLite/DuckDB) — cache 10 years of FMP + SEC data locally; eliminates API latency on repeat lookups
+
 - **Next visual pass** — projected column visual refinements. DCF cockpit further polish.
 
 ---
@@ -72,21 +39,6 @@ Landing page has full-screen video background (`hero-bg.mp4`) + glassmorphism ca
 ### TODO
 
 — empty —
-
-### BACKLOG
-
-- **[DONE] AV key setup** — `Alpha_Vantage_KEYS` wired in `.env`. Key rotation implemented in
-  `alphaVantage.js`: comma-separated keys, rotates on rate-limit, resets at midnight. Add more
-  keys by appending to `Alpha_Vantage_KEYS=key1,key2,...` — no code changes needed.
-
-- **[DONE] Multi-company hardening** — Tested SLAB, O, JPM, TSM, RDDT, MRNA, ABNB, BRK-B.
-  Fixes: 20-F filter, IFRS detection, asset-light capex concept, share count cross-check,
-  REIT/bank sector flags, AV rate-limit/plan-restriction disambiguation, hyphen ticker support.
-  Remaining known gap: TSM/foreign-filer FX normalization (TWD→USD via AV rate, live in prod).
-
-- **[DONE] Null-line UI notes** — `dataGaps` map in analysis output, `DataGapNote.jsx` badge
-  component with tooltip, wired into MarketSnapshot (P/E, EPS), CoreMetrics (ROE, D/E),
-  Technicals (degraded state message). No hardcoded strings in frontend.
 
 ---
 
