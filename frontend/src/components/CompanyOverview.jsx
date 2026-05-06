@@ -46,7 +46,17 @@ export default function CompanyOverview({ company }) {
       </dl>
 
       {description && (
-        <p className="company-overview__description">{description}</p>
+        <>
+          <p className={`company-overview__description${descExpanded ? ' company-overview__description--expanded' : ''}`}>
+            {description}
+          </p>
+          <button
+            className="company-overview__description-toggle"
+            onClick={() => setDescExpanded(v => !v)}
+          >
+            {descExpanded ? 'Show less' : 'Show more'}
+          </button>
+        </>
       )}
     </section>
   );

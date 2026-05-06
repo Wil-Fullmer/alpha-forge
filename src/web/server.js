@@ -1,4 +1,4 @@
-import '../utils/env.js'
+﻿import '../utils/env.js'
 import http from 'http'
 import { readFileSync, existsSync } from 'fs'
 import { resolve, dirname } from 'path'
@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
 import { normalizeTicker, validateTicker } from '../utils/validation.js'
 import { getCompanyProfile } from '../services/financialData.js'
-import { runFullAnalysis } from '../services/analysisRunner.js'
+import { getOrRunAnalysis } from '../services/analysisCache.js'
+import { assemblePeers } from '../services/dataAssembler.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = resolve(__dirname, '../../data')
@@ -19,7 +20,9 @@ function mapErrorToHttp(error) {
     msg.startsWith('FMP_RATE_LIMITED') ||
     msg.startsWith('FMP_AUTH_FAILED') ||
     msg.startsWith('FMP_PLAN_RESTRICTED') ||
-    msg.startsWith('FMP_API_ERROR')
+    msg.startsWith('FMP_API_ERROR') ||
+    msg.startsWith('AV_ALL_KEYS_EXHAUSTED') ||
+    msg.startsWith('FMP_NO_KEYS')
   )
     return { status: 503, type: 'PROVIDER_ERROR', error: 'Financial data provider is temporarily unavailable' }
   return { status: 500, type: 'INTERNAL', error: 'An unexpected server error occurred' }
@@ -28,34 +31,6 @@ function mapErrorToHttp(error) {
 const PORT = process.env.PORT || 3000
 const HOST = process.env.HOST || 'localhost'
 
-// How long data/{TICKER}-analysis.json is reused before triggering a rerun.
-// Uses analysisDate from the JSON payload (YYYY-MM-DD). Default: 24 hours.
-const ANALYSIS_CACHE_TTL_MS = parseInt(process.env.ANALYSIS_CACHE_TTL_MS ?? String(24 * 60 * 60 * 1000), 10)
-
-/**
- * Return analysis for a ticker from disk if it is still fresh, otherwise run the full pipeline.
- * Freshness is determined by reading `analysisDate` from the cached JSON and comparing it
- * against ANALYSIS_CACHE_TTL_MS. Malformed or missing dates are treated as stale.
- */
-async function getOrRunAnalysis(ticker, force) {
-  if (!force) {
-    const file = resolve(DATA_DIR, `${ticker}-analysis.json`)
-    if (existsSync(file)) {
-      try {
-        const cached = JSON.parse(readFileSync(file, 'utf8'))
-        const age = Date.now() - new Date(cached.analysisDate).getTime()
-        if (Number.isFinite(age) && age <= ANALYSIS_CACHE_TTL_MS) {
-          logger.info(`Serving analysis for ${ticker} from disk (age: ${Math.round(age / 60000)}m)`)
-          return cached
-        }
-        logger.info(`Analysis file for ${ticker} is stale (age: ${Math.round(age / 60000)}m) — rerunning`)
-      } catch {
-        logger.warn(`Could not parse cached analysis for ${ticker} — rerunning`)
-      }
-    }
-  }
-  return runFullAnalysis(ticker, { force })
-}
 
 const server = http.createServer(async (req, res) => {
   // Enable CORS
@@ -73,7 +48,7 @@ const server = http.createServer(async (req, res) => {
   const pathname = url.pathname
 
   try {
-    // Route: GET / — landing page
+    // Route: GET / â€” landing page
     if (pathname === '/') {
       res.setHeader('Content-Type', 'text/html')
       res.writeHead(200)
@@ -88,7 +63,7 @@ const server = http.createServer(async (req, res) => {
 <a href="/api/analysis/AAPL">AAPL Analysis JSON</a>
 </div></body></html>`)
     }
-    // Route: GET /dashboard/:ticker — serve HTML dashboard
+    // Route: GET /dashboard/:ticker â€” serve HTML dashboard
     else if (pathname.match(/^\/dashboard\/[^/]+$/)) {
       const ticker = normalizeTicker(pathname.split('/')[2])
       if (!validateTicker(ticker)) {
@@ -108,7 +83,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200)
       res.end(readFileSync(file, 'utf8'))
     }
-    // Route: GET /report/:ticker — serve Markdown report as HTML
+    // Route: GET /report/:ticker â€” serve Markdown report as HTML
     else if (pathname.match(/^\/report\/[^/]+$/)) {
       const ticker = normalizeTicker(pathname.split('/')[2])
       if (!validateTicker(ticker)) {
@@ -183,6 +158,20 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200)
       res.end(JSON.stringify({ ticker: data.ticker, coreMetrics: data.coreMetrics, flags: data.flags }))
     }
+    // Route: GET /api/peers/:ticker
+    else if (pathname.match(/^\/api\/peers\/[^/]+$/)) {
+      const ticker = normalizeTicker(pathname.split('/')[3])
+      if (!validateTicker(ticker)) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid ticker format' }))
+        return
+      }
+      const force = url.searchParams.get('force') === 'true'
+      logger.info(`Web request for peers: ${ticker}${force ? ' (force)' : ''}`)
+      const peers = await assemblePeers(ticker, { force })
+      res.writeHead(200)
+      res.end(JSON.stringify({ ticker, peers }))
+    }
     // Route: GET /health
     else if (pathname === '/health') {
       res.writeHead(200)
@@ -194,10 +183,14 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Not found' }))
     }
   } catch (error) {
-    // TODO: /dashboard/:ticker and /report/:ticker pre-route 400s use text/plain, but errors
-    // thrown from those routes fall through here and return JSON — minor UX inconsistency.
     const { status, type, error: msg } = mapErrorToHttp(error)
     logger.error(`[${status}] ${type}: ${error.message}`)
+    if (pathname.match(/^\/(dashboard|report)\/[^/]+$/)) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+      res.writeHead(status)
+      res.end(msg)
+      return
+    }
     res.writeHead(status)
     res.end(JSON.stringify({ error: msg, type }))
   }
@@ -205,5 +198,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   logger.info(`Server running at http://${HOST}:${PORT}`)
-  console.log(`\n🚀 Server started on http://${HOST}:${PORT}`)
+  console.log(`\nðŸš€ Server started on http://${HOST}:${PORT}`)
 })
+
+

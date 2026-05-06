@@ -60,11 +60,13 @@ export default function Technicals({ analysis }) {
   const vsMa200Class = signClass(t.priceVsMa200Pct);
 
   // Build the price-history notice for the degraded state.
-  // Uses historicalPriceDays from analysis.metadata when available.
   const historyDays = analysis.metadata?.historicalPriceDays ?? null;
-  const historyNotice = historyDays != null
-    ? `${historyDays} days of price data available — MA200 requires at least 200 trading days`
-    : 'Insufficient price data — MA200 requires at least 200 trading days';
+  const gaps = analysis.dataGaps ?? {};
+  const historyNotice = gaps.ma200 ?? (
+    historyDays != null
+      ? `${historyDays} days of price data available — MA200 requires at least 200 trading days`
+      : 'Insufficient price data — MA200 requires at least 200 trading days'
+  );
 
   return (
     <section className="card technicals" aria-label="Technical Indicators">

@@ -24,21 +24,12 @@ const TTL = {
 }
 
 // ── API Key Pool ──────────────────────────────────────────────────────────────
-// Loads all FMP API keys from environment variables.
-// Supported names: FMP_API_KEY (primary), FMP_API_KEY_ALT (legacy), FMP_API_KEY_2, FMP_API_KEY_3, ...
-// Add new keys by adding FMP_API_KEY_N=... to .env — no code changes needed.
+// FMP_API_KEY accepts one key or a comma-separated list: key0,key1,key2
 function loadApiKeys() {
   const seen = new Set()
   const keys = []
-  const candidates = [
-    'FMP_API_KEY',
-    'FMP_API_KEY_ALT',
-    ...Object.keys(process.env)
-      .filter(k => /^FMP_API_KEY_(?!ALT$)\w+$/.test(k))
-      .sort()
-  ]
-  for (const name of candidates) {
-    const val = process.env[name]
+  for (const raw of (process.env.FMP_API_KEY ?? '').split(',')) {
+    const val = raw.trim()
     if (val && !seen.has(val)) { seen.add(val); keys.push(val) }
   }
   return keys
@@ -47,7 +38,7 @@ function loadApiKeys() {
 const API_KEYS = loadApiKeys()
 
 if (API_KEYS.length === 0) {
-  logger.error('No FMP API keys found. Set FMP_API_KEY in .env')
+  logger.error('No FMP API keys found. Set FMP_API_KEY=key0,key1,... in .env')
 } else {
   logger.info(`FMP API keys loaded: ${API_KEYS.length}`)
 }
@@ -101,6 +92,7 @@ async function doFetch(url, params) {
  * Propagates non-auth errors immediately.
  */
 async function fetchWithKeyRotation(requestFn) {
+  if (API_KEYS.length === 0) throw new Error('FMP_NO_KEYS: No FMP API key configured. Set FMP_API_KEY in .env')
   let lastErr
   for (let i = 0; i < API_KEYS.length; i++) {
     try {
@@ -171,7 +163,7 @@ export async function getCompanyProfile(ticker, force = false) {
 export async function getIncomeStatement(ticker, force = false) {
   const key = `${ticker}-income-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
-  const data = await fetchFromFMP(ticker, 'income-statement', { limit: 5 })
+  const data = await fetchFromFMP(ticker, 'income-statement', { limit: 7 })
   const normalized = normalizeIncomeStatement(data)
   writeCache(key, normalized, TTL.STATEMENTS)
   return normalized
@@ -183,7 +175,7 @@ export async function getIncomeStatement(ticker, force = false) {
 export async function getBalanceSheet(ticker, force = false) {
   const key = `${ticker}-balance-sheet-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
-  const data = await fetchFromFMP(ticker, 'balance-sheet-statement', { limit: 5 })
+  const data = await fetchFromFMP(ticker, 'balance-sheet-statement', { limit: 7 })
   const normalized = normalizeBalanceSheet(data)
   writeCache(key, normalized, TTL.STATEMENTS)
   return normalized
@@ -195,7 +187,7 @@ export async function getBalanceSheet(ticker, force = false) {
 export async function getCashFlowStatement(ticker, force = false) {
   const key = `${ticker}-cash-flow-statement`
   if (!force) { const cached = readCache(key); if (cached) return cached }
-  const data = await fetchFromFMP(ticker, 'cash-flow-statement', { limit: 5 })
+  const data = await fetchFromFMP(ticker, 'cash-flow-statement', { limit: 7 })
   const normalized = normalizeCashFlow(data)
   writeCache(key, normalized, TTL.STATEMENTS)
   return normalized
@@ -278,8 +270,8 @@ export async function getQuote(ticker, force = false) {
 
 /**
  * Get peer comparables for a ticker.
- * Fetches peer tickers from FMP /stock_peers, then for each peer fetches
- * quote + latest income statement + latest balance sheet in parallel.
+ * Fetches peers from FMP /stable/stock-peers (returns name, price, mktCap per peer),
+ * then enriches each with income statement + balance sheet data in parallel.
  * Failed individual peer fetches are skipped gracefully.
  *
  * @param {string} ticker
@@ -290,46 +282,47 @@ export async function getPeers(ticker, force = false) {
   const key = `${ticker}-peers`
   if (!force) { const cached = readCache(key); if (cached) return cached }
 
-  // Step 1: fetch peer ticker list
-  let peersList = []
+  // Step 1: fetch peer list — returns [{ symbol, companyName, price, mktCap }, ...]
+  let peersData = []
   try {
-    const peersData = await fetchFromFMP(ticker, 'stock_peers')
-    const entry = Array.isArray(peersData) ? peersData[0] : peersData
-    peersList = entry?.peersList ?? []
+    const raw = await fetchFromFMP(ticker, 'stock-peers')
+    peersData = Array.isArray(raw) ? raw : []
   } catch (err) {
     logger.warn(`getPeers: failed to fetch peer list for ${ticker}: ${err.message}`)
     return []
   }
 
-  if (peersList.length === 0) {
+  if (peersData.length === 0) {
     logger.info(`getPeers: no peers found for ${ticker}`)
     return []
   }
 
-  // Step 2: for each peer, parallel-fetch quote + income statement + balance sheet
+  // Step 2: for each peer, fetch income statement + balance sheet in parallel.
+  // Market data (price, mktCap, companyName) comes from the peers list response.
   const peerResults = await Promise.allSettled(
-    peersList.map(async peerTicker => {
-      const [quoteRes, incomeRes, balanceRes] = await Promise.allSettled([
-        getQuote(peerTicker, force),
+    peersData.map(async peerData => {
+      const peerTicker = peerData.symbol
+      if (!peerTicker) return null
+
+      const [incomeRes, balanceRes] = await Promise.allSettled([
         getIncomeStatement(peerTicker, force),
         getBalanceSheet(peerTicker, force),
       ])
 
-      const quote   = quoteRes.status   === 'fulfilled' ? quoteRes.value   : null
       const income  = incomeRes.status  === 'fulfilled' ? (incomeRes.value?.[0]  ?? null) : null
       const balance = balanceRes.status === 'fulfilled' ? (balanceRes.value?.[0] ?? null) : null
 
-      if (!quote && !income) {
-        logger.warn(`getPeers: insufficient data for peer ${peerTicker}, skipping`)
-        return null
-      }
+      const price  = peerData.price  ?? null
+      const mktCap = peerData.mktCap ?? null
+      // Derive shares outstanding from market cap / price rather than a separate quote call
+      const shares = price && mktCap ? mktCap / price : null
 
       return normalizePeer({
         ticker:                 peerTicker,
-        name:                   quote?.name ?? null,
-        sharePrice:             quote?.price,
-        dilutedShares:          quote?.sharesOutstanding,
-        equityValue:            quote?.marketCap,
+        name:                   peerData.companyName ?? null,
+        sharePrice:             price,
+        dilutedShares:          shares,
+        equityValue:            mktCap,
         revenue:                income?.revenue,
         ebitda:                 income?.ebitda,
         operatingIncome:        income?.operatingIncome,

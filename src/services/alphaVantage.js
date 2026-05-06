@@ -4,17 +4,74 @@
  * Alpha Vantage fallback adapter. Fetches data when all FMP keys are exhausted,
  * and normalizes AV responses into the same shapes the pipeline expects from FMP.
  *
- * Env var: Alpha_Vantage_KEY
+ * Env var: Alpha_Vantage_KEYS (comma-separated list of API keys)
  */
 
 import axios from 'axios'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
 
-const BASE_URL = 'https://www.alphavantage.co/query'
-export const AV_KEY = process.env.Alpha_Vantage_KEY ?? null
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const CACHE_DIR  = resolve(__dirname, '../../data/cache')
+const FX_TTL_MS  = 24 * 60 * 60 * 1000 // 1 day — FX rates are stable enough
 
-if (AV_KEY) {
-  logger.info('Alpha Vantage fallback key loaded')
+function readCache(key) {
+  const file = resolve(CACHE_DIR, `${key}.json`)
+  if (!existsSync(file)) return null
+  try {
+    const { data, cachedAt, ttlMs } = JSON.parse(readFileSync(file, 'utf8'))
+    if (Date.now() - cachedAt > ttlMs) return null
+    return data
+  } catch { return null }
+}
+
+function writeCache(key, data, ttlMs = FX_TTL_MS) {
+  if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
+  writeFileSync(resolve(CACHE_DIR, `${key}.json`), JSON.stringify({ data, cachedAt: Date.now(), ttlMs }))
+}
+
+const BASE_URL = 'https://www.alphavantage.co/query'
+
+const AV_KEYS = (process.env.Alpha_Vantage_KEYS ?? '')
+  .split(',')
+  .map(k => k.trim())
+  .filter(Boolean)
+
+// Exported for backward-compat boolean gate in financialData.js
+export const AV_KEY = AV_KEYS.length > 0 ? AV_KEYS[0] : null
+
+if (AV_KEYS.length > 0) {
+  logger.info(`Alpha Vantage fallback loaded: ${AV_KEYS.length} key(s)`)
+}
+
+// ── Key rotation ──────────────────────────────────────────────────────────────
+
+let keyIndex = 0
+let exhaustedKeys = new Set()
+let exhaustedResetDate = new Date().toDateString()
+
+function getActiveKey() {
+  const today = new Date().toDateString()
+  if (today !== exhaustedResetDate) {
+    exhaustedKeys = new Set()
+    exhaustedResetDate = today
+  }
+  for (let i = 0; i < AV_KEYS.length; i++) {
+    const idx = (keyIndex + i) % AV_KEYS.length
+    if (!exhaustedKeys.has(idx)) {
+      keyIndex = idx
+      return AV_KEYS[idx]
+    }
+  }
+  return null
+}
+
+function markKeyExhausted() {
+  logger.info(`[AV] Key ${keyIndex + 1}/${AV_KEYS.length} rate-limited — rotating`)
+  exhaustedKeys.add(keyIndex)
+  keyIndex = (keyIndex + 1) % AV_KEYS.length
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,15 +84,38 @@ function addNulls(a, b) {
 }
 
 async function avGet(params) {
-  const response = await axios.get(BASE_URL, { params: { ...params, apikey: AV_KEY } })
-  const d = response.data
+  let attempts = 0
+  while (attempts < AV_KEYS.length) {
+    const key = getActiveKey()
+    if (!key) throw new Error('AV_ALL_KEYS_EXHAUSTED: All Alpha Vantage keys have hit their daily limit.')
 
-  // AV soft errors — always HTTP 200
-  if (d?.['Error Message']) throw new Error(`AV_API_ERROR: ${d['Error Message']}`)
-  if (d?.['Note'])          throw new Error('AV_RATE_LIMITED: Alpha Vantage call frequency exceeded. Wait before retrying.')
-  if (d?.['Information'])   throw new Error('AV_PLAN_RESTRICTED: Alpha Vantage endpoint requires a higher subscription tier.')
+    const response = await axios.get(BASE_URL, { params: { ...params, apikey: key } })
+    const d = response.data
 
-  return d
+    if (d?.['Error Message']) throw new Error(`AV_API_ERROR: ${d['Error Message']}`)
+
+    // AV uses 'Information' for both rate limits and actual plan restrictions.
+    // Rate-limit text contains "standard API call frequency" — rotate key and retry.
+    // True plan restriction text contains "premium" — throw immediately.
+    if (d?.['Information']) {
+      const msg = d['Information']
+      if (msg.includes('standard API call frequency') || msg.includes('per day') || msg.includes('per minute')) {
+        markKeyExhausted()
+        attempts++
+        continue
+      }
+      throw new Error('AV_PLAN_RESTRICTED: Alpha Vantage endpoint requires a higher subscription tier.')
+    }
+
+    if (d?.['Note']) {
+      markKeyExhausted()
+      attempts++
+      continue
+    }
+
+    return d
+  }
+  throw new Error('AV_ALL_KEYS_EXHAUSTED: All Alpha Vantage keys have hit their daily limit.')
 }
 
 // ── Normalizers — AV response → FMP-compatible shape ─────────────────────────
@@ -166,4 +246,29 @@ export async function fetchHistoricalPricesFromAV(ticker, days = 252) {
   const result = normalizeHistoricalPrices(raw, days)
   logger.info(`Alpha Vantage: ${result.length} historical prices for ${ticker}`)
   return result
+}
+
+/**
+ * Fetch the current spot exchange rate from→to (e.g. TWD→USD).
+ * Returns a number (units of `to` per 1 unit of `from`), or null on failure.
+ * Cached 24 hours per currency pair.
+ */
+export async function getExchangeRate(from, to) {
+  if (from === to) return 1
+  if (!AV_KEY) return null
+  const cacheKey = `fx-${from}-${to}`
+  const cached = readCache(cacheKey)
+  if (cached != null) return cached
+
+  try {
+    const d = await avGet({ function: 'CURRENCY_EXCHANGE_RATE', from_currency: from, to_currency: to })
+    const rate = parseNum(d?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'])
+    if (rate == null) return null
+    writeCache(cacheKey, rate, FX_TTL_MS)
+    logger.info(`[AV] Exchange rate ${from}→${to}: ${rate}`)
+    return rate
+  } catch (err) {
+    logger.warn(`[AV] Could not fetch ${from}→${to} exchange rate: ${err.message}`)
+    return null
+  }
 }

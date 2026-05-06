@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url'
 import logger from '../utils/logger.js'
 import { assembleData } from './dataAssembler.js'
 import { getAnalystTargets } from './financialData.js'
+import { getAnalystConsensus } from './finnhub.js'
 import {
   calculateSharpeRatio,
   calculateROE,
@@ -184,15 +185,20 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   logger.info(`Starting full analysis for ${ticker}${force ? ' (force refresh)' : ''}`)
 
   // ── 1. Assemble normalized data ────────────────────────────────────────────
-  const [bundle, analystTargets] = await Promise.all([
+  const [bundle, analystTargets, analystConsensus] = await Promise.all([
     assembleData(ticker, { force }),
     getAnalystTargets(ticker, force),
+    getAnalystConsensus(ticker, force),
   ])
-  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers } = bundle
+  const { profile, incomeStatements, balanceSheets, cashFlows, historicalPrices, quote, peers: rawPeers, finnhubMetrics } = bundle
   const flags = [...bundle.flags]  // copy so calculation flags can be appended
   const metadata = bundle.metadata
 
-  const currentPrice = quote?.price ?? profile?.price ?? null
+  const _derivedPrice =
+    (profile?.marketCap && profile?.sharesOutstanding ? profile.marketCap / profile.sharesOutstanding : null)
+    ?? (profile?.eps && profile?.pe ? profile.eps * profile.pe : null)
+  const currentPrice = quote?.price ?? profile?.price ?? _derivedPrice ?? null
+  if (currentPrice != null && !quote?.price && !profile?.price) flags.push(`Current price derived from profile data ($${currentPrice.toFixed(2)}) — live quote unavailable`)
   if (quote == null && profile?.price != null) flags.push('Current price sourced from profile (quote unavailable)')
 
   // ── 2. Core Metrics ────────────────────────────────────────────────────────
@@ -201,7 +207,27 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   const netIncome = latestIncome.netIncome ?? null
   const shareholderEquity = latestBalance.totalStockholdersEquity ?? null
   const totalDebt = latestBalance.totalDebt ?? null
-  const eps = quote?.eps ?? latestIncome.eps ?? null
+  let sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
+    ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
+    ?? (profile?.marketCap && currentPrice ? Math.round(profile.marketCap / currentPrice) : null)
+
+  // Cross-check: if shares × price is more than 5× off from known market cap,
+  // the share count is from a different share class (e.g. TSM Taiwan shares vs ADR price,
+  // BRK-B price vs BRK-A share count). Override with marketCap / price.
+  if (sharesOutstanding && currentPrice && profile?.marketCap) {
+    const impliedMktCap = sharesOutstanding * currentPrice
+    const knownMktCap   = profile.marketCap
+    const ratio = impliedMktCap / knownMktCap
+    if (ratio > 3 || ratio < 0.33) {
+      const corrected = Math.round(knownMktCap / currentPrice)
+      logger.info(`[analysis] Share count cross-check failed for ${ticker}: ${sharesOutstanding.toLocaleString()} × $${currentPrice} = $${(impliedMktCap/1e9).toFixed(0)}B vs known mktCap $${(knownMktCap/1e9).toFixed(0)}B — correcting to ${corrected.toLocaleString()}`)
+      flags.push(`Share count corrected: DEI/profile shares (${(sharesOutstanding/1e6).toFixed(0)}M) inconsistent with market cap — using marketCap/price (${(corrected/1e6).toFixed(0)}M)`)
+      sharesOutstanding = corrected
+    }
+  }
+
+  const eps = quote?.eps ?? latestIncome.eps
+    ?? (netIncome != null && sharesOutstanding != null ? netIncome / sharesOutstanding : null)
 
   const closingPrices = historicalPrices.map(d => d.close)
   const dailyReturns = closingPrices.slice(1).map((p, i) => (p - closingPrices[i]) / closingPrices[i])
@@ -227,11 +253,35 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
   // ── 3. DCF Valuation ───────────────────────────────────────────────────────
   const latestCF = cashFlows[0] ?? {}
   const freeCashFlow = latestCF.freeCashFlow ?? null
-  const sharesOutstanding = quote?.sharesOutstanding ?? profile?.sharesOutstanding
-    ?? (quote?.marketCap && currentPrice ? Math.round(quote.marketCap / currentPrice) : null)
-  const netDebt = (totalDebt ?? 0) - (latestBalance.cashAndCashEquivalents ?? 0)
-  if (totalDebt == null) flags.push('Net debt: totalDebt missing from balance sheet, assumed 0')
-  if (latestBalance.cashAndCashEquivalents == null) flags.push('Net debt: cash missing from balance sheet, assumed 0')
+
+  // Net debt: prefer balance sheet; fall back to Finnhub EV−mktCap when balance sheet is empty
+  let netDebt, netDebtSource
+  if (totalDebt != null) {
+    netDebt = totalDebt - (latestBalance.cashAndCashEquivalents ?? 0)
+    netDebtSource = 'balance_sheet'
+    if (latestBalance.cashAndCashEquivalents == null) flags.push('Net debt: cash missing from balance sheet, assumed 0')
+  } else if (finnhubMetrics?.netDebt != null) {
+    netDebt = finnhubMetrics.netDebt
+    netDebtSource = 'finnhub_ev'
+    flags.push(`Net debt sourced from Finnhub (EV − market cap): $${(netDebt / 1e6).toFixed(0)}M — balance sheet unavailable`)
+  } else {
+    netDebt = 0
+    netDebtSource = 'assumed_zero'
+    flags.push('⚠ Net debt: no balance sheet or Finnhub data — assumed 0, intrinsic value likely overstated')
+  }
+
+  // Estimated total debt for WACC capital structure when balance sheet is missing
+  // Derived from Finnhub D/E ratio × book equity (approximate)
+  let balanceSheetsForWacc = balanceSheets
+  if (totalDebt == null && finnhubMetrics?.deRatioAndBvps != null && sharesOutstanding != null) {
+    const { deRatio, bvps } = finnhubMetrics.deRatioAndBvps
+    const estimatedTotalDebt = deRatio * bvps * sharesOutstanding
+    const estimatedEquity    = bvps * sharesOutstanding
+    balanceSheetsForWacc = [{ totalDebt: estimatedTotalDebt, totalStockholdersEquity: estimatedEquity }]
+    flags.push(`WACC: balance sheet missing — debt weight estimated from Finnhub D/E ratio (${(deRatio * 100).toFixed(1)}%)`)
+  } else if (totalDebt == null && finnhubMetrics == null) {
+    flags.push('⚠ WACC: no balance sheet or Finnhub data — assumes all-equity, intrinsic value likely overstated')
+  }
 
   const { growthRate, source: growthRateSource } = deriveGrowthRate(incomeStatements)
 
@@ -244,7 +294,15 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     currentPrice,
   }
 
-  const waccEst = estimateWACC(profile, balanceSheets, incomeStatements, currentPrice, sharesOutstanding, derivedRatios)
+  const waccEst = estimateWACC(profile, balanceSheetsForWacc, incomeStatements, currentPrice, sharesOutstanding, derivedRatios)
+
+  // Sector-based DCF applicability check
+  const sector = (profile?.sector ?? '').toLowerCase()
+  const industry = (profile?.industry ?? '').toLowerCase()
+  const isReit = sector.includes('real estate') || industry.includes('reit')
+  const isBank = sector.includes('financial') && (industry.includes('bank') || industry.includes('insurance') || industry.includes('diversified financial'))
+  if (isReit) flags.push('⚠ DCF methodology may not apply to REITs — intrinsic value based on FCF, not FFO. Treat with caution.')
+  if (isBank) flags.push('⚠ DCF methodology not standard for banks/financials — FCF not meaningful; balance sheet is the business model.')
 
   let dcfResult = { intrinsicValuePerShare: null, projectedFCFs: [], terminalValue: null, enterpriseValue: null }
   if (freeCashFlow !== null && freeCashFlow < 0) {
@@ -335,6 +393,25 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     })
   }
 
+  // Build structured data-gap map: field → human-readable reason for null value.
+  // Frontend reads this to render inline notes next to N/A cells.
+  const noPrice = historicalPrices.length === 0
+  const noAV    = !finnhubMetrics && noPrice
+  const dataGaps = {}
+  if (coreMetrics.sharpeRatio == null) dataGaps.sharpeRatio = noPrice ? 'No price history — configure AV key' : 'Insufficient returns data'
+  if (coreMetrics.roe == null)         dataGaps.roe          = 'Missing net income or equity data'
+  if (coreMetrics.debtToEquity == null) dataGaps.debtToEquity = balanceSheets.length === 0 ? 'Balance sheet unavailable' : 'Missing debt or equity data'
+  if (coreMetrics.peRatio == null)     dataGaps.peRatio      = coreMetrics.eps == null ? 'No EPS data available' : 'No current price'
+  if (coreMetrics.eps == null)         dataGaps.eps          = 'EPS unavailable from all sources'
+  if (technicals.ma50 == null)         dataGaps.ma50         = noPrice ? 'No price history — configure AV key' : 'Insufficient price data (need 50 days)'
+  if (technicals.ma200 == null)        dataGaps.ma200        = noPrice ? 'No price history — configure AV key' : 'Insufficient price data (need 200 days)'
+  if (technicals.rsi14 == null)        dataGaps.rsi14        = noPrice ? 'No price history — configure AV key' : 'Insufficient price data (need 15 days)'
+  if (dcf.intrinsicValuePerShare == null) {
+    const dcfFlag = flags.find(f => f.startsWith('DCF skipped'))
+    dataGaps.dcf = dcfFlag ? dcfFlag.replace('DCF skipped: ', '') : 'DCF unavailable'
+  }
+  if (coreMetrics.debtToEquity == null && isReit) dataGaps.debtToEquity = 'REIT — uses leverage ratio, not D/E'
+
   const result = {
     ticker,
     derivedRatios,
@@ -343,10 +420,10 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     dcf,
     technicals,
     historicalRevenue: incomeStatements
-      .slice(0, 5)
+      .slice(0, 7)
       .map(s => ({ date: s.date, revenue: s.revenue })),
     historicalFinancials: {
-      incomeStatements: incomeStatements.slice(0, 5).map(s => ({
+      incomeStatements: incomeStatements.slice(0, 7).map(s => ({
         date:               s.date,
         revenue:            s.revenue,
         costOfRevenue:      s.costOfRevenue,
@@ -369,7 +446,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         taxExpense:         s.taxExpense,
         netIncome:          s.netIncome,
       })),
-      balanceSheets: balanceSheets.slice(0, 5).map(s => ({
+      balanceSheets: balanceSheets.slice(0, 7).map(s => ({
         date:                       s.date,
         totalCurrentAssets:         s.totalCurrentAssets,
         totalCurrentLiabilities:    s.totalCurrentLiabilities,
@@ -378,7 +455,7 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
         netDebt:                    s.netDebt,
         totalStockholdersEquity:    s.totalStockholdersEquity,
       })),
-      cashFlows: cashFlows.slice(0, 5).map(s => ({
+      cashFlows: cashFlows.slice(0, 7).map(s => ({
         date:               s.date,
         capitalExpenditure: s.capitalExpenditure,
         changeInWorkingCap: s.changeInWorkingCap,
@@ -388,7 +465,9 @@ export async function runFullAnalysis(ticker, { force = false } = {}) {
     lastFilingDate: incomeStatements[0]?.date ?? null,
     peers: enrichPeersWithMultiples(rawPeers),
     analystTargets,
+    analystConsensus,
     flags,
+    dataGaps,
     metadata
   }
 

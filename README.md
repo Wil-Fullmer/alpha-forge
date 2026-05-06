@@ -12,45 +12,136 @@ Financial analysis tool for instant financial data summaries.
 - 📝 Structured logging
 - 🔄 Reusable business logic across interfaces
 
-## Quick Start
+## Getting Started
+
+### What you'll need
+
+- **Node.js 18 or newer** — [Download at nodejs.org](https://nodejs.org/en/download)  
+  After installing, open a terminal and run `node --version` to confirm. You should see `v18.x.x` or higher.
+- **A terminal** — on Windows, search for "Command Prompt" or "PowerShell" in the Start menu. On Mac, open Spotlight (⌘ Space) and search "Terminal".
+
+### Step 1 — Install dependencies
+
+Open your terminal, navigate to the project folder, then run:
 
 ```bash
-# Install dependencies
 npm install
+```
 
-# Set up environment
+Then install the frontend dependencies:
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+This downloads everything the app needs. It takes 1–2 minutes the first time.
+
+---
+
+### Option A — Demo Mode (no API key needed)
+
+Uses built-in sample stock data. The best way to try the app without any setup.
+
+You'll need **two terminal windows** open in the project folder.
+
+**Terminal 1 — start the data server:**
+```bash
+npm run web:fixtures
+```
+You should see:
+```
+Fixture server  http://localhost:3001
+Mode: static JSON — no API calls, no pipeline
+```
+
+**Terminal 2 — start the web app:**
+```bash
+cd frontend
+npm run dev
+```
+You should see a line that says `Local: http://localhost:5173`
+
+Open **http://localhost:5173** in your browser. You're in.
+
+---
+
+### Option B — Live Mode (requires a free API key)
+
+Pulls real financial data via the Financial Modeling Prep (FMP) API.
+
+#### 1. Get a free API key
+
+1. Go to [financialmodelingprep.com](https://financialmodelingprep.com/developer/docs)
+2. Sign up for a free account
+3. Copy your API key from the dashboard
+
+#### 2. Create your `.env` file
+
+In the project root folder, make a copy of `.env.example` and name it `.env`:
+
+```bash
+# Mac, Linux, or Git Bash on Windows:
 cp .env.example .env
-# Edit .env and add your FMP API key
 
-# Run CLI
+# Windows PowerShell:
+Copy-Item .env.example .env
+
+# Windows Command Prompt:
+copy .env.example .env
+```
+
+Open `.env` in any text editor. Find this line:
+
+```
+FMP_API_KEY=your_api_key_here
+```
+
+Replace `your_api_key_here` with the API key you copied. Save the file.
+
+#### 3. Connect the frontend to the live server
+
+Inside the `frontend/` folder, create a new file named `.env.local` containing:
+
+```
+VITE_API_URL=http://localhost:3000
+```
+
+#### 4. Start the app
+
+You'll need **two terminal windows** open in the project folder.
+
+**Terminal 1 — start the live data server:**
+```bash
+npm run web:dev
+```
+You should see:
+```
+🚀 Server started on http://localhost:3000
+```
+
+**Terminal 2 — start the web app:**
+```bash
+cd frontend
+npm run dev
+```
+
+Open **http://localhost:5173** in your browser.
+
+---
+
+### CLI Mode (advanced)
+
+For running a full analysis from the command line (requires `FMP_API_KEY` in `.env`):
+
+```bash
 npm start -- AAPL
-
-# Run web server
-npm run web
 ```
 
-See [SETUP.md](docs/SETUP.md) for detailed instructions.
+Outputs a JSON report to `data/AAPL-analysis.json`.
 
-## Development Modes
-
-### Fixture mode (no API key required)
-```bash
-npm run web:fixtures        # fixture server on :3001
-cd frontend && npm run dev  # Vite SPA on :5173
-```
-Serves static JSON from `data/fixtures/{TICKER}/`. No FMP calls. Use for all frontend work.
-
-### Live backend mode (requires `FMP_API_KEY` in `.env`)
-```bash
-npm run web:dev             # backend on :3000
-# In frontend: set VITE_API_URL=http://localhost:3000 before npm run dev
-cd frontend && npm run dev
-```
-
-### Full pipeline (CLI)
-```bash
-npm start -- AAPL           # runs analysis, writes data/AAPL-analysis.json
-```
+---
 
 See [docs/BRANCH_HANDOFF.md](docs/BRANCH_HANDOFF.md) for multi-device setup and [docs/API_CONTRACT.md](docs/API_CONTRACT.md) for API endpoint shapes.
 

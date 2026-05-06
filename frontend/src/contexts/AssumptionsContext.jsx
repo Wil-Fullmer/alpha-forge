@@ -1,16 +1,24 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { useConviction } from './ConvictionContext.jsx';
 
-const PROJ_COUNT = 4;
+const PROJ_COUNT = 5;
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
   return a / b;
 }
 
-/**
- * Derive initial assumption values from the raw analysis + company objects.
- * Mirrors the seed logic previously duplicated in WaccTab and ProjectionsTab.
- */
+function applyConviction(seed, conviction) {
+  if (conviction === 'base') return seed;
+  const cons = conviction === 'conservative';
+  return {
+    ...seed,
+    revenueGrowth: seed.revenueGrowth.map(v => v * (cons ? 0.75 : 1.25)),
+    cogsPct:       seed.cogsPct.map(v => Math.min(0.99, v * (cons ? 1.05 : 0.95))),
+    capexPct:      seed.capexPct.map(v => v * (cons ? 1.10 : 0.90)),
+  };
+}
+
 function seedFromAnalysis(analysis, company) {
   const stmts = [...(analysis?.historicalFinancials?.incomeStatements ?? [])].reverse();
   const bss   = [...(analysis?.historicalFinancials?.balanceSheets ?? [])].reverse();
@@ -21,10 +29,9 @@ function seedFromAnalysis(analysis, company) {
   const lastCF = cfs.at(-1) ?? {};
   const rev    = last.revenue ?? 1;
 
-  // Prefer backend canonical derivedRatios; fall back to single-period inline derivation
   const dr = analysis?.derivedRatios ?? {};
 
-  // Tax rate
+  // Tax rate (scalar — for WACC after-tax cost of debt)
   const taxRate = (() => {
     if (dr.taxRate != null) return dr.taxRate;
     const is = analysis?.historicalFinancials?.incomeStatements?.at(0);
@@ -35,39 +42,47 @@ function seedFromAnalysis(analysis, company) {
     return 0.21;
   })();
 
-  // Projection ratios
-  const seedRevGrowth = dr.revenueCAGR   ?? analysis?.dcf?.assumedGrowthRate ?? 0.05;
-  const seedGM    = dr.grossMarginPct ?? safeDiv(last.grossProfit,       rev) ?? 0.45;
-  const seedRD    = dr.rdPct          ?? safeDiv(last.researchAndDev,    rev) ?? 0.08;
-  const seedSGA   = dr.sgaPct         ?? safeDiv(last.sgaExpense,        rev) ?? 0.06;
-  const seedDA    = dr.daPct          ?? safeDiv(last.depreciationAmort, rev) ?? 0.03;
-  const seedNI    = last.netInterestIncome ?? 0;
-  const seedOther = last.otherIncomeExpense ?? 0;
-  const seedCapex = dr.capexPct ?? (lastCF.capitalExpenditure != null
+  // Projection ratio seeds (all as % of revenue or other relevant base)
+  const seedRevGrowth     = dr.revenueCAGR   ?? analysis?.dcf?.assumedGrowthRate ?? 0.05;
+  const seedGM            = dr.grossMarginPct ?? safeDiv(last.grossProfit,       rev) ?? 0.45;
+  const seedRD            = dr.rdPct          ?? safeDiv(last.researchAndDev,    rev) ?? 0.08;
+  const seedSGA           = dr.sgaPct         ?? safeDiv(last.sgaExpense,        rev) ?? 0.06;
+  const seedDA            = dr.daPct          ?? safeDiv(last.depreciationAmort, rev) ?? 0.03;
+  const seedNetInterestPct = rev > 0 ? (last.netInterestIncome ?? 0) / rev : 0;
+  const seedOtherIncomePct = rev > 0 ? (last.otherIncomeExpense ?? 0) / rev : 0;
+  const seedCapex         = dr.capexPct ?? (last.revenue != null && lastCF.capitalExpenditure != null
     ? Math.abs(lastCF.capitalExpenditure) / rev : 0.03);
-  const nwcLast   = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
-  const seedNWC   = dr.nwcPct ?? (last.revenue ? nwcLast / last.revenue : 0.05);
+  const nwcLast           = (lastBS.totalCurrentAssets ?? 0) - (lastBS.totalCurrentLiabilities ?? 0);
+  const seedNWC           = dr.nwcPct ?? (last.revenue ? nwcLast / last.revenue : 0.05);
+
+  const lastNetDebt    = lastBS.netDebt ?? 0;
+  const lastEBIT       = last.operatingIncome ?? 0;
+  const lastDA         = last.depreciationAmort ?? 0;
+  const lastBase       = lastEBIT - lastDA;
+  const seedNetDebtPct = lastBase !== 0 ? lastNetDebt / lastBase : 1.0;
 
   const fill = v => Array(PROJ_COUNT).fill(v);
 
   return {
-    // WACC inputs (owned by WaccTab, editable)
+    // WACC scalar inputs (owned by WaccTab display, editable everywhere via context)
     riskFreeRate: 0.0438,
     beta:         company?.beta ?? 1.0,
     mrp:          0.05,
     costOfDebt:   0.045,
-    taxRate,
+    taxRate,                          // scalar: after-tax cost of debt in WACC
 
-    // Projection ratios (owned by ProjectionsTab, editable)
-    revenueGrowth: fill(seedRevGrowth),
-    grossMargin:   fill(seedGM),
-    rdPct:         fill(seedRD),
-    sgaPct:        fill(seedSGA),
-    daPct:         fill(seedDA),
-    netInterest:   fill(seedNI),
-    otherIncome:   fill(seedOther),
-    capexPct:      fill(seedCapex),
-    nwcPct:        fill(seedNWC),
+    // Projection ratio arrays (per-year, owned by ProjectionsTab display)
+    revenueGrowth:  fill(seedRevGrowth),
+    cogsPct:        fill(1 - seedGM),  // COGS as % of revenue
+    rdPct:          fill(seedRD),
+    sgaPct:         fill(seedSGA),
+    daPct:          fill(seedDA),
+    netInterestPct: fill(seedNetInterestPct),
+    otherIncomePct: fill(seedOtherIncomePct),
+    projTaxRate:    fill(taxRate),     // per-year effective tax rate (array)
+    capexPct:       fill(seedCapex),
+    nwcPct:         fill(seedNWC),
+    netDebtPct:     fill(seedNetDebtPct),
   };
 }
 
@@ -85,6 +100,9 @@ function reducer(state, action) {
       return { ...state, [action.key]: arr };
     }
 
+    case 'FILL_PROJ_RATIO':
+      return { ...state, [action.key]: Array(PROJ_COUNT).fill(action.value) };
+
     default:
       return state;
   }
@@ -93,24 +111,24 @@ function reducer(state, action) {
 const AssumptionsContext = createContext(null);
 
 export function AssumptionsProvider({ analysis, company, children }) {
+  const { conviction } = useConviction();
+
   const [state, dispatch] = useReducer(
     reducer,
     null,
     () => seedFromAnalysis(analysis, company),
   );
 
-  // Re-seed when the ticker (analysis/company) changes
   useEffect(() => {
-    dispatch({ type: 'SEED', payload: seedFromAnalysis(analysis, company) });
-  }, [analysis, company]);
+    dispatch({ type: 'SEED', payload: applyConviction(seedFromAnalysis(analysis, company), conviction) });
+  }, [analysis, company, conviction]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const updateWaccInputs = (patch) => dispatch({ type: 'UPDATE_WACC', patch });
-
-  const updateProjectionRatio = (key, index, value) =>
-    dispatch({ type: 'UPDATE_PROJ_RATIO', key, index, value });
+  const updateWaccInputs     = (patch)               => dispatch({ type: 'UPDATE_WACC',       patch });
+  const updateProjectionRatio = (key, index, value)  => dispatch({ type: 'UPDATE_PROJ_RATIO', key, index, value });
+  const fillProjectionRatio   = (key, value)         => dispatch({ type: 'FILL_PROJ_RATIO',   key, value });
 
   return (
-    <AssumptionsContext.Provider value={{ ...state, updateWaccInputs, updateProjectionRatio }}>
+    <AssumptionsContext.Provider value={{ ...state, updateWaccInputs, updateProjectionRatio, fillProjectionRatio }}>
       {children}
     </AssumptionsContext.Provider>
   );
