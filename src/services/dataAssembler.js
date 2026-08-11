@@ -340,17 +340,26 @@ export async function assemblePeers(ticker, { force = false } = {}) {
         const { annualRows } = secResult
         const secIncome  = normalizeSecIncomeStatement(annualRows)
         const secBalance = normalizeSecBalanceSheet(annualRows)
+        const secCashFlow = normalizeSecCashFlow(annualRows)
         const latestI = secIncome[0]
         const latestB = secBalance[0]
+        const latestCF = secCashFlow[0]
 
         const secRevenue   = latestI?.revenue ?? null
         const secOpInc     = latestI?.operatingIncome ?? null
         const secDA        = latestI?.depreciationAmort ?? null
-        const secEbitda    = secOpInc != null && secDA != null ? secOpInc + secDA : null
+        const secDaFromCF  = latestCF?.depreciationAmort ?? null
+        const secEbitda    = secOpInc != null ? secOpInc + (secDA ?? secDaFromCF ?? 0) : null
         const secNetIncome = latestI?.netIncome ?? null
         const secTotalDebt = latestB?.totalDebt ?? null
         const secCash      = latestB?.cashAndCashEquivalents ?? null
-        const secNetDebt   = latestB?.netDebt ?? null
+        const derivedSecNetDebt = (secTotalDebt != null || secCash != null)
+          ? (secTotalDebt ?? 0) - (secCash ?? 0)
+          : null
+        const peerNetDebt = (peer.totalDebt != null || peer.cashAndCashEquivalents != null)
+          ? (peer.totalDebt ?? 0) - (peer.cashAndCashEquivalents ?? 0)
+          : null
+        const secNetDebt = latestB?.netDebt ?? derivedSecNetDebt
 
         return {
           ...peer,
@@ -359,7 +368,7 @@ export async function assemblePeers(ticker, { force = false } = {}) {
           netIncome:              secNetIncome ?? peer.netIncome,
           totalDebt:              secTotalDebt ?? peer.totalDebt,
           cashAndCashEquivalents: secCash      ?? peer.cashAndCashEquivalents,
-          netDebt:                secNetDebt   ?? peer.netDebt,
+          netDebt:                secNetDebt   ?? peer.netDebt ?? peerNetDebt,
         }
       } catch {
         return peer
@@ -368,7 +377,9 @@ export async function assemblePeers(ticker, { force = false } = {}) {
   )
 
   const safeDiv = (a, b) => (a != null && b != null && b !== 0) ? a / b : null
-  return enriched.map(p => {
+  return enriched
+  .filter(p => p.revenue != null || p.ebitda != null || p.netIncome != null)
+  .map(p => {
     const ev = p.equityValue != null && p.netDebt != null ? p.equityValue + p.netDebt : null
     return {
       ...p,

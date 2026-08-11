@@ -1,26 +1,26 @@
-# Alpha Forge — Project Checklist
+# Alpha Forge - Project Checklist
 
 > Operating checklist. Keep committed after every meaningful change.
-> Current date: 2026-04-29
+> Current date: 2026-05-11
 
 ---
 
 ## Current Status
 
-v2 shipped (2026-04-28). v3 brainstorm complete (2026-04-29). Active branch: `v2`.
-Next: v3 implementation — roadmap in `vault/projects/alpha-forge/brainstorming.md`.
+v2 shipped (2026-04-28). Final Valuation accuracy fixes applied (2026-05-11). Active branch: `v2`.
+Next: verify live AAPL peer enrichment and continue v3 implementation roadmap in `vault/projects/alpha-forge/brainstorming.md`.
 
 ---
 
 ## Current Sprint
 
-**Final Valuation accuracy fixes** — audit complete 2026-04-29, full findings in `vault/projects/alpha-forge/bugs/final-valuation-accuracy.md`
+**Final Valuation accuracy fixes** - audit complete 2026-04-29, full findings in `vault/projects/alpha-forge/bugs/final-valuation-accuracy.md`
 
-- [ ] **FV-1** `dataAssembler.js assemblePeers()` — derive peer netDebt from totalDebt−cash when null; unlocks EV multiples for GOOGL/MSFT (currently null → EV/EBITDA only has 3 data points for AAPL)
-- [ ] **FV-2** `DcfTab.jsx` — cap terminal P/E at normalized value (e.g. 20x) instead of seeding from current market P/E; circular seeding inflates FCFE for high-PE stocks (AAPL 35.6x, NVDA 42x)
-- [ ] **FV-3** `dataAssembler.js assemblePeers()` — add D&A fallback from cash flow statement for EBITDA when income statement D&A is null; fixes GOOGL/MSFT EBITDA = null
-- [ ] **FV-4** `dataAssembler.js assemblePeers()` — filter out peers with all-null financials (revenue/ebitda/netIncome all null); removes contamination from TBCH/NXT/RIME for AAPL
-- [ ] **FV-5** `RelativeValuationTab.jsx` — change `netDebt` truthy check to `!= null`; fixes edge case where netDebt=0 treated as missing
+- [x] **FV-1** `dataAssembler.js assemblePeers()` - derive peer netDebt from totalDebt-cash when null; unlocks EV multiples for GOOGL/MSFT.
+- [x] **FV-2** `DcfTab.jsx` - seed terminal P/E from a normalized 20x value instead of current market P/E.
+- [x] **FV-3** `dataAssembler.js assemblePeers()` - add D&A fallback from cash flow statement for EBITDA when income statement D&A is null.
+- [x] **FV-4** `dataAssembler.js assemblePeers()` - filter out peers with all-null financials (revenue/ebitda/netIncome all null).
+- [x] **FV-5** `RelativeValuationTab.jsx` - change subject `netDebt` truthy check to `!= null`.
 
 ---
 
@@ -28,7 +28,7 @@ Next: v3 implementation — roadmap in `vault/projects/alpha-forge/brainstorming
 
 ### TODO
 
-— empty —
+- [ ] **UX-1** Allow user to adjust decimal places for Revenue and Projections tabs (input or toggle - precision control per tab)
 
 ---
 
@@ -46,10 +46,10 @@ These rules do not change without explicit decision:
 
 ## API Usage Safeguards
 
-- Default `force=false` everywhere — cache is always preferred
-- `CACHE_ENABLED=false` bypasses cache (dev/debug only — never set in production)
-- `MAX_PROVIDER_CALLS=20` — logs a warning when provider HTTP calls exceed threshold per session
-- `ANALYSIS_CACHE_TTL_MS=86400000` — analysis files older than 24 h are treated as stale and rerun
-- Integration tests use `data/AAPL-collected.json` fixture by default — live tests require `RUN_LIVE_TESTS=1`
-- Alpha Vantage fallback activates only when FMP returns 402/429/401/403 — not on first attempt
+- Default `force=false` everywhere - cache is always preferred
+- `CACHE_ENABLED=false` bypasses cache (dev/debug only - never set in production)
+- `MAX_PROVIDER_CALLS=20` - logs a warning when provider HTTP calls exceed threshold per session
+- `ANALYSIS_CACHE_TTL_MS=86400000` - analysis files older than 24 h are treated as stale and rerun
+- Integration tests use `data/AAPL-collected.json` fixture by default - live tests require `RUN_LIVE_TESTS=1`
+- Alpha Vantage fallback activates only when FMP returns 402/429/401/403 - not on first attempt
 - Do not add retry loops, polling, or background refresh without an explicit budget check

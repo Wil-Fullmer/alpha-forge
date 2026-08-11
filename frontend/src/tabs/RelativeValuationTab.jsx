@@ -193,7 +193,7 @@ export default function RelativeValuationTab({ company, analysis, peers: peersPr
   const revenue = incomeStmt?.revenue ? incomeStmt.revenue / 1e6 : null;
   const ebitda = incomeStmt?.ebitda != null ? incomeStmt.ebitda / 1e6 : null;
   const netIncome = incomeStmt?.netIncome ? incomeStmt.netIncome / 1e6 : null;
-  const netDebtM = balanceSheet?.netDebt ? balanceSheet.netDebt / 1e6 : null;
+  const netDebtM = balanceSheet?.netDebt != null ? balanceSheet.netDebt / 1e6 : null;
   const enterpriseValueM = equityValueM != null && netDebtM != null
     ? equityValueM + netDebtM
     : null;

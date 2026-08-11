@@ -287,3 +287,13 @@ Same issue in the nested "Trend Chart" `<CollapsibleSection defaultOpen={false}>
 - Owns Next: frontend/src/App.jsx, frontend/src/pages/CompanyPage.jsx, frontend/src/components/TickerInput.jsx, frontend/src/components/FixtureSelector.jsx, frontend/src/styles.css, frontend/src/tabs/AssumptionsTab.jsx
 - Do Not Touch: .claude/worktrees/**, .claude/settings.local.json, data/AAPL-analysis.json
 - Files Touched: frontend/src/App.jsx, frontend/src/components/CoreMetrics.jsx, frontend/src/components/MarketSnapshot.jsx, frontend/src/components/PctInput.jsx, frontend/src/components/MultipleInput.jsx, frontend/src/components/Sparkline.jsx, frontend/src/styles.css, frontend/src/tabs/DcfTab.jsx, frontend/src/tabs/ProjectionsTab.jsx, frontend/src/tabs/RelativeValuationTab.jsx, frontend/src/tabs/RevenueTab.jsx, frontend/src/tabs/WaccTab.jsx, frontend/src/utils/format.js, src/services/analysisRunner.js, TODO.md, docs/WORKLOG.md
+
+## 2026-05-11 00:12 (America/Denver) - codex
+- Branch: v2
+- Objective: take over Claude's Final Valuation accuracy sprint and implement the active FV fixes.
+- Decisions: derive peer net debt from total debt minus cash when direct netDebt is missing; use SEC cash-flow D&A as an EBITDA fallback; drop peers with no usable financials; seed DCF terminal P/E and FCFE sensitivity center at a normalized 20x instead of the subject's current market P/E; treat zero subject net debt as valid in Relative Valuation.
+- Open Questions: live AAPL peer enrichment still needs a browser/API smoke test with current provider responses; the lower-priority small-sample outlier tuning from the audit remains separate from the TODO sprint.
+- Next Step: run live AAPL peer/valuation smoke once provider access is available, then continue v3 roadmap work.
+- Owns Next: `src/services/dataAssembler.js`, `frontend/src/tabs/DcfTab.jsx`, `frontend/src/tabs/RelativeValuationTab.jsx`
+- Do Not Touch: unrelated frontend redesign files, provider cache policy, `data/fixtures/**`
+- Files Touched: `src/services/dataAssembler.js`, `frontend/src/tabs/DcfTab.jsx`, `frontend/src/tabs/RelativeValuationTab.jsx`, `TODO.md`, `docs/WORKLOG.md`

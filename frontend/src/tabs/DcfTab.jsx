@@ -11,6 +11,7 @@ import CollapsibleSection from '../components/CollapsibleSection.jsx';
 const PROJ_COUNT = 5;
 const GRID_SIZE = 7;
 const HALF = 3;
+const NORMALIZED_TERMINAL_PE = 20;
 
 function safeDiv(a, b) {
   if (a == null || b == null || b === 0) return null;
@@ -98,7 +99,6 @@ function PriceRangeBar({ min, max, current, fcff, fcfe }) {
 
 // Only user-editable values live in state. Everything else is derived inline.
 function buildState(analysis, company, waccOverride, ctxBeta, ctxRfr, ctxMrp) {
-  const peRatio    = analysis?.coreMetrics?.peRatio ?? 20;
   const assumedWACC = waccOverride ?? analysis?.dcf?.assumedWACC ?? 0.10;
   const debtSeries = analysis?.historicalFinancials?.balanceSheets ?? [];
   const latestDebt = debtSeries[0]?.totalDebt;
@@ -109,13 +109,13 @@ function buildState(analysis, company, waccOverride, ctxBeta, ctxRfr, ctxMrp) {
   const mrp  = ctxMrp  ?? 0.05;
   const coe  = rfr + beta * mrp;
   return {
-    terminalPE:          peRatio,
+    terminalPE:          NORMALIZED_TERMINAL_PE,
     terminalEVEBITDA:    15,
     netBorrowingPerYear: Array(PROJ_COUNT).fill(impliedNetBorrowing),
     waccCenter:          assumedWACC,
     evEbitdaCenter:      15,
     coeCenter:           coe,
-    peCenter:            peRatio,
+    peCenter:            NORMALIZED_TERMINAL_PE,
   };
 }
 
